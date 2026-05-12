@@ -12,13 +12,14 @@ Devices (left to right):
 Layout:
   ┌───────────────────────────────────────────────────────┐
   │  ┌────────────────────────────────────────────────┐   │
-  │  │           G2 GLASSES CASE (rear shelf)         │   │
+  │  │  G2 GLASSES CASE (rear shelf)                  │   │
+  │  │  └── slim 4-port USB-C charger hidden below ──┘│   │
   │  └────────────────────────────────────────────────┘   │
   │                                                       │
   │   ▭UH     ○R1     △Omi     ∩Mudra                    │
   │   48sq    42dia   25rt     bar+drape                  │
   │                                                       │
-  │           ══════ cable spine ══════     [USB hub]      │
+  │           ══════ cable spine ══════                    │
   └───────────────────────────────────────────────────────┘
 
 Loadable by cadquery-server via show_object().
@@ -35,7 +36,7 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 140          # total depth (increased for Mudra bar height)
-STAND_H = 22           # base platform height
+STAND_H = 40           # base platform height — tall enough to house flat 4-port charger
 WALL = 2.5             # wall thickness
 CORNER_R = 6           # corner fillet radius
 TOP_FILLET = 1.2       # top edge comfort fillet
@@ -46,11 +47,18 @@ BASE_H = 7             # solid floor below cable channels
 CHANNEL_H = 10         # cable channel height
 CHANNEL_W = 10         # cable channel width
 
-# --- USB-C hub recess (rear-right corner) ---
-HUB_W = 65
-HUB_D = 30
-HUB_H = 12
-HUB_CABLE_W = 14
+# --- USB-C multi-port charger recess (under G2 shelf) ---
+# Sized for the class of slim flat 4-port USB-C wall chargers
+# (e.g. BUDI 34W 4-Port / similar 30-35W flat bricks, ~83×44×14mm).
+# Recess includes ~3mm of tolerance per side and a 2mm cable-pad allowance.
+CHARGER_W = 88         # charger external width  + tolerance
+CHARGER_D = 55         # charger external depth  + tolerance
+CHARGER_H = 17         # charger external height + tolerance
+CHARGER_FLOOR = 2      # wall thickness above charger (under G2 pocket)
+CHARGER_CABLE_W = 14   # input USB-C cable slot through rear wall
+# Legacy aliases for any external scripts that referenced the old names.
+HUB_W, HUB_D, HUB_H = CHARGER_W, CHARGER_D, CHARGER_H
+HUB_CABLE_W = CHARGER_CABLE_W
 
 # --- Device 1: Ultrahuman Ring Air — SQUARE dock ---
 UH_SIDE = 48 + TOL * 2       # square side length
@@ -173,22 +181,28 @@ def build_stand():
         )
         base = base.cut(branch)
 
-    # ── USB-C hub recess (rear-right) ────────────────────────────────────
-    hub_x = STAND_W / 2 - HUB_W / 2 - WALL * 2
-    hub_y = STAND_D / 2 - HUB_D / 2 - WALL
-    hub = (
+    # ── USB-C charger recess (under G2 shelf) ────────────────────────────
+    # Open from the bottom; sits below the G2 case pocket. Charger inserts
+    # through the bottom access panel.
+    gx_anchor, gy_anchor = POSITIONS["g2_case"]
+    charger_x = gx_anchor
+    charger_y = gy_anchor
+    charger_top_z = STAND_H - G2_CRADLE_DEPTH - CHARGER_FLOOR
+    charger_bottom_z = charger_top_z - CHARGER_H
+    charger = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H - 2)
-        .center(hub_x, hub_y)
-        .box(HUB_W, HUB_D, HUB_H, centered=[True, True, False])
+        .workplane(offset=charger_bottom_z)
+        .center(charger_x, charger_y)
+        .box(CHARGER_W, CHARGER_D, CHARGER_H + 0.5,
+             centered=[True, True, False])
     )
-    base = base.cut(hub)
-    # Input cable slot through rear wall
+    base = base.cut(charger)
+    # Input cable slot through rear wall (at charger level)
     usb_slot = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .center(hub_x, STAND_D / 2)
-        .box(HUB_CABLE_W, WALL * 4, 8, centered=True)
+        .workplane(offset=charger_bottom_z + 4)
+        .center(charger_x, STAND_D / 2)
+        .box(CHARGER_CABLE_W, WALL * 4, 8, centered=True)
     )
     base = base.cut(usb_slot)
 
@@ -327,11 +341,15 @@ def build_stand():
     base = base.cut(g2_cable)
 
     # ── Bottom access panel ──────────────────────────────────────────────
+    # Cuts an opening from the underside of the stand large enough to slide
+    # the charger in/out. Depth = charger height + a sliver so the cover
+    # plate can latch flush.
+    panel_depth = CHARGER_H + 2
     panel = (
         cq.Workplane("XY")
         .workplane(offset=-0.5)
-        .center(hub_x, hub_y)
-        .box(HUB_W + 10, HUB_D + 6, BASE_H - 1,
+        .center(charger_x, charger_y)
+        .box(CHARGER_W + 8, CHARGER_D + 6, panel_depth,
              centered=[True, True, False])
     )
     base = base.cut(panel)
@@ -370,13 +388,14 @@ def build_cover():
              centered=[True, True, False])
     )
     cover = cover.edges("|Z").fillet(CORNER_R - 1)
-    # Hub window
+    # Charger access window (under G2 shelf)
+    cgx, cgy = POSITIONS["g2_case"]
     window = (
         cq.Workplane("XY")
         .workplane(offset=-0.5)
-        .center(STAND_W / 2 - HUB_W / 2 - WALL * 2,
-                STAND_D / 2 - HUB_D / 2 - WALL)
-        .box(HUB_W - 4, HUB_D - 4, 3, centered=[True, True, False])
+        .center(cgx, cgy)
+        .box(CHARGER_W - 4, CHARGER_D - 4, 3,
+             centered=[True, True, False])
     )
     cover = cover.cut(window)
     cover = cover.translate((0, 0, -2.0))

@@ -12,8 +12,8 @@ Rear row:
   6. iPad                  — vertical slot behind G2 (landscape, fits 11" Pro)
 
 Design goals:
-  - Single USB-C input to internal USB hub
-  - Hidden cable routing channels
+  - Single AC input to internal slim 4-port USB-C charger (under G2 shelf)
+  - Hidden cable routing channels in the bottom tray cavity
   - Each charger sits in a fitted pocket with cable pass-through
   - Mudra wristband drapes over pole arm shelf; charger flush in underside
   - Clean desktop aesthetic
@@ -33,15 +33,16 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 30           # TOTAL assembled height (bottom + top)
+STAND_H = 38           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 0.5              # print tolerance per side
 
 # --- Two-part split ---
-# Bottom tray: cable management, USB hub, rubber feet
+# Bottom tray: cable management, USB-C charger, rubber feet
 # Top tray: device pockets, Mudra pole, iPad wall — sits on top of bottom
-SPLIT_Z = 14           # Z where the two parts meet (bottom tray height)
+# Bottom tray height raised to 22mm to house slim 4-port USB-C charger.
+SPLIT_Z = 22           # Z where the two parts meet (bottom tray height)
 TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
 SNAP_LIP = 1.5         # ledge depth for snap engagement
@@ -54,11 +55,18 @@ BASE_H = 3             # solid floor at very bottom of bottom tray
 CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height (~8.5mm)
 CHANNEL_W = 12         # cable channel width (wider for better cable mgmt)
 
-# --- USB-C hub recess (rear-right corner) ---
-HUB_W = 65             # small 4-port USB-C hub
-HUB_D = 30
-HUB_H = 12
-HUB_CABLE_SLOT_W = 14  # slot for input USB-C cable
+# --- USB-C multi-port charger recess (under G2 shelf) ---
+# Sized for the class of slim flat 4-port USB-C wall chargers
+# (e.g. BUDI 34W 4-Port / similar 30-35W flat bricks, ~83×44×14mm).
+# The charger sits flush in the bottom tray cavity, accessed by
+# removing the top tray.
+CHARGER_W = 88         # charger external width  + tolerance
+CHARGER_D = 55         # charger external depth  + tolerance
+CHARGER_H = 17         # charger external height + tolerance
+CHARGER_CABLE_SLOT_W = 14  # slot for input USB-C cable through rear wall
+# Legacy aliases retained so any older references compile.
+HUB_W, HUB_D, HUB_H = CHARGER_W, CHARGER_D, CHARGER_H
+HUB_CABLE_SLOT_W = CHARGER_CABLE_SLOT_W
 USBC_HEAD_W = 14       # USB-C connector head width (long axis)
 USBC_HEAD_H = 9        # USB-C connector head height (short axis)
 
@@ -221,23 +229,25 @@ def build_bottom_tray():
         )
         tray = tray.cut(hole)
 
-    # ── USB-C hub recess (rear-right) ────────────────────────────────────
-    hub_x = STAND_W / 2 - HUB_W / 2 - WALL * 2
-    hub_y = STAND_D / 2 - HUB_D / 2 - WALL
-    hub = (
+    # ── USB-C charger recess (under G2 shelf) ────────────────────────────
+    # Charger sits in the bottom tray cavity, centered under where the
+    # G2 case pocket lives on the top tray. Cable channels and ribs in
+    # this region were already cleared by the hollow cavity above.
+    charger_x, charger_y = SLOT_POSITIONS["g2_case"]
+    charger = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
-        .center(hub_x, hub_y)
-        .box(HUB_W, HUB_D, HUB_H, centered=[True, True, False])
+        .center(charger_x, charger_y)
+        .box(CHARGER_W, CHARGER_D, CHARGER_H, centered=[True, True, False])
     )
-    tray = tray.cut(hub)
+    tray = tray.cut(charger)
 
-    # Input cable slot through rear wall
+    # Input cable slot through rear wall (at charger level)
     usb_slot = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .center(hub_x, STAND_D / 2)
-        .box(HUB_CABLE_SLOT_W, WALL * 4, 8, centered=True)
+        .workplane(offset=BASE_H + 4)
+        .center(charger_x, STAND_D / 2)
+        .box(CHARGER_CABLE_SLOT_W, WALL * 4, 8, centered=True)
     )
     tray = tray.cut(usb_slot)
 
