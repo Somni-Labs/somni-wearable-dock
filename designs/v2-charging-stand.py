@@ -88,7 +88,10 @@ OMI_VERTEX_R = 5              # fillet radius on triangle vertices
 MUDRA_BAR_W = 30              # bar width (wristband is 22mm wide)
 MUDRA_BAR_H = 25              # bar height above stand surface
 MUDRA_BAR_D = 8               # bar thickness (depth)
-MUDRA_BAR_R = 4               # bar top radius (rounded for draping)
+# Top fillet kept safely under half the shortest face dimension (D/2 = 4)
+# so opposing fillets don't meet and trip OCCT's BRep_API.
+MUDRA_BAR_R = min(3.0, MUDRA_BAR_D / 2 - 0.5)  # bar top radius (rounded for draping)
+MUDRA_BAR_VERT_R = 1.5        # vertical-edge fillet (small to avoid compounding)
 MUDRA_TRAY_W = 40             # tray below bar for charger cable
 MUDRA_TRAY_D = 25
 MUDRA_TRAY_DEPTH = 8
@@ -311,7 +314,7 @@ def build_stand():
     # Round the top edges so the wristband drapes smoothly
     bar = bar.edges(">Z").fillet(MUDRA_BAR_R)
     # Round vertical edges too
-    bar = bar.edges("|Z").fillet(2)
+    bar = bar.edges("|Z").fillet(MUDRA_BAR_VERT_R)
     base = base.union(bar)
 
     # =====================================================================
