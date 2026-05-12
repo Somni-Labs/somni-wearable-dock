@@ -3,35 +3,29 @@ Wearable Charging Stand — V2
 Unified charging dock for 5 wearable devices, all USB-C powered.
 
 Devices (left to right):
-  1. Ultrahuman Ring Air   — circular charging puck ~48mm dia × 16mm
-  2. Even Realities R1     — NFC magnetic charger ~42mm dia × 14mm
-  3. Omi DevKit 2          — cylindrical pendant 25mm dia × 15mm, pogo-pin
-  4. Mudra Link            — wristband sensor pod 50×35×22mm (coiled on charger)
-  5. Even Realities G2     — glasses charging case ~165×70×35mm
+  1. Ultrahuman Ring Air   — SQUARE charging dock ~48×48×16mm
+  2. Even Realities R1     — CIRCULAR NFC magnetic charger ~42mm dia × 14mm
+  3. Omi DevKit 2          — ROUNDED TRIANGLE pendant 25mm × 15mm (Reuleaux shape)
+  4. Mudra Link            — wristband HANGS over a bar/saddle, charger below
+  5. Even Realities G2     — glasses charging case ~165×70×35mm (rear shelf)
 
 Layout:
-  ┌─────────────────────────────────────────────────────┐
-  │  ┌──────────────────────────────────────────────┐   │
-  │  │            G2 GLASSES CASE (rear shelf)      │   │
-  │  └──────────────────────────────────────────────┘   │
-  │                                                     │
-  │   (UH)     (R1)     (Omi)    (Mudra)                │
-  │   ○48mm    ○42mm    ○25mm    ▭50×35                 │
-  │                                                     │
-  │            ══════ cable spine ══════    [USB hub]    │
-  └─────────────────────────────────────────────────────┘
-
-Design goals:
-  - Single USB-C input → internal USB-C hub → all 5 chargers
-  - Hidden cable routing (spine + branches inside base)
-  - Each charger sits in a fitted pocket with cable pass-through
-  - Clean desktop aesthetic, rounded edges
-  - Fits QIDI Q2 build plate (245×255mm) — may need 2-piece split
+  ┌───────────────────────────────────────────────────────┐
+  │  ┌────────────────────────────────────────────────┐   │
+  │  │           G2 GLASSES CASE (rear shelf)         │   │
+  │  └────────────────────────────────────────────────┘   │
+  │                                                       │
+  │   ▭UH     ○R1     △Omi     ∩Mudra                    │
+  │   48sq    42dia   25rt     bar+drape                  │
+  │                                                       │
+  │           ══════ cable spine ══════     [USB hub]      │
+  └───────────────────────────────────────────────────────┘
 
 Loadable by cadquery-server via show_object().
 """
 
 import cadquery as cq
+import math
 from cq_server.ui import ui, show_object
 
 # =============================================================================
@@ -39,8 +33,8 @@ from cq_server.ui import ui, show_object
 # =============================================================================
 
 # --- Overall stand ---
-STAND_W = 240          # total width (fits Q2 245mm plate with margin)
-STAND_D = 130          # total depth (front cradles + rear G2 shelf)
+STAND_W = 240          # total width (fits Q2 245mm plate)
+STAND_D = 140          # total depth (increased for Mudra bar height)
 STAND_H = 22           # base platform height
 WALL = 2.5             # wall thickness
 CORNER_R = 6           # corner fillet radius
@@ -51,72 +45,95 @@ TOL = 0.5              # print tolerance per side
 BASE_H = 7             # solid floor below cable channels
 CHANNEL_H = 10         # cable channel height
 CHANNEL_W = 10         # cable channel width
-SPINE_Y = 0            # spine runs at Y=0 (center line)
 
 # --- USB-C hub recess (rear-right corner) ---
-HUB_W = 65             # compact 4-port USB-C hub
+HUB_W = 65
 HUB_D = 30
 HUB_H = 12
-HUB_CABLE_W = 14       # USB-C input cable slot through rear wall
+HUB_CABLE_W = 14
 
-# --- Device 1: Ultrahuman Ring Air charging puck ---
-# The UH charger is a circular puck with a concave top to seat the ring.
-# Size-specific; dims estimated from product photos + 3D print community.
-UH_DIA = 48 + TOL * 2       # puck outer diameter
-UH_H = 16                    # puck height
-UH_CRADLE_DEPTH = 12         # how deep puck sits in cradle
-UH_CABLE_DIA = 6             # USB-C cable pass-through
+# --- Device 1: Ultrahuman Ring Air — SQUARE dock ---
+UH_SIDE = 48 + TOL * 2       # square side length
+UH_H = 16                     # dock height
+UH_CRADLE_DEPTH = 12          # how deep it sits
+UH_CORNER_R = 4               # rounded corners on the square pocket
+UH_CABLE_DIA = 6
 
-# --- Device 2: Even Realities R1 ring NFC charger ---
-# Small magnetic pedestal connected to USB-C cable.
-R1_DIA = 42 + TOL * 2       # charger diameter
-R1_H = 14                    # charger height
-R1_CRADLE_DEPTH = 10         # how deep it sits
-R1_CABLE_DIA = 6             # USB-C cable pass-through
+# --- Device 2: Even Realities R1 — CIRCULAR charger ---
+R1_DIA = 42 + TOL * 2        # charger diameter
+R1_H = 14
+R1_CRADLE_DEPTH = 10
+R1_CABLE_DIA = 6
 
-# --- Device 3: Omi DevKit 2 pendant ---
-# Cylindrical puck, 25mm diameter, charges via pogo-pin magnetic USB-C dock.
-OMI_DIA = 25 + TOL * 2      # pendant diameter
-OMI_H = 15                   # pendant height
-OMI_CRADLE_DEPTH = 10        # how deep the cradle cup is
-OMI_CABLE_DIA = 5            # pogo-pin cable diameter
+# --- Device 3: Omi DevKit 2 — ROUNDED TRIANGLE (Reuleaux-ish) ---
+# The pendant is roughly a triangle with heavily rounded vertices,
+# like a guitar pick or Reuleaux triangle. ~25mm across.
+OMI_SIZE = 25 + TOL * 2      # point-to-flat distance
+OMI_H = 15
+OMI_CRADLE_DEPTH = 10
+OMI_CABLE_DIA = 5
+OMI_VERTEX_R = 5              # fillet radius on triangle vertices
 
-# --- Device 4: Mudra Link wristband ---
-# Wristband coiled on its proprietary magnetic charger.
-# Sensor pod is 22mm wide × 10mm thick; when coiled for charging
-# the footprint is roughly 50×35mm.
-MUDRA_W = 50 + TOL * 2      # pocket width
-MUDRA_D = 35 + TOL * 2      # pocket depth
-MUDRA_H = 22                 # height when coiled
-MUDRA_CRADLE_DEPTH = 14      # pocket depth
-MUDRA_POCKET_R = 4           # pocket corner radius
-MUDRA_CABLE_DIA = 5          # charging cable pass-through
+# --- Device 4: Mudra Link — WRISTBAND HANGS over a bar ---
+# The wristband drapes over a raised bar/saddle. The charging cable
+# connects underneath. Bar dimensions:
+MUDRA_BAR_W = 30              # bar width (wristband is 22mm wide)
+MUDRA_BAR_H = 25              # bar height above stand surface
+MUDRA_BAR_D = 8               # bar thickness (depth)
+MUDRA_BAR_R = 4               # bar top radius (rounded for draping)
+MUDRA_TRAY_W = 40             # tray below bar for charger cable
+MUDRA_TRAY_D = 25
+MUDRA_TRAY_DEPTH = 8
+MUDRA_CABLE_DIA = 5
 
-# --- Device 5: Even Realities G2 glasses charging case ---
-# Clamshell case with built-in battery, USB-C charging port on one end.
-# Pogo-pin magnetic alignment charges the glasses inside.
-G2_W = 165 + TOL * 2        # case length
-G2_D = 70 + TOL * 2         # case width/depth
-G2_H = 35                    # case height
-G2_CRADLE_DEPTH = 18         # how deep the case sits
-G2_CABLE_W = 14              # USB-C cable slot width
+# --- Device 5: Even Realities G2 case — rectangular shelf ---
+G2_W = 165 + TOL * 2
+G2_D = 70 + TOL * 2
+G2_H = 35
+G2_CRADLE_DEPTH = 18
+G2_CABLE_W = 14
+G2_POCKET_R = 8
 
-# --- Layout (X, Y positions relative to stand center) ---
-# Front row: 4 small devices spread across the width
-# Rear row: G2 case centered
-FRONT_Y = -STAND_D / 2 + 38          # front row center Y
-REAR_Y = STAND_D / 2 - G2_D / 2 - 8  # rear row center Y
+# --- Layout positions ---
+FRONT_Y = -STAND_D / 2 + 40
+REAR_Y = STAND_D / 2 - G2_D / 2 - 8
 
-# Front row X positions (left to right, roughly evenly spaced)
-FRONT_SPACING = 52
-FRONT_START = -1.5 * FRONT_SPACING    # start offset for 4 items
+FRONT_SPACING = 54
+FRONT_START = -1.5 * FRONT_SPACING
 POSITIONS = {
-    "uh_ring":  (FRONT_START,                    FRONT_Y),
-    "r1_ring":  (FRONT_START + FRONT_SPACING,    FRONT_Y),
+    "uh_ring":  (FRONT_START,                     FRONT_Y),
+    "r1_ring":  (FRONT_START + FRONT_SPACING,     FRONT_Y),
     "omi":      (FRONT_START + FRONT_SPACING * 2, FRONT_Y),
     "mudra":    (FRONT_START + FRONT_SPACING * 3, FRONT_Y),
-    "g2_case":  (0,                               REAR_Y),
+    "g2_case":  (0,                                REAR_Y),
 }
+
+
+# =============================================================================
+# HELPER: Rounded equilateral triangle (Reuleaux-style)
+# =============================================================================
+
+def rounded_triangle_wire(wp, size, fillet_r):
+    """
+    Create a rounded equilateral triangle (like a guitar pick / the Omi pendant).
+    `size` is the distance from center to vertex before filleting.
+    Returns a workplane with a closed wire ready for extrude/cut.
+    """
+    h = size * math.sqrt(3) / 2
+    cy = h / 3
+    pts = [
+        (0, 2 * h / 3),
+        (-size / 2, -h / 3),
+        (size / 2, -h / 3),
+    ]
+    return (
+        wp
+        .sketch()
+        .polygon(pts, mode="a")
+        .vertices()
+        .fillet(fillet_r)
+        .finalize()
+    )
 
 
 # =============================================================================
@@ -124,7 +141,7 @@ POSITIONS = {
 # =============================================================================
 
 def build_stand():
-    """Build the charging stand platform with cradles and cable routing."""
+    """Build the charging stand with correctly shaped cradles."""
 
     # ── Base slab ────────────────────────────────────────────────────────
     base = (
@@ -134,42 +151,29 @@ def build_stand():
     base = base.edges("|Z").fillet(CORNER_R)
     base = base.edges(">Z").fillet(TOP_FILLET)
 
-    # ── Cable spine (horizontal channel running left-right at Y=0) ───────
+    # ── Cable spine (horizontal channel, left-right at Y=0) ──────────────
     spine = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
-        .box(
-            STAND_W - WALL * 4,
-            CHANNEL_W,
-            CHANNEL_H,
-            centered=[True, True, False],
-        )
+        .box(STAND_W - WALL * 4, CHANNEL_W, CHANNEL_H,
+             centered=[True, True, False])
     )
     base = base.cut(spine)
 
-    # ── Branch channels (spine → each device) ────────────────────────────
+    # ── Branch channels from spine to each device ────────────────────────
     for name, (px, py) in POSITIONS.items():
-        if name == "g2_case":
-            # G2 gets a wider channel from spine toward rear
-            branch = (
-                cq.Workplane("XY")
-                .workplane(offset=BASE_H)
-                .center(px, (SPINE_Y + py) / 2)
-                .box(CHANNEL_W + 2, abs(py - SPINE_Y) + CHANNEL_W, CHANNEL_H,
-                     centered=[True, True, False])
-            )
-        else:
-            # Front-row devices: branch from spine toward front
-            branch = (
-                cq.Workplane("XY")
-                .workplane(offset=BASE_H)
-                .center(px, (SPINE_Y + py) / 2)
-                .box(CHANNEL_W, abs(py - SPINE_Y) + CHANNEL_W, CHANNEL_H,
-                     centered=[True, True, False])
-            )
+        bw = CHANNEL_W + 2 if name == "g2_case" else CHANNEL_W
+        mid_y = py / 2  # halfway between spine (Y=0) and device
+        branch = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(px, mid_y)
+            .box(bw, abs(py) + CHANNEL_W, CHANNEL_H,
+                 centered=[True, True, False])
+        )
         base = base.cut(branch)
 
-    # ── USB-C hub recess (rear-right, accessible from back) ──────────────
+    # ── USB-C hub recess (rear-right) ────────────────────────────────────
     hub_x = STAND_W / 2 - HUB_W / 2 - WALL * 2
     hub_y = STAND_D / 2 - HUB_D / 2 - WALL
     hub = (
@@ -179,8 +183,7 @@ def build_stand():
         .box(HUB_W, HUB_D, HUB_H, centered=[True, True, False])
     )
     base = base.cut(hub)
-
-    # USB-C input slot through rear wall
+    # Input cable slot through rear wall
     usb_slot = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
@@ -189,17 +192,22 @@ def build_stand():
     )
     base = base.cut(usb_slot)
 
-    # ── CRADLE 1: Ultrahuman Ring Air (circular cup) ─────────────────────
+    # =====================================================================
+    # CRADLE 1: Ultrahuman Ring Air — SQUARE pocket with rounded corners
+    # =====================================================================
     ux, uy = POSITIONS["uh_ring"]
-    uh_cup = (
+    uh_pocket = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
         .center(ux, uy)
-        .circle(UH_DIA / 2)
+        .sketch()
+        .rect(UH_SIDE, UH_SIDE)
+        .vertices()
+        .fillet(UH_CORNER_R)
+        .finalize()
         .extrude(UH_CRADLE_DEPTH + 1)
     )
-    base = base.cut(uh_cup)
-    # Cable pass-through
+    base = base.cut(uh_pocket)
     uh_cable = (
         cq.Workplane("XY")
         .center(ux, uy)
@@ -208,7 +216,9 @@ def build_stand():
     )
     base = base.cut(uh_cable)
 
-    # ── CRADLE 2: Even R1 Ring (circular cup) ────────────────────────────
+    # =====================================================================
+    # CRADLE 2: Even R1 Ring — CIRCULAR pocket
+    # =====================================================================
     rx, ry = POSITIONS["r1_ring"]
     r1_cup = (
         cq.Workplane("XY")
@@ -218,7 +228,6 @@ def build_stand():
         .extrude(R1_CRADLE_DEPTH + 1)
     )
     base = base.cut(r1_cup)
-    # Cable pass-through
     r1_cable = (
         cq.Workplane("XY")
         .center(rx, ry)
@@ -227,17 +236,18 @@ def build_stand():
     )
     base = base.cut(r1_cable)
 
-    # ── CRADLE 3: Omi DevKit 2 (circular cup, smaller) ───────────────────
+    # =====================================================================
+    # CRADLE 3: Omi DevKit 2 — ROUNDED TRIANGLE pocket
+    # =====================================================================
     ox, oy = POSITIONS["omi"]
-    omi_cup = (
+    omi_wp = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
         .center(ox, oy)
-        .circle(OMI_DIA / 2)
-        .extrude(OMI_CRADLE_DEPTH + 1)
     )
-    base = base.cut(omi_cup)
-    # Cable pass-through
+    omi_pocket = rounded_triangle_wire(omi_wp, OMI_SIZE, OMI_VERTEX_R)
+    omi_pocket = omi_pocket.extrude(OMI_CRADLE_DEPTH + 1)
+    base = base.cut(omi_pocket)
     omi_cable = (
         cq.Workplane("XY")
         .center(ox, oy)
@@ -246,22 +256,27 @@ def build_stand():
     )
     base = base.cut(omi_cable)
 
-    # ── CRADLE 4: Mudra Link (rounded rectangular pocket) ────────────────
+    # =====================================================================
+    # CRADLE 4: Mudra Link — raised BAR for wristband to drape over
+    # + small tray underneath for the charger cable connection
+    # =====================================================================
     mx, my = POSITIONS["mudra"]
-    # Use a sketch for rounded rectangle
-    mudra_pocket = (
+
+    # Tray (recessed pocket under where the wristband hangs)
+    mudra_tray = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - MUDRA_CRADLE_DEPTH)
+        .workplane(offset=STAND_H - MUDRA_TRAY_DEPTH)
         .center(mx, my)
         .sketch()
-        .rect(MUDRA_W, MUDRA_D)
+        .rect(MUDRA_TRAY_W, MUDRA_TRAY_D)
         .vertices()
-        .fillet(MUDRA_POCKET_R)
+        .fillet(3)
         .finalize()
-        .extrude(MUDRA_CRADLE_DEPTH + 1)
+        .extrude(MUDRA_TRAY_DEPTH + 1)
     )
-    base = base.cut(mudra_pocket)
-    # Cable pass-through
+    base = base.cut(mudra_tray)
+
+    # Cable pass-through in tray floor
     mudra_cable = (
         cq.Workplane("XY")
         .center(mx, my)
@@ -270,7 +285,24 @@ def build_stand():
     )
     base = base.cut(mudra_cable)
 
-    # ── CRADLE 5: Even G2 case (large rounded rectangular shelf) ─────────
+    # Raised bar/saddle — wristband drapes over this
+    # Bar sits on the stand surface, centered over the tray
+    bar = (
+        cq.Workplane("XY")
+        .workplane(offset=STAND_H)
+        .center(mx, my)
+        .box(MUDRA_BAR_W, MUDRA_BAR_D, MUDRA_BAR_H,
+             centered=[True, True, False])
+    )
+    # Round the top edges so the wristband drapes smoothly
+    bar = bar.edges(">Z").fillet(MUDRA_BAR_R)
+    # Round vertical edges too
+    bar = bar.edges("|Z").fillet(2)
+    base = base.union(bar)
+
+    # =====================================================================
+    # CRADLE 5: Even G2 glasses case — rectangular shelf
+    # =====================================================================
     gx, gy = POSITIONS["g2_case"]
     g2_pocket = (
         cq.Workplane("XY")
@@ -279,7 +311,7 @@ def build_stand():
         .sketch()
         .rect(G2_W, G2_D)
         .vertices()
-        .fillet(8)
+        .fillet(G2_POCKET_R)
         .finalize()
         .extrude(G2_CRADLE_DEPTH + 1)
     )
@@ -289,33 +321,18 @@ def build_stand():
         cq.Workplane("XY")
         .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
         .center(gx, STAND_D / 2)
-        .box(G2_CABLE_W, WALL * 4, G2_CRADLE_DEPTH, centered=[True, True, False])
+        .box(G2_CABLE_W, WALL * 4, G2_CRADLE_DEPTH,
+             centered=[True, True, False])
     )
     base = base.cut(g2_cable)
 
-    # ── Identification dots (small raised bumps next to each cradle) ─────
-    DOT_R = 2.5
-    DOT_H = 0.6
-    for name, (px, py) in POSITIONS.items():
-        if name == "g2_case":
-            dy = py - G2_D / 2 - 6
-        else:
-            dy = py - 20
-        dot = (
-            cq.Workplane("XY")
-            .workplane(offset=STAND_H)
-            .center(px, dy)
-            .circle(DOT_R)
-            .extrude(DOT_H)
-        )
-        base = base.union(dot)
-
-    # ── Bottom access panel (rectangular cutout to reach hub + cables) ────
+    # ── Bottom access panel ──────────────────────────────────────────────
     panel = (
         cq.Workplane("XY")
         .workplane(offset=-0.5)
         .center(hub_x, hub_y)
-        .box(HUB_W + 10, HUB_D + 6, BASE_H - 1, centered=[True, True, False])
+        .box(HUB_W + 10, HUB_D + 6, BASE_H - 1,
+             centered=[True, True, False])
     )
     base = base.cut(panel)
 
@@ -353,8 +370,7 @@ def build_cover():
              centered=[True, True, False])
     )
     cover = cover.edges("|Z").fillet(CORNER_R - 1)
-
-    # Window over hub area so you can still reach it
+    # Hub window
     window = (
         cq.Workplane("XY")
         .workplane(offset=-0.5)
@@ -363,7 +379,6 @@ def build_cover():
         .box(HUB_W - 4, HUB_D - 4, 3, centered=[True, True, False])
     )
     cover = cover.cut(window)
-
     cover = cover.translate((0, 0, -2.0))
     return cover
 
