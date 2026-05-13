@@ -9,7 +9,7 @@ Devices (front row, left to right):
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
 Rear row:
   5. Even Realities G2     — glasses charging case 170×75×30mm
-  6. iPad                  — vertical slot behind G2 (landscape, fits 11" Pro)
+  6. iPad                  — wide slot behind G2 (fits 13" Pro, diagonal if cased)
 
 Design goals:
   - Single AC input to internal slim 4-port USB-C charger (under G2 shelf)
@@ -133,15 +133,18 @@ G2_CRADLE_DEPTH = 18          # how deep case sits
 G2_CABLE_W = 14               # USB-C cable slot
 
 # --- Device 6: iPad slot (rear, behind G2 case) ---
-# iPad Pro 11" in landscape: 249.7 × 177.5 × 5.3mm
-# With a thick rugged case: ~20mm thick, ~260 × 190mm overall
+# iPad Pro 13" in landscape: 267 × 213 × ~6mm (actual device)
+# With a thin case: ~270 × 215mm overall (optimized for print bed fit)
+# NOTE: For thick cases, iPad can be placed diagonally in the wider slot
 # Slot has a back wall the iPad leans against.
-IPAD_SLOT_W = 220             # slot width (X) — fits cased 11" landscape
-IPAD_SLOT_GAP = 22            # slot gap (Y) — iPad + thick case (~20mm)
+IPAD_SLOT_W = 235             # slot width (X) — max width for 245mm print bed
+IPAD_SLOT_GAP = 24            # slot gap (Y) — iPad + case thickness (~22mm + tolerance)
 IPAD_SLOT_DEPTH = 20          # how deep iPad sits into the base slot
-IPAD_BACK_H = 55              # back wall height above base (support wall)
+IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad)
 IPAD_BACK_THICK = 4           # back wall thickness
 IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
+# Diagonal placement: 13" iPad (270mm) can fit diagonally in 235mm slot
+# sin(angle) = 235/270 = 0.87, angle ≈ 60° from horizontal
 
 # --- Layout positions (X, Y from center) ---
 FRONT_ROW_Y = -STAND_D / 2 + 38
