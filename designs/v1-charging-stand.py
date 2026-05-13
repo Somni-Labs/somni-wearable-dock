@@ -3,7 +3,7 @@ Wearable Charging Stand — V1
 Unified charging dock for 5 wearable devices + iPad slot, all USB-C powered.
 
 Devices (front row, left to right):
-  1. Ultrahuman Ring Air   — SQUARE charging dock ~48×48×16mm
+  1. Ultrahuman Ring Air   — SQUARE charging dock 39×39×13mm
   2. Even Realities R1     — CIRCULAR NFC magnetic charger ~42mm dia × 14mm
   3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
@@ -71,9 +71,9 @@ USBC_HEAD_W = 14       # USB-C connector head width (long axis)
 USBC_HEAD_H = 9        # USB-C connector head height (short axis)
 
 # --- Device 1: Ultrahuman Ring Air — SQUARE dock ---
-UH_SIDE = 48 + TOL * 2       # square side length
-UH_H = 16                     # dock height
-UH_CRADLE_DEPTH = 12          # how deep it sits
+UH_SIDE = 39 + TOL * 2       # square side length (measured: 39mm)
+UH_H = 13                     # dock height (measured: 13mm)
+UH_CRADLE_DEPTH = 10          # how deep it sits (proportional to new height)
 UH_CORNER_R = 4               # rounded corners on the square
 
 # --- Device 2: Even Realities R1 — CIRCULAR charger ---
