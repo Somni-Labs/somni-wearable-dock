@@ -111,14 +111,14 @@ OMI_VERTEX_R = 3             # small fillet for six-sided diamond vertices
 #   - Vertical clearance below shelf > band half-circ + clasp (~74mm)
 #   - Shelf width (Y) ≈ band width for passive self-centering
 #   - Charger pocket open from top — charger drops in flush
-MUDRA_POLE_W = 30             # pole Y-extent (wide enough for charger)
-MUDRA_POLE_D = 22             # pole X-thickness (houses charger + cable bend)
-MUDRA_POLE_H = 90             # vertical section height (74mm clearance + 16mm shelf)
-MUDRA_SHELF_L = 40            # shelf length extending right (+X) — room for rotated charger
-MUDRA_SHELF_H = 16            # shelf thickness (Z) — tall enough for charger bay
-MUDRA_CHARGER_W = 20          # charger pocket Y-extent (short axis, across band path)
-MUDRA_CHARGER_D = 34          # charger pocket X-extent (long axis, along shelf)
-MUDRA_CHARGER_H = 11          # charger end piece height (fits inside shelf)
+MUDRA_POLE_W = 22             # pole Y-extent (reduced for smaller charger, still room for band)
+MUDRA_POLE_D = 20             # pole X-thickness (reduced for smaller charger + cable bend)
+MUDRA_POLE_H = 85             # vertical section height (69mm clearance + 16mm shelf)
+MUDRA_SHELF_L = 36            # shelf length extending right (+X) — optimized for actual charger
+MUDRA_SHELF_H = 14            # shelf thickness (Z) — reduced for smaller charger bay
+MUDRA_CHARGER_W = 12 + TOL * 2  # charger pocket Y-extent (real: 12mm width)
+MUDRA_CHARGER_D = 30 + TOL * 2  # charger pocket X-extent (real: 30mm length)
+MUDRA_CHARGER_H = 8 + TOL       # charger end piece height (real: 8mm thickness)
 MUDRA_CABLE_CH_W = 12         # cable cavity width (Y) — room for USB cable
 MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
