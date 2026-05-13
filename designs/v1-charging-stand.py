@@ -8,7 +8,7 @@ Devices (front row, left to right):
   3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
 Rear row:
-  5. Even Realities G2     — glasses charging case ~165×70×35mm
+  5. Even Realities G2     — glasses charging case 170×75×30mm
   6. iPad                  — vertical slot behind G2 (landscape, fits 11" Pro)
 
 Design goals:
@@ -125,9 +125,10 @@ MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
 # --- Device 5: Even Realities G2 glasses case ---
-G2_W = 165 + TOL * 2         # case length
-G2_D = 70 + TOL * 2          # case depth
-G2_H = 35                     # case height
+# Real measurements: 170mm × 75mm × 30mm
+G2_W = 170 + TOL * 2         # case length (measured: 170mm)
+G2_D = 75 + TOL * 2          # case depth (measured: 75mm)
+G2_H = 30                    # case height (measured: 30mm)
 G2_CRADLE_DEPTH = 18          # how deep case sits
 G2_CABLE_W = 14               # USB-C cable slot
 
