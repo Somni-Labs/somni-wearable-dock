@@ -3,13 +3,13 @@ Wearable Charging Stand — V1
 Unified charging dock for 5 wearable devices + iPad slot, all USB-C powered.
 
 Devices (front row, left to right):
-  1. Ultrahuman Ring Air   — SQUARE charging dock ~48×48×16mm
-  2. Even Realities R1     — CIRCULAR NFC magnetic charger ~42mm dia × 14mm
+  1. Ultrahuman Ring Air   — SQUARE charging dock 39×39×13mm
+  2. Even Realities R1     — CIRCULAR NFC magnetic charger 45mm dia × 12mm
   3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
 Rear row:
-  5. Even Realities G2     — glasses charging case ~165×70×35mm
-  6. iPad                  — vertical slot behind G2 (landscape, fits 11" Pro)
+  5. Even Realities G2     — glasses charging case 170×75×30mm
+  6. iPad                  — wide slot behind G2 (fits 13" Pro, diagonal if cased)
 
 Design goals:
   - Single AC input to internal slim 4-port USB-C charger (under G2 shelf)
@@ -71,14 +71,15 @@ USBC_HEAD_W = 14       # USB-C connector head width (long axis)
 USBC_HEAD_H = 9        # USB-C connector head height (short axis)
 
 # --- Device 1: Ultrahuman Ring Air — SQUARE dock ---
-UH_SIDE = 48 + TOL * 2       # square side length
-UH_H = 16                     # dock height
-UH_CRADLE_DEPTH = 12          # how deep it sits
+UH_SIDE = 39 + TOL * 2       # square side length (measured: 39mm)
+UH_H = 13                     # dock height (measured: 13mm)
+UH_CRADLE_DEPTH = 10          # how deep it sits (proportional to new height)
 UH_CORNER_R = 4               # rounded corners on the square
 
 # --- Device 2: Even Realities R1 — CIRCULAR charger ---
-R1_DIA = 42 + TOL * 2        # charger diameter
-R1_H = 14
+# Real measurements: 45mm diameter × 12mm height
+R1_DIA = 45 + TOL * 2        # charger diameter (measured: 45mm)
+R1_H = 12                    # charger height (measured: 12mm)
 R1_CRADLE_DEPTH = 10
 
 # --- Device 3: Omi DevKit 2 — SIX-SIDED DIAMOND PENDANT ---
@@ -124,22 +125,26 @@ MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
 # --- Device 5: Even Realities G2 glasses case ---
-G2_W = 165 + TOL * 2         # case length
-G2_D = 70 + TOL * 2          # case depth
-G2_H = 35                     # case height
+# Real measurements: 170mm × 75mm × 30mm
+G2_W = 170 + TOL * 2         # case length (measured: 170mm)
+G2_D = 75 + TOL * 2          # case depth (measured: 75mm)
+G2_H = 30                    # case height (measured: 30mm)
 G2_CRADLE_DEPTH = 18          # how deep case sits
 G2_CABLE_W = 14               # USB-C cable slot
 
 # --- Device 6: iPad slot (rear, behind G2 case) ---
-# iPad Pro 11" in landscape: 249.7 × 177.5 × 5.3mm
-# With a thick rugged case: ~20mm thick, ~260 × 190mm overall
+# iPad Pro 13" in landscape: 267 × 213 × ~6mm (actual device)
+# With a thin case: ~270 × 215mm overall (optimized for print bed fit)
+# NOTE: For thick cases, iPad can be placed diagonally in the wider slot
 # Slot has a back wall the iPad leans against.
-IPAD_SLOT_W = 220             # slot width (X) — fits cased 11" landscape
-IPAD_SLOT_GAP = 22            # slot gap (Y) — iPad + thick case (~20mm)
+IPAD_SLOT_W = 235             # slot width (X) — max width for 245mm print bed
+IPAD_SLOT_GAP = 24            # slot gap (Y) — iPad + case thickness (~22mm + tolerance)
 IPAD_SLOT_DEPTH = 20          # how deep iPad sits into the base slot
-IPAD_BACK_H = 55              # back wall height above base (support wall)
+IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad)
 IPAD_BACK_THICK = 4           # back wall thickness
 IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
+# Diagonal placement: 13" iPad (270mm) can fit diagonally in 235mm slot
+# sin(angle) = 235/270 = 0.87, angle ≈ 60° from horizontal
 
 # --- Layout positions (X, Y from center) ---
 FRONT_ROW_Y = -STAND_D / 2 + 38
