@@ -6,7 +6,7 @@
 
 | Slot | Device | Charger Type | Cradle Style |
 |------|--------|-------------|--------------|
-| 1 | Omi Pendant (DevKit 2) | Pogo-pin magnetic cable | Circular cup (25mm) |
+| 1 | Omi Pendant (DevKit 2) | Pogo-pin direct charge | Six-sided diamond pocket (41×40mm) |
 | 2 | Ultrahuman Ring Air | USB-C puck dock (~50mm) | Circular cup |
 | 3 | Even Realities R1 Ring | NFC magnetic dock (~45mm) | Circular cup |
 | 4 | Even Realities G1 Glasses | USB-C case (~170×70mm) | Rectangular shelf |
@@ -38,7 +38,7 @@ All cradle dimensions are parametric and defined at the top of the design file. 
 - Ultrahuman Ring charger: estimated ~50mm diameter puck
 - Even R1 charger: estimated ~45mm diameter dock
 - Even G1 case: estimated ~170×70×40mm
-- Omi Dev Edition: estimated ~35mm triangle side
+- Omi DevKit 2: measured 41×40×13mm six-sided diamond pendant
 
 ## Print Settings
 

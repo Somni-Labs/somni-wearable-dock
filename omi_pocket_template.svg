@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="82.0mm" height="81.0mm" viewBox="0 0 82.0 81.0"
+     xmlns="http://www.w3.org/2000/svg">
+  <title>Omi DevKit 2 Pocket Verification Template</title>
+  <desc>Print at 100% scale (1:1) and cut out to test fit with actual pendant</desc>
+
+  <!-- Grid lines every 5mm for reference -->
+  <defs>
+    <pattern id="grid" width="5" height="5" patternUnits="userSpaceOnUse">
+      <path d="M 5 0 L 0 0 0 5" fill="none" stroke="#e0e0e0" stroke-width="0.2"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+
+  <!-- Pocket outline (with tolerance) -->
+  <polygon points="28.40,20.00 53.60,20.00 62.00,33.00 62.00,48.00 41.00,61.00 20.00,48.00 20.00,33.00"
+           fill="none"
+           stroke="#ff0000"
+           stroke-width="1.5"
+           stroke-linejoin="round"/>
+
+  <!-- Pendant outline (actual size without tolerance) -->
+  <g transform="translate(41.0, 40.5)">
+    <polygon points="-12.30,-20.00 12.30,-20.00 20.50,-7.50 20.50,7.50 0.00,20.00 -20.50,7.50 -20.50,-7.50"
+             fill="none"
+             stroke="#0000ff"
+             stroke-width="1"
+             stroke-dasharray="2,2"
+             stroke-linejoin="round"/>
+  </g>
+
+  <!-- Center cross for alignment -->
+  <g stroke="#666" stroke-width="0.5">
+    <line x1="36.0" y1="40.5" x2="46.0" y2="40.5"/>
+    <line x1="41.0" y1="35.5" x2="41.0" y2="45.5"/>
+  </g>
+
+  <!-- Dimension labels -->
+  <g font-family="Arial, sans-serif" font-size="3" fill="#333">
+    <text x="41.0" y="10.0" text-anchor="middle">Omi DevKit 2 Pocket Template</text>
+    <text x="10.0" y="40.5" text-anchor="middle" transform="rotate(-90, 10.0, 40.5)">
+      Height: 41mm (with tolerance)
+    </text>
+    <text x="41.0" y="76.0" text-anchor="middle">
+      Width: 42mm (with tolerance)
+    </text>
+    <text x="72.0" y="55.5" text-anchor="middle" font-size="2.5">
+      Red: Pocket outline (42×41mm)
+    </text>
+    <text x="72.0" y="60.5" text-anchor="middle" font-size="2.5">
+      Blue dashed: Pendant (41×40mm)
+    </text>
+    <text x="72.0" y="65.5" text-anchor="middle" font-size="2.5">
+      Depth: 13mm pendant + margin
+    </text>
+  </g>
+</svg>

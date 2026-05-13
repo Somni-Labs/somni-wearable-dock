@@ -1,0 +1,41 @@
+Omi DevKit 2 Pendant Pocket - Verification Dimensions
+====================================================
+
+MEASURED PENDANT (actual device):
+  Width:  41.0mm (across widest point)
+  Height: 40.0mm (top to bottom)
+  Thickness: 13.0mm
+
+POCKET DIMENSIONS (with 1.0mm print tolerance):
+  Width:  42.0mm
+  Height: 41.0mm
+  Depth:  15.0mm (13mm pendant + 2mm margin)
+
+SIX-SIDED DIAMOND VERTICES (mm, from center):
+  1. ( -12.6,   20.5)  # top-left
+  2. (  12.6,   20.5)  # top-right
+  3. (  21.0,    7.5)  # right-upper
+  4. (  21.0,   -7.5)  # right-lower
+  5. (   0.0,  -20.5)  # bottom point
+  6. ( -21.0,   -7.5)  # left-lower
+  7. ( -21.0,    7.5)  # left-upper
+
+VERIFICATION MEASUREMENTS:
+  Maximum width:    42.0mm (should match 42.0mm)
+  Maximum height:   41.0mm (should match 41.0mm)
+  Top facet width:  25.2mm (narrow top section)
+  Top facet height: 15.0mm (from measurement notes)
+  Bottom height:    25.0mm (40mm total - 15mm top)
+
+PRINT VERIFICATION:
+1. Print omi_pocket_template.svg at 100% scale (NO SCALING)
+2. Cut out the RED outline carefully
+3. Test fit your Omi pendant through the cutout
+4. Pendant should pass through with slight clearance
+5. If too tight/loose, adjust TOL parameter in v1-charging-stand.py
+
+SHAPE VERIFICATION:
+- Six-sided diamond (NOT triangle or circle)
+- Short top facet tapering to longer bottom point
+- Blue dashed line shows pendant outline (41×40mm)
+- Red solid line shows pocket outline (with tolerance)
