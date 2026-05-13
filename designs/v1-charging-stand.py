@@ -5,7 +5,7 @@ Unified charging dock for 5 wearable devices + iPad slot, all USB-C powered.
 Devices (front row, left to right):
   1. Ultrahuman Ring Air   — SQUARE charging dock ~48×48×16mm
   2. Even Realities R1     — CIRCULAR NFC magnetic charger ~42mm dia × 14mm
-  3. Omi DevKit 2          — ROUNDED TRIANGLE charging dock ~73mm
+  3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
 Rear row:
   5. Even Realities G2     — glasses charging case ~165×70×35mm
@@ -81,14 +81,15 @@ R1_DIA = 42 + TOL * 2        # charger diameter
 R1_H = 14
 R1_CRADLE_DEPTH = 10
 
-# --- Device 3: Omi DevKit 2 — ROUNDED TRIANGLE ---
-# Guitar-pick / diamond shape with rounded vertices.
-# Pendant is 25mm diameter, but the pogo-pin magnetic CHARGING DOCK
-# that sits in this pocket is larger (~35mm across).
-OMI_SIDE = 72 + TOL * 2      # triangle side — 2× size for charging dock
-OMI_H = 15
-OMI_CRADLE_DEPTH = 10
-OMI_VERTEX_R = 16             # larger fillet for softer diamond/guitar-pick shape
+# --- Device 3: Omi DevKit 2 — SIX-SIDED DIAMOND PENDANT ---
+# Six-sided diamond (hexagonal) shape matching the actual pendant dimensions.
+# The pendant charges directly in this pocket via pogo pins.
+# Real measurements: 41mm width × 40mm height × 13mm thick
+OMI_W = 41 + TOL * 2         # pendant width (across)
+OMI_H = 40 + TOL * 2         # pendant height (top to bottom)
+OMI_THICK = 13               # pendant thickness
+OMI_CRADLE_DEPTH = OMI_THICK + 2   # pocket depth to fully contain pendant + margin
+OMI_VERTEX_R = 3             # small fillet for six-sided diamond vertices
 
 # --- Device 4: Mudra Link — L-shaped pole with open charger bay ---
 # Vertical pole + horizontal shelf extending right.
@@ -160,13 +161,27 @@ SLOT_POSITIONS = {
 # HELPER FUNCTIONS
 # =============================================================================
 
-def equilateral_triangle_points(side_length):
-    """Return vertices of an equilateral triangle centered at origin."""
-    h = side_length * math.sqrt(3) / 2
+def six_sided_diamond_points(width, height):
+    """Return vertices of a six-sided diamond shape centered at origin.
+
+    Shape: Short top facet tapering to longer bottom point
+    - width: maximum width across the middle
+    - height: total height from top to bottom
+    """
+    # Six-sided diamond: top facet (15mm) + main body (30mm) = 40mm total
+    top_facet_h = 15  # short top section height
+    bottom_h = height - top_facet_h  # longer bottom section
+
+    top_w = width * 0.6   # top facet is narrower
+
     return [
-        (0, 2 * h / 3),
-        (-side_length / 2, -h / 3),
-        (side_length / 2, -h / 3),
+        (-top_w / 2, height / 2),           # top-left
+        (top_w / 2, height / 2),            # top-right
+        (width / 2, top_facet_h / 2),       # right-upper
+        (width / 2, -top_facet_h / 2),      # right-lower
+        (0, -height / 2),                   # bottom point
+        (-width / 2, -top_facet_h / 2),     # left-lower
+        (-width / 2, top_facet_h / 2),      # left-upper
     ]
 
 
@@ -413,22 +428,22 @@ def build_top_tray():
     base = base.cut(r1_cable)
 
     # =====================================================================
-    # CRADLE 3: Omi DevKit 2 — ROUNDED TRIANGLE pocket
-    # Triangle with filleted vertices (guitar-pick / diamond shape)
+    # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
+    # Six-sided diamond matching the actual pendant shape
     # =====================================================================
     ox, oy = SLOT_POSITIONS["omi"]
-    tri_pts = equilateral_triangle_points(OMI_SIDE)
-    tri_closed = tri_pts + [tri_pts[0]]
+    diamond_pts = six_sided_diamond_points(OMI_W, OMI_H)
+    diamond_closed = diamond_pts + [diamond_pts[0]]
 
     omi_pocket = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
         .center(ox, oy)
-        .polyline(tri_closed)
+        .polyline(diamond_closed)
         .close()
         .extrude(OMI_CRADLE_DEPTH + 1)
     )
-    # Round the triangle vertices so it looks like a guitar-pick / diamond
+    # Small fillet on vertices to prevent sharp edges
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     base = base.cut(omi_pocket)
     # Cable pass-through — USB-C head sized
