@@ -1,0 +1,15 @@
+Type,Point,X,Y,Description
+POCKET,1,-12.600,20.500,top-left
+POCKET,2,12.600,20.500,top-right
+POCKET,3,21.000,7.500,right-upper
+POCKET,4,21.000,-7.500,right-lower
+POCKET,5,0.000,-20.500,bottom point
+POCKET,6,-21.000,-7.500,left-lower
+POCKET,7,-21.000,7.500,left-upper
+PENDANT,1,-12.300,20.000,top-left
+PENDANT,2,12.300,20.000,top-right
+PENDANT,3,20.500,7.500,right-upper
+PENDANT,4,20.500,-7.500,right-lower
+PENDANT,5,0.000,-20.000,bottom point
+PENDANT,6,-20.500,-7.500,left-lower
+PENDANT,7,-20.500,7.500,left-upper
