@@ -83,14 +83,16 @@ R1_H = 12                    # charger height (measured: 12mm)
 R1_CRADLE_DEPTH = 10
 
 # --- Device 3: Omi DevKit 2 — SIX-SIDED DIAMOND PENDANT ---
-# Six-sided diamond (hexagonal) shape matching the actual pendant dimensions.
+# Six-sided diamond with ALTERNATING edge lengths (not a regular hexagon).
 # The pendant charges directly in this pocket via pogo pins.
-# Real measurements: 41mm width × 40mm height × 13mm thick
-OMI_W = 41 + TOL * 2         # pendant width (across)
-OMI_H = 40 + TOL * 2         # pendant height (top to bottom)
-OMI_THICK = 13               # pendant thickness
+# Real measurements: 3 long sides of 30mm, 3 short sides of 15mm
+# Interior angles 120° (hexagonal), oriented as a diamond (pointy top & bottom).
+# Bounding box of this shape: ~45mm wide × ~39mm tall.
+OMI_LONG_EDGE = 30            # 3 alternating long edges (mm)
+OMI_SHORT_EDGE = 15           # 3 alternating short edges (mm)
+OMI_THICK = 13                # pendant thickness
 OMI_CRADLE_DEPTH = OMI_THICK + 2   # pocket depth to fully contain pendant + margin
-OMI_VERTEX_R = 3             # small fillet for six-sided diamond vertices
+OMI_VERTEX_R = 3              # small fillet for six-sided diamond vertices
 
 # --- Device 4: Mudra Link — L-shaped pole with open charger bay ---
 # Vertical pole + horizontal shelf extending right.
@@ -166,28 +168,43 @@ SLOT_POSITIONS = {
 # HELPER FUNCTIONS
 # =============================================================================
 
-def six_sided_diamond_points(width, height):
-    """Return vertices of a six-sided diamond shape centered at origin.
+def six_sided_diamond_points(long_edge, short_edge):
+    """Return vertices of a six-sided diamond with alternating edge lengths.
 
-    Shape: Short top facet tapering to longer bottom point
-    - width: maximum width across the middle
-    - height: total height from top to bottom
+    The pendant is a hexagonal diamond: 3 long edges alternate with 3 short
+    edges, all interior angles 120°.  Oriented as a diamond (pointy top and
+    bottom vertex).  The shape is centered at the origin.
+
+    - long_edge:  length of the 3 longer sides  (e.g. 30 mm)
+    - short_edge: length of the 3 shorter sides  (e.g. 15 mm)
+
+    Vertex order: top point → clockwise → back to top.
     """
-    # Six-sided diamond: top facet (15mm) + main body (30mm) = 40mm total
-    top_facet_h = 15  # short top section height
-    bottom_h = height - top_facet_h  # longer bottom section
+    import math
+    # Walk the boundary clockwise starting from the top vertex.
+    # Initial heading: down-right (−60° from +x in standard math coords).
+    # At each vertex we turn −60° (clockwise) — exterior angle of a 120° polygon.
+    heading = math.radians(-60)
+    turn = math.radians(-60)
+    edges = [long_edge, short_edge, long_edge, short_edge, long_edge, short_edge]
 
-    top_w = width * 0.6   # top facet is narrower
+    x, y = 0.0, 0.0
+    raw = [(x, y)]
+    for edge_len in edges:
+        x += edge_len * math.cos(heading)
+        y += edge_len * math.sin(heading)
+        raw.append((x, y))
+        heading += turn
 
-    return [
-        (-top_w / 2, height / 2),           # top-left
-        (top_w / 2, height / 2),            # top-right
-        (width / 2, top_facet_h / 2),       # right-upper
-        (width / 2, -top_facet_h / 2),      # right-lower
-        (0, -height / 2),                   # bottom point
-        (-width / 2, -top_facet_h / 2),     # left-lower
-        (-width / 2, top_facet_h / 2),      # left-upper
-    ]
+    # Drop the duplicate closure vertex
+    pts = raw[:-1]
+
+    # Center on origin
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    cx = (max(xs) + min(xs)) / 2
+    cy = (max(ys) + min(ys)) / 2
+    return [(round(px - cx, 3), round(py - cy, 3)) for px, py in pts]
 
 
 # =============================================================================
@@ -437,7 +454,7 @@ def build_top_tray():
     # Six-sided diamond matching the actual pendant shape
     # =====================================================================
     ox, oy = SLOT_POSITIONS["omi"]
-    diamond_pts = six_sided_diamond_points(OMI_W, OMI_H)
+    diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
     diamond_closed = diamond_pts + [diamond_pts[0]]
 
     omi_pocket = (
