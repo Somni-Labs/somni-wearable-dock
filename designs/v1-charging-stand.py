@@ -8,7 +8,7 @@ Devices (front row, left to right):
   3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
 Rear row:
-  5. Even Realities G2     — glasses charging case 170×75×30mm
+  5. Even Realities G2     — glasses charging case 174×66×36-50mm wedge
   6. iPad                  — wide slot behind G2 (fits 13" Pro, diagonal if cased)
 
 Design goals:
@@ -131,11 +131,14 @@ MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
 # --- Device 5: Even Realities G2 glasses case ---
-# Real measurements: 170mm × 75mm × 30mm
-G2_W = 170 + TOL * 2         # case length (measured: 170mm)
-G2_D = 75 + TOL * 2          # case depth (measured: 75mm)
-G2_H = 30                    # case height (measured: 30mm)
-G2_CRADLE_DEPTH = 18          # how deep case sits
+# Real measurements (caliper): 174mm × 66mm wedge, 50mm tall end / 36mm short end.
+# The case is a tapered wedge — taller at one end, angled down across its length.
+# Tall end (+X) faces the front of the stand; short end (-X) faces the rear.
+G2_W = 174 + TOL * 2         # case length (measured: 174mm)
+G2_D = 66 + TOL * 2          # case depth (measured: 66mm)
+G2_H_TALL = 50               # case height at tall end (measured: 50mm)
+G2_H_SHORT = 36              # case height at short end (measured: 36mm)
+G2_CRADLE_DEPTH = 18          # how deep case sits (pocket depth into stand top)
 G2_CABLE_W = 14               # USB-C cable slot
 
 # --- Device 6: iPad slot (rear, behind G2 case) ---
@@ -452,6 +455,7 @@ def build_top_tray():
     # =====================================================================
     # CRADLE 1: Ultrahuman Ring Air — SQUARE pocket, rounded corners
     # USB-C port faces REAR (+Y). Cable routes down and back.
+    # ASSUMPTION: port faces rear (+Y side of dock) — confirm with human
     # =====================================================================
     ux, uy = SLOT_POSITIONS["uh_ring"]
     uh_pocket = (
@@ -488,6 +492,7 @@ def build_top_tray():
     # CRADLE 2: Even R1 Ring — CIRCULAR pocket
     # Fixed cable exits from the LEFT edge (-X) of the disc.
     # Cable is thin (~4mm), not a removable USB-C head.
+    # ASSUMPTION: cable exits left edge (−X) of disc — confirm exit point and cable length with human
     # =====================================================================
     rx, ry = SLOT_POSITIONS["r1_ring"]
     r1_cup = (
@@ -526,6 +531,7 @@ def build_top_tray():
     # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
     # USB-C port is on the LEFT long side (30mm), offset ~8mm from the
     # left corner (first quarter of the side). Port faces -X direction.
+    # ASSUMPTION: port is on upper-left long side, ~8mm from lower corner — confirm which long side and offset with human
     # =====================================================================
     ox, oy = SLOT_POSITIONS["omi"]
     diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
@@ -689,21 +695,46 @@ def build_top_tray():
     base = base.union(pole)
 
     # =====================================================================
-    # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
+    # CRADLE 5: Even G2 glasses case — wedge-profile pocket (rear)
+    # The case is a tapered wedge: G2_H_TALL (50mm) at +X, G2_H_SHORT
+    # (36mm) at -X, dropping 14mm across the length.  The pocket floor is
+    # angled to match so the case sits flush on the stand.
+    #
+    # Implementation: draw a trapezoid in the XZ plane (side profile of the
+    # wedge void) and extrude it along Y by G2_D.
+    #   +X (tall) floor: STAND_H - G2_CRADLE_DEPTH
+    #   -X (short) floor: tall floor + taper  (shallower by 14mm)
+    #   top of void: STAND_H + 1  (clears the top face)
     # =====================================================================
     gx, gy = SLOT_POSITIONS["g2_case"]
+
+    _g2_taper = G2_H_TALL - G2_H_SHORT                  # 14mm
+    _g2_floor_tall = STAND_H - G2_CRADLE_DEPTH           # Z at +X (tall) end
+    _g2_floor_short = _g2_floor_tall + _g2_taper          # Z at -X (short) end
+    _g2_top = STAND_H + 1                                # clears top face
+
+    # Trapezoid corners in the XZ plane: bottom-right (+X floor), bottom-left
+    # (-X floor), top-left, top-right.  Translated to front face of pocket (Y).
+    _trap_pts = [
+        (gx + G2_W / 2, _g2_floor_tall),
+        (gx - G2_W / 2, _g2_floor_short),
+        (gx - G2_W / 2, _g2_top),
+        (gx + G2_W / 2, _g2_top),
+    ]
+
     g2_pocket = (
-        cq.Workplane("XY")
-        .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
-        .center(gx, gy)
-        .rect(G2_W, G2_D)
-        .extrude(G2_CRADLE_DEPTH + 1)
+        cq.Workplane("XZ")
+        .transformed(offset=cq.Vector(0, 0, gy - G2_D / 2))
+        .polyline(_trap_pts)
+        .close()
+        .extrude(G2_D)
     )
     base = base.cut(g2_pocket)
-    # USB-C cable slot at rear
+
+    # USB-C cable slot at rear (exits through rear wall of stand)
     g2_cable = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
+        .workplane(offset=_g2_floor_short)
         .center(gx, STAND_D / 2)
         .box(G2_CABLE_W, WALL * 4, G2_CRADLE_DEPTH,
              centered=[True, True, False])
