@@ -267,9 +267,9 @@ def build_bottom_tray():
             # USB-C port on rear face — hole at rear edge of pocket
             hole_x, hole_y = px, py + UH_SIDE / 2
         elif name == "r1_ring":
-            # Fixed cable exits left edge of disc
+            # Fixed cable exits left edge of disc — but USB-C head on
+            # the other end must feed through, so hole is head-sized
             hole_x, hole_y = px - R1_DIA / 2, py
-            hw, hh = 6, 5  # thin cable, not a USB-C head
         elif name == "omi":
             # USB-C port on left long side (Edge 4), 8mm from v4 corner
             # v4 relative to center = (-22.5, -6.5), edge runs at 60°
@@ -483,24 +483,24 @@ def build_top_tray():
     base = base.cut(r1_cup)
 
     # Side groove — notch in the left wall of the circular pocket for
-    # the fixed cable to exit. Groove is at pocket floor level.
-    _r1_cable_w = 5.0   # cable groove width (thin cable ~3-4mm + clearance)
-    _r1_cable_h = 4.0   # cable groove height
+    # the fixed cable to exit. Sized for USB-C head to feed through
+    # during assembly (head is 14×9mm), then cable sits in the groove.
     r1_cable_groove = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - R1_CRADLE_DEPTH)
         .center(rx - R1_DIA / 2, ry)
-        .rect(8, _r1_cable_w)  # 8mm deep to cut through pocket wall
-        .extrude(_r1_cable_h)
+        .rect(10, USBC_HEAD_W)  # wide enough for USB-C head to pass through
+        .extrude(USBC_HEAD_H)
     )
     base = base.cut(r1_cable_groove)
 
-    # Floor pass-through at left edge (cable drops into bottom tray)
+    # Floor pass-through at left edge — must fit USB-C head (the other
+    # end of the fixed cable needs to feed through to reach the hub).
     r1_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
         .center(rx - R1_DIA / 2, ry)
-        .rect(6, 5)
+        .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
     base = base.cut(r1_cable)
