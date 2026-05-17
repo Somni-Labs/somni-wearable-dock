@@ -64,6 +64,10 @@ CHARGER_W = 88         # charger external width  + tolerance
 CHARGER_D = 55         # charger external depth  + tolerance
 CHARGER_H = 17         # charger external height + tolerance
 CHARGER_CABLE_SLOT_W = 14  # slot for input USB-C cable through rear wall
+CHARGER_AUX_PORT_COUNT = 2  # spare ports on charger for ad-hoc cables
+CHARGER_AUX_SLOT_W = 14     # aux cable slot width (USB-A head ~12mm + clearance)
+CHARGER_AUX_SLOT_H = 8      # aux cable slot height
+CHARGER_AUX_SPACING = 24    # spacing between the 2 aux slots (center-to-center)
 # Legacy aliases retained so any older references compile.
 HUB_W, HUB_D, HUB_H = CHARGER_W, CHARGER_D, CHARGER_H
 HUB_CABLE_SLOT_W = CHARGER_CABLE_SLOT_W
@@ -309,6 +313,19 @@ def build_bottom_tray():
         .box(CHARGER_CABLE_SLOT_W, WALL * 4, 8, centered=True)
     )
     tray = tray.cut(usb_slot)
+
+    # ── Auxiliary cable slots (2 spare ports, exit through rear wall) ────
+    # These let you plug 2 extra cables into the charger's spare ports
+    # and route them out the back of the stand for ad-hoc device charging.
+    for aux_i in range(CHARGER_AUX_PORT_COUNT):
+        _aux_x_offset = (aux_i - 0.5) * CHARGER_AUX_SPACING  # centered around charger_x
+        aux_slot = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H + 4)
+            .center(charger_x + _aux_x_offset, STAND_D / 2)
+            .box(CHARGER_AUX_SLOT_W, WALL * 4, CHARGER_AUX_SLOT_H, centered=True)
+        )
+        tray = tray.cut(aux_slot)
 
     # ── Snap-fit clips (4 clips — one on each long side, centered) ───────
     # Cantilever clips that hook over a lip on the top tray's inner wall.
@@ -749,6 +766,22 @@ def build_top_tray():
              centered=[True, True, False])
     )
     base = base.cut(ipad_cable_wall)
+
+    # ── Auxiliary cable pass-throughs (2 spare charger ports → rear) ─────
+    # Matching slots in the top tray rear wall so cables can exit the back.
+    # Positioned to align with the bottom tray aux slots below.
+    charger_x, _charger_y = SLOT_POSITIONS["g2_case"]
+    for aux_i in range(CHARGER_AUX_PORT_COUNT):
+        _aux_x_offset = (aux_i - 0.5) * CHARGER_AUX_SPACING
+        # Slot through the top tray rear wall
+        aux_top_slot = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z)
+            .center(charger_x + _aux_x_offset, STAND_D / 2)
+            .box(CHARGER_AUX_SLOT_W, WALL * 4, CHARGER_AUX_SLOT_H,
+                 centered=True)
+        )
+        base = base.cut(aux_top_slot)
 
     return base
 
