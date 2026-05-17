@@ -33,7 +33,7 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 56           # TOTAL assembled height (bottom + top)
+STAND_H = 61           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 0.5              # print tolerance per side
@@ -312,12 +312,18 @@ def build_bottom_tray():
     )
     tray = tray.cut(charger)
 
-    # AC input cable slot through the LEFT wall (cable exits the short −X face)
+    # AC input cable slot — runs from the charger's left face through the left wall.
+    # Bridges the gap between the recess left edge (charger_x - CHARGER_W/2) and
+    # the outer left wall (−STAND_W/2), so the AC cable can exit the enclosure.
+    slot_left_edge = -STAND_W / 2
+    slot_right_edge = charger_x - CHARGER_W / 2
+    slot_cx = (slot_left_edge + slot_right_edge) / 2
+    slot_len = slot_right_edge - slot_left_edge + WALL  # +WALL to pierce the outer face
     usb_slot = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H + 4)
-        .center(-STAND_W / 2, charger_y)
-        .box(WALL * 4, CHARGER_CABLE_SLOT_W, CHARGER_H, centered=True)
+        .workplane(offset=BASE_H)
+        .center(slot_cx, charger_y)
+        .box(slot_len, CHARGER_CABLE_SLOT_W, CHARGER_H, centered=[True, True, False])
     )
     tray = tray.cut(usb_slot)
 
