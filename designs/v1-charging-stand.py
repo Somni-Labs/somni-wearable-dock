@@ -414,28 +414,19 @@ def build_top_tray():
         base = base.cut(lip_pocket)
 
     # ── Cable pass-through holes (matching bottom tray positions) ────────
-    # Same size and positions as bottom tray holes.
+    # UH, R1, and Omi have custom cable cuts in their cradle sections below.
+    # Only cut generic holes for devices that don't have custom routing.
     for name, (px, py) in SLOT_POSITIONS.items():
+        if name in ("uh_ring", "r1_ring", "omi"):
+            continue  # handled in individual cradle sections
+
         hw = USBC_HEAD_W + 2 if name == "g2_case" else USBC_HEAD_W
         hh = USBC_HEAD_H + 2 if name == "g2_case" else USBC_HEAD_H
-
-        # Device-specific cable hole positions (match bottom tray)
-        if name == "uh_ring":
-            hole_x, hole_y = px, py + UH_SIDE / 2
-        elif name == "r1_ring":
-            hole_x, hole_y = px - R1_DIA / 2, py
-            hw, hh = 6, 5
-        elif name == "omi":
-            _v4_rel = (-22.5, -6.5)
-            hole_x = px + _v4_rel[0] + 8.0 * math.cos(math.radians(60))
-            hole_y = py + _v4_rel[1] + 8.0 * math.sin(math.radians(60))
-        else:
-            hole_x, hole_y = px, py
 
         hole = (
             cq.Workplane("XY")
             .workplane(offset=SPLIT_Z - 0.5)
-            .center(hole_x, hole_y)
+            .center(px, py)
             .rect(hw, hh)
             .extrude(TOP_H + 1)
         )
