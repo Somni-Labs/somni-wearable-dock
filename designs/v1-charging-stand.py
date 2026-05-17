@@ -271,8 +271,11 @@ def build_bottom_tray():
             hole_x, hole_y = px - R1_DIA / 2, py
             hw, hh = 6, 5  # thin cable, not a USB-C head
         elif name == "omi":
-            # USB-C port on left side, offset ~8mm from corner
-            hole_x, hole_y = px - 12, py
+            # USB-C port on left long side (Edge 4), 8mm from v4 corner
+            # v4 relative to center = (-22.5, -6.5), edge runs at 60°
+            _v4_rel = (-22.5, -6.5)
+            hole_x = px + _v4_rel[0] + 8.0 * math.cos(math.radians(60))
+            hole_y = py + _v4_rel[1] + 8.0 * math.sin(math.radians(60))
         else:
             hole_x, hole_y = px, py
 
@@ -423,7 +426,9 @@ def build_top_tray():
             hole_x, hole_y = px - R1_DIA / 2, py
             hw, hh = 6, 5
         elif name == "omi":
-            hole_x, hole_y = px - 12, py
+            _v4_rel = (-22.5, -6.5)
+            hole_x = px + _v4_rel[0] + 8.0 * math.cos(math.radians(60))
+            hole_y = py + _v4_rel[1] + 8.0 * math.sin(math.radians(60))
         else:
             hole_x, hole_y = px, py
 
@@ -530,25 +535,39 @@ def build_top_tray():
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     base = base.cut(omi_pocket)
 
-    # USB-C port slot — cut into the left wall of the pocket.
-    # Port is on the left long side, ~8mm from the corner (offset from center).
-    # The bounding box of the diamond is ~45mm wide, so left edge is at ox - 22.5mm.
-    # Port slot at pocket floor level, sized for USB-C head.
-    _omi_port_x = ox - 12  # left side, offset toward left edge of diamond
+    # USB-C port slot — perpendicular to the left long side (Edge 4).
+    # Edge 4 runs at 60° from v4(-22.5, -6.5) to v5(-7.5, 19.5).
+    # The port is ~8mm from v4 (the lower-left corner of that edge).
+    # The connector inserts PERPENDICULAR to the edge (inward normal = -30°).
+    # Slot is rotated to match the angled wall.
+    _edge4_angle = 60.0  # degrees, direction of edge 4
+    _port_offset_along_edge = 8.0  # mm from v4 corner
+    # Position along edge 4, offset 8mm from v4
+    _v4_x, _v4_y = -22.5, -6.5  # vertex 4 (relative to diamond center)
+    _port_local_x = _v4_x + _port_offset_along_edge * math.cos(math.radians(_edge4_angle))
+    _port_local_y = _v4_y + _port_offset_along_edge * math.sin(math.radians(_edge4_angle))
+    # Absolute position on the stand
+    _omi_port_x = ox + _port_local_x
+    _omi_port_y = oy + _port_local_y
+
+    # Slot cut perpendicular to the edge (rotated to match wall angle).
+    # Use a box created at origin, rotated -30°, then translated into position.
+    # This ensures the slot extends outward THROUGH the angled pocket wall.
+    _slot_depth = 12.0  # deep enough to cut through the angled wall
+    _normal_angle = _edge4_angle - 90  # -30° = outward normal direction
     omi_port_slot = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
-        .center(_omi_port_x, oy)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(USBC_HEAD_H)
+        .box(USBC_HEAD_W, _slot_depth, USBC_HEAD_H)
+        .rotate((0, 0, 0), (0, 0, 1), _normal_angle)
+        .translate((_omi_port_x, _omi_port_y, STAND_H - OMI_CRADLE_DEPTH + USBC_HEAD_H / 2))
     )
     base = base.cut(omi_port_slot)
 
-    # Floor pass-through at left offset (cable drops into bottom tray)
+    # Floor pass-through below the port position (cable drops into bottom tray)
     omi_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(_omi_port_x, oy)
+        .center(_omi_port_x, _omi_port_y)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
