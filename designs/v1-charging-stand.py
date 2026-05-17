@@ -33,7 +33,7 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 38           # TOTAL assembled height (bottom + top)
+STAND_H = 56           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 0.5              # print tolerance per side
@@ -41,8 +41,9 @@ TOL = 0.5              # print tolerance per side
 # --- Two-part split ---
 # Bottom tray: cable management, USB-C charger, rubber feet
 # Top tray: device pockets, Mudra pole, iPad wall — sits on top of bottom
-# Bottom tray height raised to 22mm to house slim 4-port USB-C charger.
-SPLIT_Z = 22           # Z where the two parts meet (bottom tray height)
+# Bottom tray height raised to 40mm to house VanBon 33mm-tall charger
+# (BASE_H=3 + CHARGER_H_with_tol=34 + WALL=2.5 → rounded to 40mm).
+SPLIT_Z = 40           # Z where the two parts meet (bottom tray height)
 TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
 SNAP_LIP = 1.5         # ledge depth for snap engagement
@@ -56,14 +57,17 @@ CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height (~8.5mm)
 CHANNEL_W = 12         # cable channel width (wider for better cable mgmt)
 
 # --- USB-C multi-port charger recess (under G2 shelf) ---
-# Sized for the class of slim flat 4-port USB-C wall chargers
-# (e.g. BUDI 34W 4-Port / similar 30-35W flat bricks, ~83×44×14mm).
-# The charger sits flush in the bottom tray cavity, accessed by
-# removing the top tray.
-CHARGER_W = 88         # charger external width  + tolerance
-CHARGER_D = 55         # charger external depth  + tolerance
-CHARGER_H = 17         # charger external height + tolerance
-CHARGER_CABLE_SLOT_W = 14  # slot for input USB-C cable through rear wall
+# VanBon Smart USB Charger — 8× USB-A ports + LCD display.
+# Real measurements: 134mm (L) × 68mm (W) × 33mm (H)
+# Orientation: long axis runs left-right (X). AC input cable exits the
+# LEFT short face (−X wall); 8× USB-A ports line the long front face.
+# 45×45mm LCD sits centered on the top face — visible through the top tray
+# if a window is cut, or simply enclosed and not needed during normal use.
+# Charger sits flush in the bottom tray cavity, accessed by removing top tray.
+CHARGER_W = 134 + TOL * 2  # charger long axis (X) — measured: 134mm
+CHARGER_D = 68 + TOL * 2   # charger short axis (Y) — measured: 68mm
+CHARGER_H = 33 + TOL * 2   # charger height (Z)     — measured: 33mm
+CHARGER_CABLE_SLOT_W = 20  # AC input slot through left wall (cable is on short face)
 CHARGER_AUX_PORT_COUNT = 2  # spare ports on charger for ad-hoc cables
 CHARGER_AUX_SLOT_W = 14     # aux cable slot width (USB-A head ~12mm + clearance)
 CHARGER_AUX_SLOT_H = 8      # aux cable slot height
@@ -308,12 +312,12 @@ def build_bottom_tray():
     )
     tray = tray.cut(charger)
 
-    # Input cable slot through rear wall (at charger level)
+    # AC input cable slot through the LEFT wall (cable exits the short −X face)
     usb_slot = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H + 4)
-        .center(charger_x, STAND_D / 2)
-        .box(CHARGER_CABLE_SLOT_W, WALL * 4, 8, centered=True)
+        .center(-STAND_W / 2, charger_y)
+        .box(WALL * 4, CHARGER_CABLE_SLOT_W, CHARGER_H, centered=True)
     )
     tray = tray.cut(usb_slot)
 
