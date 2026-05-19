@@ -47,29 +47,50 @@ def export_stl_files():
         print(f"❌ Failed to load design: {e}")
         return False
 
+    # ── Translate parts to build plate (Z=0) for slicer-ready STLs ──────
+    # The bottom tray already starts at Z=0, but translate for safety.
+    # The top tray starts at Z=SPLIT_Z (40mm) in the assembly — move it
+    # down so its lowest face sits on the build plate.
+    # For STL export the top tray is also flipped upside-down (rotated 180°
+    # around X) so the flat pocket surface faces down on the build plate,
+    # giving the best print quality on the device-facing surfaces.
+    SPLIT_Z = exec_globals['SPLIT_Z']
+
+    bottom_bb = bottom_tray.val().BoundingBox()
+    bottom_print = bottom_tray.translate((0, 0, -bottom_bb.zmin))
+
+    top_bb = top_tray.val().BoundingBox()
+    # Flip upside-down: rotate 180° around X, then shift so Z_min = 0
+    top_flipped = top_tray.rotate((0, 0, 0), (1, 0, 0), 180)
+    top_flipped_bb = top_flipped.val().BoundingBox()
+    top_print = top_flipped.translate((0, 0, -top_flipped_bb.zmin))
+
+    print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
+    print(f"   Top tray: flipped upside-down + translated Z by {-top_flipped_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
+
     # Create output directory
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
 
     try:
-        # Export bottom tray
+        # Export bottom tray (slicer-ready: Z starts at 0)
         bottom_stl_path = output_dir / "v1-charging-stand-bottom-tray.stl"
-        cq.exporters.export(bottom_tray, str(bottom_stl_path))
+        cq.exporters.export(bottom_print, str(bottom_stl_path))
         print(f"✅ {bottom_stl_path} - Bottom tray (cable management)")
 
-        # Export top tray
+        # Export top tray (slicer-ready: flipped + Z starts at 0)
         top_stl_path = output_dir / "v1-charging-stand-top-tray.stl"
-        cq.exporters.export(top_tray, str(top_stl_path))
-        print(f"✅ {top_stl_path} - Top tray (device pockets + Mudra pole)")
+        cq.exporters.export(top_print, str(top_stl_path))
+        print(f"✅ {top_stl_path} - Top tray (flipped for printing)")
 
-        # Also export as STEP files for CAD verification
+        # STEP files keep original assembly positions (for CAD review)
         bottom_step_path = output_dir / "v1-charging-stand-bottom-tray.step"
         cq.exporters.export(bottom_tray, str(bottom_step_path))
-        print(f"✅ {bottom_step_path} - Bottom tray STEP (CAD)")
+        print(f"✅ {bottom_step_path} - Bottom tray STEP (assembly position)")
 
         top_step_path = output_dir / "v1-charging-stand-top-tray.step"
         cq.exporters.export(top_tray, str(top_step_path))
-        print(f"✅ {top_step_path} - Top tray STEP (CAD)")
+        print(f"✅ {top_step_path} - Top tray STEP (assembly position)")
 
         return True
 
