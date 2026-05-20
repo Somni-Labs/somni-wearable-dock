@@ -32,7 +32,7 @@ from cq_server.ui import ui, show_object
 
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
-STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
+STAND_D = 200          # total depth — increased from 175 to give G2 case 23mm clearance from front-row wearables
 STAND_H = 61           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
