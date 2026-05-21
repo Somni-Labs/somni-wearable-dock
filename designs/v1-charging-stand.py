@@ -264,65 +264,12 @@ def build_bottom_tray():
     _charger_back  = charger_y + CHARGER_D / 2    # Y = 51
     _charger_left  = charger_x - CHARGER_W / 2   # X = -69
     _charger_right = charger_x + CHARGER_W / 2   # X = 69
-    RIB_T = 2        # rib thickness
-    rib_h = SPLIT_Z - BASE_H - WALL  # rib height (fills cavity)
 
-    # ── Zone 1: Front cable channel ─────────────────────────────────────
-    # The front channel runs from the front wall to the charger bay.
-    # Cross ribs separate device lanes but have OPEN CHANNELS at the
-    # base so cables can cross horizontally between lanes. Ribs only
-    # rise from a raised shelf, leaving the bottom ~12mm clear for
-    # cables to pass under freely in any direction.
-    #
-    # Front spine rib separates the front channel from the charger bay.
-    # It has wide gaps at each device X and also at the side corridors
-    # so cables flow freely from charger → corridor → front channel.
-    front_device_xs = sorted([
-        SLOT_POSITIONS["uh_ring"][0],
-        SLOT_POSITIONS["r1_ring"][0],
-        SLOT_POSITIONS["omi"][0],
-        SLOT_POSITIONS["mudra"][0],
-    ])
-
-    _cable_clearance = 12  # mm of clear space at the base of each rib
-    _rib_upper_h = rib_h - _cable_clearance  # visible rib above the clearance
-
-    # Cross ribs with open base channels
-    for px in front_device_xs:
-        if _rib_upper_h > 2:
-            rib = (
-                cq.Workplane("XY")
-                .workplane(offset=BASE_H + _cable_clearance)
-                .center(px, (-STAND_D / 2 + WALL + _charger_front) / 2)
-                .box(RIB_T, _charger_front - (-STAND_D / 2 + WALL), _rib_upper_h,
-                     centered=[True, True, False])
-            )
-            tray = tray.union(rib)
-
-    # Front spine rib — also raised with cable clearance underneath
-    if _rib_upper_h > 2:
-        front_spine = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H + _cable_clearance)
-            .center(0, _charger_front)
-            .box(STAND_W - WALL * 4, RIB_T, _rib_upper_h,
-                 centered=[True, True, False])
-        )
-        tray = tray.union(front_spine)
-
-    # Cut wide gaps in the spine rib at each device X AND at the side
-    # corridor entrances so cables route freely in all directions.
-    _gap_w = USBC_HEAD_W + 8  # 22mm — wide enough for cables + connectors
-    all_gap_xs = front_device_xs + [_charger_left, _charger_right]
-    for gx in all_gap_xs:
-        gap = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(gx, _charger_front)
-            .box(_gap_w, RIB_T + 2, rib_h + 1,
-                 centered=[True, True, False])
-        )
-        tray = tray.cut(gap)
+    # ── Zone 1: Front cable channel — completely open ──────────────────
+    # No ribs. The entire front channel is one open cavity from the
+    # front wall to the charger bay. Cables route freely in any
+    # direction. The cable winding posts on the side looms, Velcro
+    # strap slots, and arch clips handle all the organization.
 
     # ── Zone 2: VanBon charger bay (completely open) ─────────────────────
     # The charger sits on the floor and is accessed from ABOVE when the
