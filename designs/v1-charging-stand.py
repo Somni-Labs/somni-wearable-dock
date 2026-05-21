@@ -966,10 +966,10 @@ def build_top_tray():
     base = base.union(ipad_lip)
 
     # ── Hidden iPad cable tunnel ─────────────────────────────────────────
-    # The cable enters from the bottom tray through a small floor hole
-    # near the left end of the iPad slot. It then runs through a
-    # concealed rectangular tunnel inside the top tray body, heading
-    # left (-X) to exit through the left side wall.
+    # The cable enters from the bottom tray through a floor hole, then
+    # runs through a concealed tunnel spanning the FULL WIDTH of the
+    # top tray, exiting through BOTH the left and right side walls.
+    # This lets you choose which side the cable exits from.
     #
     # Tunnel cross-section: 14mm wide × 8mm tall (fits USB-C cable
     # body comfortably). Sits just above SPLIT_Z inside the tray slab.
@@ -977,9 +977,8 @@ def build_top_tray():
     _tunnel_h = 8       # tunnel height (Z) — cable body ~5mm + margin
     _tunnel_z = SPLIT_Z + 1  # sits just above the tray joint
 
-    # Cable entry point: near the left end of the iPad slot so the
-    # tunnel run to the side wall is short.
-    _cable_entry_x = -IPAD_SLOT_W / 2 + 20  # 20mm from left end of slot
+    # Cable entry point: centered under the iPad slot
+    _cable_entry_x = 0  # centered
 
     # STEP 1: Floor hole — cuts from BELOW the top tray (bottom tray
     # cavity) all the way up through the tray floor into the tunnel.
@@ -1005,28 +1004,18 @@ def build_top_tray():
     )
     base = base.cut(ipad_cable_entry)
 
-    # STEP 3: Horizontal tunnel — runs from the cable entry point
-    # left (-X) to the side wall. Completely hidden inside the tray
-    # body, invisible from above or below.
-    _tunnel_run = abs(_cable_entry_x - (-STAND_W / 2)) + WALL + 2
+    # STEP 3: Horizontal tunnel — spans the FULL WIDTH of the stand,
+    # from left wall to right wall. Completely hidden inside the tray
+    # body, invisible from above or below. Exit on whichever side
+    # you prefer — just route the cable left or right.
     ipad_cable_tunnel = (
         cq.Workplane("XY")
         .workplane(offset=_tunnel_z)
-        .center((_cable_entry_x + (-STAND_W / 2)) / 2, ipad_y)
-        .rect(_tunnel_run, _tunnel_w)
+        .center(0, ipad_y)
+        .rect(STAND_W + 2, _tunnel_w)  # full width + break through both walls
         .extrude(_tunnel_h)
     )
     base = base.cut(ipad_cable_tunnel)
-
-    # STEP 4: Side wall exit — the tunnel breaks through the left
-    # wall so the cable exits neatly at the side of the stand.
-    ipad_cable_exit = (
-        cq.Workplane("XY")
-        .workplane(offset=_tunnel_z)
-        .center(-STAND_W / 2, ipad_y)
-        .box(WALL * 4, _tunnel_w, _tunnel_h, centered=True)
-    )
-    base = base.cut(ipad_cable_exit)
 
     # ── AC cable pass-through (left wall, matching bottom tray) ──────────
     # The VanBon's AC cable exits the short side (-X). Route it through
