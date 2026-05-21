@@ -8,7 +8,7 @@ Devices (front row, left to right):
   3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
   4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
 Rear row:
-  5. Even Realities G2     — glasses charging case 174×66×36-50mm wedge
+  5. Even Realities G2     — glasses charging case 170×75×30mm
   6. iPad                  — wide slot behind G2 (fits 13" Pro, diagonal if cased)
 
 Design goals:
@@ -33,7 +33,7 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 61           # TOTAL assembled height (bottom + top)
+STAND_H = 38           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 0.5              # print tolerance per side
@@ -41,9 +41,8 @@ TOL = 0.5              # print tolerance per side
 # --- Two-part split ---
 # Bottom tray: cable management, USB-C charger, rubber feet
 # Top tray: device pockets, Mudra pole, iPad wall — sits on top of bottom
-# Bottom tray height raised to 40mm to house VanBon 33mm-tall charger
-# (BASE_H=3 + CHARGER_H_with_tol=34 + WALL=2.5 → rounded to 40mm).
-SPLIT_Z = 40           # Z where the two parts meet (bottom tray height)
+# Bottom tray height raised to 22mm to house slim 4-port USB-C charger.
+SPLIT_Z = 22           # Z where the two parts meet (bottom tray height)
 TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
 SNAP_LIP = 1.5         # ledge depth for snap engagement
@@ -57,21 +56,14 @@ CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height (~8.5mm)
 CHANNEL_W = 12         # cable channel width (wider for better cable mgmt)
 
 # --- USB-C multi-port charger recess (under G2 shelf) ---
-# VanBon Smart USB Charger — 8× USB-A ports + LCD display.
-# Real measurements: 134mm (L) × 68mm (W) × 33mm (H)
-# Orientation: long axis runs left-right (X). AC input cable exits the
-# LEFT short face (−X wall); 8× USB-A ports line the long front face.
-# 45×45mm LCD sits centered on the top face — visible through the top tray
-# if a window is cut, or simply enclosed and not needed during normal use.
-# Charger sits flush in the bottom tray cavity, accessed by removing top tray.
-CHARGER_W = 134 + TOL * 2  # charger long axis (X) — measured: 134mm
-CHARGER_D = 68 + TOL * 2   # charger short axis (Y) — measured: 68mm
-CHARGER_H = 33 + TOL * 2   # charger height (Z)     — measured: 33mm
-CHARGER_CABLE_SLOT_W = 20  # AC input slot through left wall (cable is on short face)
-CHARGER_AUX_PORT_COUNT = 2  # spare ports on charger for ad-hoc cables
-CHARGER_AUX_SLOT_W = 14     # aux cable slot width (USB-A head ~12mm + clearance)
-CHARGER_AUX_SLOT_H = 8      # aux cable slot height
-CHARGER_AUX_SPACING = 24    # spacing between the 2 aux slots (center-to-center)
+# Sized for the class of slim flat 4-port USB-C wall chargers
+# (e.g. BUDI 34W 4-Port / similar 30-35W flat bricks, ~83×44×14mm).
+# The charger sits flush in the bottom tray cavity, accessed by
+# removing the top tray.
+CHARGER_W = 88         # charger external width  + tolerance
+CHARGER_D = 55         # charger external depth  + tolerance
+CHARGER_H = 17         # charger external height + tolerance
+CHARGER_CABLE_SLOT_W = 14  # slot for input USB-C cable through rear wall
 # Legacy aliases retained so any older references compile.
 HUB_W, HUB_D, HUB_H = CHARGER_W, CHARGER_D, CHARGER_H
 HUB_CABLE_SLOT_W = CHARGER_CABLE_SLOT_W
@@ -135,34 +127,29 @@ MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
 # --- Device 5: Even Realities G2 glasses case ---
-# Real measurements (caliper): 174mm × 66mm wedge, 50mm tall end / 36mm short end.
-# The case is a tapered wedge — taller at one end, angled down across its length.
-# Tall end (+X) faces the front of the stand; short end (-X) faces the rear.
-G2_W = 174 + TOL * 2         # case length (measured: 174mm)
-G2_D = 66 + TOL * 2          # case depth (measured: 66mm)
-G2_H_TALL = 50               # case height at tall end (measured: 50mm)
-G2_H_SHORT = 36              # case height at short end (measured: 36mm)
-G2_CRADLE_DEPTH = 18          # how deep case sits (pocket depth into stand top)
+# Real measurements: 170mm × 75mm × 30mm
+G2_W = 170 + TOL * 2         # case length (measured: 170mm)
+G2_D = 75 + TOL * 2          # case depth (measured: 75mm)
+G2_H = 30                    # case height (measured: 30mm)
+G2_CRADLE_DEPTH = 18          # how deep case sits
 G2_CABLE_W = 14               # USB-C cable slot
 
 # --- Device 6: iPad slot (rear, behind G2 case) ---
-# iPad Pro 13" / iPad Air 13" in portrait: 213mm wide × 267mm tall × ~5.1mm bare
-# Portrait orientation chosen: 213mm width fits within 240mm stand; landscape (267mm) would not.
-# With a thin case: ~215mm wide overall (213mm + 2mm tolerance).
+# iPad Pro 13" in landscape: 267 × 213 × ~6mm (actual device)
+# With a thin case: ~270 × 215mm overall (optimized for print bed fit)
+# NOTE: For thick cases, iPad can be placed diagonally in the wider slot
 # Slot has a back wall the iPad leans against.
-IPAD_SLOT_W = 215             # slot width (X) — portrait width: 213mm + 2mm tolerance
-IPAD_SLOT_GAP = 24            # slot gap (Y) — iPad + case thickness (~5.1mm bare + case allowance)
+IPAD_SLOT_W = 235             # slot width (X) — max width for 245mm print bed
+IPAD_SLOT_GAP = 24            # slot gap (Y) — iPad + case thickness (~22mm + tolerance)
 IPAD_SLOT_DEPTH = 20          # how deep iPad sits into the base slot
-IPAD_BACK_H = 60              # back wall height above base
+IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad)
 IPAD_BACK_THICK = 4           # back wall thickness
 IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
+# Diagonal placement: 13" iPad (270mm) can fit diagonally in 235mm slot
+# sin(angle) = 235/270 = 0.87, angle ≈ 60° from horizontal
 
 # --- Layout positions (X, Y from center) ---
 FRONT_ROW_Y = -STAND_D / 2 + 38
-
-# Rear row: G2 case sits near the rear of the stand, offset 8mm from the back
-# wall. The G2 pocket and iPad slot overlap in Y but coexist as separate cuts
-# from the top surface — this is intentional (the iPad leans above the G2 area).
 REAR_ROW_Y = STAND_D / 2 - G2_D / 2 - 8
 
 FRONT_SPACING = 54
@@ -266,36 +253,14 @@ def build_bottom_tray():
 
     # ── Cable pass-through holes in the top surface ──────────────────────
     # Each hole is large enough for a USB-C connector HEAD to pass through,
-    # not just the cable. Positions are device-specific:
-    #   - UH ring: rear of pocket (USB-C port faces +Y)
-    #   - R1 ring: left side of pocket (fixed cable exits left edge)
-    #   - Omi: left-offset on pocket (USB-C port on left of long side)
-    #   - Others: centered under device
+    # not just the cable. G2 case gets double-wide for its bigger cable.
     for name, (px, py) in SLOT_POSITIONS.items():
         hw = USBC_HEAD_W + 2 if name == "g2_case" else USBC_HEAD_W
         hh = USBC_HEAD_H + 2 if name == "g2_case" else USBC_HEAD_H
-
-        # Device-specific cable hole positions
-        if name == "uh_ring":
-            # USB-C port on rear face — hole at rear edge of pocket
-            hole_x, hole_y = px, py + UH_SIDE / 2
-        elif name == "r1_ring":
-            # Fixed cable exits left edge of disc — but USB-C head on
-            # the other end must feed through, so hole is head-sized
-            hole_x, hole_y = px - R1_DIA / 2, py
-        elif name == "omi":
-            # USB-C port on left long side (Edge 4), 8mm from v4 corner
-            # v4 relative to center = (-22.5, -6.5), edge runs at 60°
-            _v4_rel = (-22.5, -6.5)
-            hole_x = px + _v4_rel[0] + 8.0 * math.cos(math.radians(60))
-            hole_y = py + _v4_rel[1] + 8.0 * math.sin(math.radians(60))
-        else:
-            hole_x, hole_y = px, py
-
         hole = (
             cq.Workplane("XY")
             .workplane(offset=SPLIT_Z - WALL - 0.5)
-            .center(hole_x, hole_y)
+            .center(px, py)
             .rect(hw, hh)
             .extrude(WALL + 1)
         )
@@ -314,33 +279,14 @@ def build_bottom_tray():
     )
     tray = tray.cut(charger)
 
-    # AC input cable slot — runs from the charger's left face through the left wall.
-    # Bridges the gap between the recess left edge (charger_x - CHARGER_W/2) and
-    # the outer left wall (−STAND_W/2), so the AC cable can exit the enclosure.
-    slot_left_edge = -STAND_W / 2
-    slot_right_edge = charger_x - CHARGER_W / 2
-    slot_cx = (slot_left_edge + slot_right_edge) / 2
-    slot_len = slot_right_edge - slot_left_edge + WALL  # +WALL to pierce the outer face
+    # Input cable slot through rear wall (at charger level)
     usb_slot = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .center(slot_cx, charger_y)
-        .box(slot_len, CHARGER_CABLE_SLOT_W, CHARGER_H, centered=[True, True, False])
+        .workplane(offset=BASE_H + 4)
+        .center(charger_x, STAND_D / 2)
+        .box(CHARGER_CABLE_SLOT_W, WALL * 4, 8, centered=True)
     )
     tray = tray.cut(usb_slot)
-
-    # ── Auxiliary cable slots (2 spare ports, exit through rear wall) ────
-    # These let you plug 2 extra cables into the charger's spare ports
-    # and route them out the back of the stand for ad-hoc device charging.
-    for aux_i in range(CHARGER_AUX_PORT_COUNT):
-        _aux_x_offset = (aux_i - 0.5) * CHARGER_AUX_SPACING  # centered around charger_x
-        aux_slot = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H + 4)
-            .center(charger_x + _aux_x_offset, STAND_D / 2)
-            .box(CHARGER_AUX_SLOT_W, WALL * 4, CHARGER_AUX_SLOT_H, centered=True)
-        )
-        tray = tray.cut(aux_slot)
 
     # ── Snap-fit clips (4 clips — one on each long side, centered) ───────
     # Cantilever clips that hook over a lip on the top tray's inner wall.
@@ -445,16 +391,11 @@ def build_top_tray():
         )
         base = base.cut(lip_pocket)
 
-    # ── Cable pass-through holes (matching bottom tray positions) ────────
-    # UH, R1, and Omi have custom cable cuts in their cradle sections below.
-    # Only cut generic holes for devices that don't have custom routing.
+    # ── Cable pass-through holes (matching bottom tray) ──────────────────
+    # Same size as bottom tray holes — USB-C head must fit through both
     for name, (px, py) in SLOT_POSITIONS.items():
-        if name in ("uh_ring", "r1_ring", "omi"):
-            continue  # handled in individual cradle sections
-
         hw = USBC_HEAD_W + 2 if name == "g2_case" else USBC_HEAD_W
         hh = USBC_HEAD_H + 2 if name == "g2_case" else USBC_HEAD_H
-
         hole = (
             cq.Workplane("XY")
             .workplane(offset=SPLIT_Z - 0.5)
@@ -466,8 +407,6 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 1: Ultrahuman Ring Air — SQUARE pocket, rounded corners
-    # USB-C port faces REAR (+Y). Cable routes down and back.
-    # ASSUMPTION: port faces rear (+Y side of dock) — confirm with human
     # =====================================================================
     ux, uy = SLOT_POSITIONS["uh_ring"]
     uh_pocket = (
@@ -478,23 +417,11 @@ def build_top_tray():
         .extrude(UH_CRADLE_DEPTH + 1)
     )
     base = base.cut(uh_pocket)
-
-    # Rear wall slot — USB-C cable exits dock rear face, routes down and back.
-    # Slot cut through the rear wall of the pocket (at pocket floor level).
-    uh_rear_slot = (
-        cq.Workplane("XY")
-        .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
-        .center(ux, uy + UH_SIDE / 2)
-        .rect(USBC_HEAD_W, WALL + 2)
-        .extrude(USBC_HEAD_H)
-    )
-    base = base.cut(uh_rear_slot)
-
-    # Floor pass-through at rear edge (cable drops down into bottom tray)
+    # Cable pass-through — USB-C head sized, through the full top tray floor
     uh_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(ux, uy + UH_SIDE / 2)
+        .center(ux, uy)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
@@ -502,9 +429,6 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 2: Even R1 Ring — CIRCULAR pocket
-    # Fixed cable exits from the LEFT edge (-X) of the disc.
-    # Cable is thin (~4mm), not a removable USB-C head.
-    # ASSUMPTION: cable exits left edge (−X) of disc — confirm exit point and cable length with human
     # =====================================================================
     rx, ry = SLOT_POSITIONS["r1_ring"]
     r1_cup = (
@@ -515,25 +439,11 @@ def build_top_tray():
         .extrude(R1_CRADLE_DEPTH + 1)
     )
     base = base.cut(r1_cup)
-
-    # Side groove — notch in the left wall of the circular pocket for
-    # the fixed cable to exit. Sized for USB-C head to feed through
-    # during assembly (head is 14×9mm), then cable sits in the groove.
-    r1_cable_groove = (
-        cq.Workplane("XY")
-        .workplane(offset=STAND_H - R1_CRADLE_DEPTH)
-        .center(rx - R1_DIA / 2, ry)
-        .rect(10, USBC_HEAD_W)  # wide enough for USB-C head to pass through
-        .extrude(USBC_HEAD_H)
-    )
-    base = base.cut(r1_cable_groove)
-
-    # Floor pass-through at left edge — must fit USB-C head (the other
-    # end of the fixed cable needs to feed through to reach the hub).
+    # Cable pass-through — USB-C head sized
     r1_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(rx - R1_DIA / 2, ry)
+        .center(rx, ry)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
@@ -541,9 +451,7 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
-    # USB-C port is on the LEFT long side (30mm), offset ~8mm from the
-    # left corner (first quarter of the side). Port faces -X direction.
-    # ASSUMPTION: port is on upper-left long side, ~8mm from lower corner — confirm which long side and offset with human
+    # Six-sided diamond matching the actual pendant shape
     # =====================================================================
     ox, oy = SLOT_POSITIONS["omi"]
     diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
@@ -560,40 +468,11 @@ def build_top_tray():
     # Small fillet on vertices to prevent sharp edges
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     base = base.cut(omi_pocket)
-
-    # USB-C port slot — perpendicular to the left long side (Edge 4).
-    # Edge 4 runs at 60° from v4(-22.5, -6.5) to v5(-7.5, 19.5).
-    # The port is ~8mm from v4 (the lower-left corner of that edge).
-    # The connector inserts PERPENDICULAR to the edge (inward normal = -30°).
-    # Slot is rotated to match the angled wall.
-    _edge4_angle = 60.0  # degrees, direction of edge 4
-    _port_offset_along_edge = 8.0  # mm from v4 corner
-    # Position along edge 4, offset 8mm from v4
-    _v4_x, _v4_y = -22.5, -6.5  # vertex 4 (relative to diamond center)
-    _port_local_x = _v4_x + _port_offset_along_edge * math.cos(math.radians(_edge4_angle))
-    _port_local_y = _v4_y + _port_offset_along_edge * math.sin(math.radians(_edge4_angle))
-    # Absolute position on the stand
-    _omi_port_x = ox + _port_local_x
-    _omi_port_y = oy + _port_local_y
-
-    # Slot cut perpendicular to the edge (rotated to match wall angle).
-    # Use a box created at origin, rotated -30°, then translated into position.
-    # This ensures the slot extends outward THROUGH the angled pocket wall.
-    _slot_depth = 12.0  # deep enough to cut through the angled wall
-    _normal_angle = _edge4_angle - 90  # -30° = outward normal direction
-    omi_port_slot = (
-        cq.Workplane("XY")
-        .box(USBC_HEAD_W, _slot_depth, USBC_HEAD_H)
-        .rotate((0, 0, 0), (0, 0, 1), _normal_angle)
-        .translate((_omi_port_x, _omi_port_y, STAND_H - OMI_CRADLE_DEPTH + USBC_HEAD_H / 2))
-    )
-    base = base.cut(omi_port_slot)
-
-    # Floor pass-through below the port position (cable drops into bottom tray)
+    # Cable pass-through — USB-C head sized
     omi_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(_omi_port_x, _omi_port_y)
+        .center(ox, oy)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
@@ -707,46 +586,21 @@ def build_top_tray():
     base = base.union(pole)
 
     # =====================================================================
-    # CRADLE 5: Even G2 glasses case — wedge-profile pocket (rear)
-    # The case is a tapered wedge: G2_H_TALL (50mm) at +X, G2_H_SHORT
-    # (36mm) at -X, dropping 14mm across the length.  The pocket floor is
-    # angled to match so the case sits flush on the stand.
-    #
-    # Implementation: draw a trapezoid in the XZ plane (side profile of the
-    # wedge void) and extrude it along Y by G2_D.
-    #   +X (tall) floor: STAND_H - G2_CRADLE_DEPTH
-    #   -X (short) floor: tall floor + taper  (shallower by 14mm)
-    #   top of void: STAND_H + 1  (clears the top face)
+    # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
     # =====================================================================
     gx, gy = SLOT_POSITIONS["g2_case"]
-
-    _g2_taper = G2_H_TALL - G2_H_SHORT                  # 14mm
-    _g2_floor_tall = STAND_H - G2_CRADLE_DEPTH           # Z at +X (tall) end
-    _g2_floor_short = _g2_floor_tall + _g2_taper          # Z at -X (short) end
-    _g2_top = STAND_H + 1                                # clears top face
-
-    # Trapezoid corners in the XZ plane: bottom-right (+X floor), bottom-left
-    # (-X floor), top-left, top-right.  Translated to front face of pocket (Y).
-    _trap_pts = [
-        (gx + G2_W / 2, _g2_floor_tall),
-        (gx - G2_W / 2, _g2_floor_short),
-        (gx - G2_W / 2, _g2_top),
-        (gx + G2_W / 2, _g2_top),
-    ]
-
     g2_pocket = (
-        cq.Workplane("XZ")
-        .transformed(offset=cq.Vector(0, 0, gy - G2_D / 2))
-        .polyline(_trap_pts)
-        .close()
-        .extrude(G2_D)
+        cq.Workplane("XY")
+        .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
+        .center(gx, gy)
+        .rect(G2_W, G2_D)
+        .extrude(G2_CRADLE_DEPTH + 1)
     )
     base = base.cut(g2_pocket)
-
-    # USB-C cable slot at rear (exits through rear wall of stand)
+    # USB-C cable slot at rear
     g2_cable = (
         cq.Workplane("XY")
-        .workplane(offset=_g2_floor_short)
+        .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
         .center(gx, STAND_D / 2)
         .box(G2_CABLE_W, WALL * 4, G2_CRADLE_DEPTH,
              centered=[True, True, False])
@@ -809,22 +663,6 @@ def build_top_tray():
              centered=[True, True, False])
     )
     base = base.cut(ipad_cable_wall)
-
-    # ── Auxiliary cable pass-throughs (2 spare charger ports → rear) ─────
-    # Matching slots in the top tray rear wall so cables can exit the back.
-    # Positioned to align with the bottom tray aux slots below.
-    charger_x, _charger_y = SLOT_POSITIONS["g2_case"]
-    for aux_i in range(CHARGER_AUX_PORT_COUNT):
-        _aux_x_offset = (aux_i - 0.5) * CHARGER_AUX_SPACING
-        # Slot through the top tray rear wall
-        aux_top_slot = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z)
-            .center(charger_x + _aux_x_offset, STAND_D / 2)
-            .box(CHARGER_AUX_SLOT_W, WALL * 4, CHARGER_AUX_SLOT_H,
-                 centered=True)
-        )
-        base = base.cut(aux_top_slot)
 
     return base
 
