@@ -239,49 +239,136 @@ def build_bottom_tray():
     )
     tray = tray.cut(cavity)
 
-    # ── Internal cable ribs (organizer dividers) ─────────────────────────
-    # Spine rib left-right at Y=0
-    spine_rib = (
-        cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .box(STAND_W - WALL * 4, 2, SPLIT_Z - BASE_H - WALL,
-             centered=[True, True, False])
-    )
-    tray = tray.union(spine_rib)
+    # ── ZONED INTERIOR LAYOUT ────────────────────────────────────────────
+    # The bottom tray is divided into 3 zones (front→back):
+    #
+    #   ZONE 1 — FRONT CABLE CHANNEL (Y = front wall to charger front edge)
+    #     Short ribs between the 4 front-row device positions only.
+    #     Cables drop from device pockets, run along this channel to
+    #     the charger's USB-A ports on its front (-Y) face.
+    #
+    #   ZONE 2 — CHARGER BAY (centered on REAR_ROW_Y)
+    #     Completely open — no ribs. The VanBon charger drops straight
+    #     in from above when the top tray is removed. AC cable exits
+    #     through the left wall. USB-A ports face front (-Y).
+    #
+    #   ZONE 3 — REAR CABLE CHANNEL (charger rear edge to back wall)
+    #     iPad cable + AC cable routing. Minimal ribs.
+    #
+    # This gives an intuitive layout: pop off the top tray, drop in the
+    # charger, plug cables, route them forward through the channel, done.
+    # ──────────────────────────────────────────────────────────────────────
 
-    # Cross ribs at each device position
-    for name, (px, py) in SLOT_POSITIONS.items():
+    charger_x, charger_y = SLOT_POSITIONS["g2_case"]
+    _charger_front = charger_y - CHARGER_D / 2   # Y = -21
+    _charger_back  = charger_y + CHARGER_D / 2    # Y = 51
+    RIB_T = 2        # rib thickness
+    rib_h = SPLIT_Z - BASE_H - WALL  # rib height (fills cavity)
+
+    # ── Zone 1: Front cable channel ribs ─────────────────────────────────
+    # Short cross ribs ONLY between front-row devices, stopping at the
+    # charger bay boundary. These create cable lanes, not walls.
+    front_device_xs = sorted([
+        SLOT_POSITIONS["uh_ring"][0],
+        SLOT_POSITIONS["r1_ring"][0],
+        SLOT_POSITIONS["omi"][0],
+        SLOT_POSITIONS["mudra"][0],
+    ])
+    for px in front_device_xs:
         rib = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
-            .center(px, 0)
-            .box(2, STAND_D - WALL * 4, SPLIT_Z - BASE_H - WALL,
+            .center(px, (-STAND_D / 2 + WALL + _charger_front) / 2)
+            .box(RIB_T, _charger_front - (-STAND_D / 2 + WALL), rib_h,
                  centered=[True, True, False])
         )
         tray = tray.union(rib)
 
+    # Front spine rib — runs left-right across the front cable channel
+    # at the boundary between Zone 1 and Zone 2, acting as a retaining
+    # wall that the charger sits behind. This rib has gaps at each device
+    # position so cables can pass from the channel into the charger bay.
+    front_spine = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(0, _charger_front)
+        .box(STAND_W - WALL * 4, RIB_T, rib_h,
+             centered=[True, True, False])
+    )
+    tray = tray.union(front_spine)
+
+    # Cut cable gaps in the front spine at each device X position
+    for px in front_device_xs:
+        gap = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(px, _charger_front)
+            .box(USBC_HEAD_W + 4, RIB_T + 2, rib_h,
+                 centered=[True, True, False])
+        )
+        tray = tray.cut(gap)
+
+    # ── Zone 2: VanBon charger bay (completely open) ─────────────────────
+    # The charger recess is carved into the floor. No ribs in this zone.
+    # The charger drops straight in when the top tray is removed.
+    charger_recess = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(charger_x, charger_y)
+        .box(CHARGER_W, CHARGER_D, CHARGER_H, centered=[True, True, False])
+    )
+    tray = tray.cut(charger_recess)
+
+    # Small corner bumps inside the recess to keep the charger centered
+    # (4 corner tabs, 3mm square, rising from the floor)
+    _tab = 3
+    for dx, dy in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
+        tab = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(
+                charger_x + dx * (CHARGER_W / 2 - _tab / 2),
+                charger_y + dy * (CHARGER_D / 2 - _tab / 2),
+            )
+            .box(_tab, _tab, CHARGER_H, centered=[True, True, False])
+        )
+        tray = tray.union(tab)
+
+    # AC input cable slot through left wall (-X side)
+    # The VanBon's AC cable exits its short side.
+    ac_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H + 4)
+        .center(-STAND_W / 2, charger_y)
+        .box(WALL * 4, CHARGER_CABLE_SLOT_W, 14, centered=True)
+    )
+    tray = tray.cut(ac_slot)
+
+    # ── Zone 3: Rear cable channel ───────────────────────────────────────
+    # Open channel behind the charger for iPad cable routing.
+    # One center rib to loosely separate iPad cable from AC cable.
+    rear_rib = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(0, (_charger_back + STAND_D / 2 - WALL) / 2)
+        .box(RIB_T, STAND_D / 2 - WALL - _charger_back, rib_h,
+             centered=[True, True, False])
+    )
+    tray = tray.union(rear_rib)
+
     # ── Cable pass-through holes in the top surface ──────────────────────
-    # Each hole is large enough for a USB-C connector HEAD to pass through,
-    # not just the cable. Positions are device-specific:
-    #   - UH ring: left side of pocket (cable exits -X, same as R1/Omi/Mudra)
-    #   - R1 ring: left side of pocket (fixed cable exits left edge)
-    #   - Omi: left-offset on pocket (USB-C port on left of long side)
-    #   - Others: centered under device
+    # Each hole is large enough for a USB-C connector HEAD to pass through.
+    # Positioned directly above each device so cables drop straight down
+    # into the front cable channel, then route back to the charger.
     for name, (px, py) in SLOT_POSITIONS.items():
         hw = USBC_HEAD_W + 2 if name == "g2_case" else USBC_HEAD_W
         hh = USBC_HEAD_H + 2 if name == "g2_case" else USBC_HEAD_H
 
-        # Device-specific cable hole positions
         if name == "uh_ring":
-            # USB-C cable exits left edge (-X), consistent with all other front-row devices
             hole_x, hole_y = px - UH_SIDE / 2, py
         elif name == "r1_ring":
-            # Fixed cable exits left edge of disc — but USB-C head on
-            # the other end must feed through, so hole is head-sized
             hole_x, hole_y = px - R1_DIA / 2, py
         elif name == "omi":
-            # USB-C port on left long side (Edge 4), 8mm from v4 corner
-            # v4 relative to center = (-22.5, -6.5), edge runs at 60°
             _v4_rel = (-22.5, -6.5)
             hole_x = px + _v4_rel[0] + 8.0 * math.cos(math.radians(60))
             hole_y = py + _v4_rel[1] + 8.0 * math.sin(math.radians(60))
@@ -296,48 +383,6 @@ def build_bottom_tray():
             .extrude(WALL + 1)
         )
         tray = tray.cut(hole)
-
-    # ── VanBon charger recess (under G2 shelf) ─────────────────────────
-    # Charger sits in the bottom tray cavity, centered under where the
-    # G2 case pocket lives on the top tray. The charger's long side
-    # (with USB-A ports) faces toward the front of the stand (-Y) so
-    # cables route forward to devices. AC cable exits the short side.
-    charger_x, charger_y = SLOT_POSITIONS["g2_case"]
-    charger = (
-        cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .center(charger_x, charger_y)
-        .box(CHARGER_W, CHARGER_D, CHARGER_H, centered=[True, True, False])
-    )
-    tray = tray.cut(charger)
-
-    # AC input cable slot through left wall (charger's short side faces -X)
-    # The AC cable exits the short side of the VanBon charger.
-    ac_slot = (
-        cq.Workplane("XY")
-        .workplane(offset=BASE_H + 4)
-        .center(-STAND_W / 2, charger_y)
-        .box(WALL * 4, CHARGER_CABLE_SLOT_W, 12, centered=True)
-    )
-    tray = tray.cut(ac_slot)
-
-    # ── USB-A cable exit slots (8 ports face -Y, toward front devices) ──
-    # The USB-A ports line the long side of the charger. Cables route
-    # forward from the charger to each device's cable pass-through.
-    # We cut slots in the charger recess wall to allow cables to exit
-    # toward the front row. Only need a few exit slots (not 8 individual
-    # ones) — cables bundle and route through the cable ribs.
-    _usb_exit_count = 4  # 4 grouped exit slots for 8 cables
-    _usb_total_span = CHARGER_W - 20  # span across charger long side
-    for usb_i in range(_usb_exit_count):
-        _usb_x_offset = -_usb_total_span / 2 + (usb_i + 0.5) * (_usb_total_span / _usb_exit_count)
-        usb_exit = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H + 4)
-            .center(charger_x + _usb_x_offset, charger_y - CHARGER_D / 2)
-            .box(CHARGER_USB_SLOT_W, WALL * 4, CHARGER_USB_SLOT_H, centered=True)
-        )
-        tray = tray.cut(usb_exit)
 
     # ── Snap-fit clips (4 clips — one on each long side, centered) ───────
     # Cantilever clips that hook over a lip on the top tray's inner wall.
