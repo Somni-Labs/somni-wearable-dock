@@ -363,17 +363,10 @@ def build_bottom_tray():
     )
     tray = tray.cut(ac_slot)
 
-    # ── Zone 3: Rear cable channel ───────────────────────────────────────
-    # Open channel behind the charger for iPad cable routing.
-    # One center rib to loosely separate iPad cable from AC cable.
-    rear_rib = (
-        cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .center(0, (_charger_back + STAND_D / 2 - WALL) / 2)
-        .box(RIB_T, STAND_D / 2 - WALL - _charger_back, rib_h,
-             centered=[True, True, False])
-    )
-    tray = tray.union(rear_rib)
+    # ── Zone 3: Rear — completely open ─────────────────────────────────
+    # No ribs behind the charger. The USB-A ports face this direction
+    # so the entire rear zone stays clear for plugging in cables,
+    # iPad cable routing, and AC cable access.
 
     # ── Cable pass-through holes in the top surface ──────────────────────
     # Each hole is large enough for a USB-C connector HEAD to pass through.
