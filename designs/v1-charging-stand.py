@@ -151,7 +151,10 @@ IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
 
 # --- Layout positions (X, Y from center) ---
 FRONT_ROW_Y = -STAND_D / 2 + 38
-REAR_ROW_Y = STAND_D / 2 - G2_D / 2 - 8
+# G2 centered between front-row rear edge and iPad front edge (11mm clearance each side)
+_IPAD_FRONT_EDGE = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP
+_FRONT_REAR_EDGE = FRONT_ROW_Y + 20          # half of largest front device (UH_SIDE)
+REAR_ROW_Y = (_FRONT_REAR_EDGE + _IPAD_FRONT_EDGE) / 2
 
 FRONT_SPACING = 54
 FRONT_START = -1.5 * FRONT_SPACING
