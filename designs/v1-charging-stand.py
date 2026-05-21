@@ -262,7 +262,7 @@ def build_bottom_tray():
     # ── Cable pass-through holes in the top surface ──────────────────────
     # Each hole is large enough for a USB-C connector HEAD to pass through,
     # not just the cable. Positions are device-specific:
-    #   - UH ring: rear of pocket (USB-C port faces +Y)
+    #   - UH ring: left side of pocket (cable exits -X, same as R1/Omi/Mudra)
     #   - R1 ring: left side of pocket (fixed cable exits left edge)
     #   - Omi: left-offset on pocket (USB-C port on left of long side)
     #   - Others: centered under device
@@ -272,8 +272,8 @@ def build_bottom_tray():
 
         # Device-specific cable hole positions
         if name == "uh_ring":
-            # USB-C port on rear face — hole at rear edge of pocket
-            hole_x, hole_y = px, py + UH_SIDE / 2
+            # USB-C cable exits left edge (-X), consistent with all other front-row devices
+            hole_x, hole_y = px - UH_SIDE / 2, py
         elif name == "r1_ring":
             # Fixed cable exits left edge of disc — but USB-C head on
             # the other end must feed through, so hole is head-sized
@@ -455,7 +455,8 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 1: Ultrahuman Ring Air — SQUARE pocket, rounded corners
-    # USB-C port faces REAR (+Y). Cable routes down and back.
+    # Cable exits LEFT (-X), consistent with R1, Omi, and Mudra.
+    # All front-row cables route in the same direction for clean management.
     # =====================================================================
     ux, uy = SLOT_POSITIONS["uh_ring"]
     uh_pocket = (
@@ -467,22 +468,21 @@ def build_top_tray():
     )
     base = base.cut(uh_pocket)
 
-    # Rear wall slot — USB-C cable exits dock rear face, routes down and back.
-    # Slot cut through the rear wall of the pocket (at pocket floor level).
-    uh_rear_slot = (
+    # Left wall slot — USB-C cable exits left face (-X), same direction as other devices.
+    uh_left_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
-        .center(ux, uy + UH_SIDE / 2)
-        .rect(USBC_HEAD_W, WALL + 2)
+        .center(ux - UH_SIDE / 2, uy)
+        .rect(WALL + 2, USBC_HEAD_W)
         .extrude(USBC_HEAD_H)
     )
-    base = base.cut(uh_rear_slot)
+    base = base.cut(uh_left_slot)
 
-    # Floor pass-through at rear edge (cable drops down into bottom tray)
+    # Floor pass-through at left edge (cable drops down into bottom tray)
     uh_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(ux, uy + UH_SIDE / 2)
+        .center(ux - UH_SIDE / 2, uy)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
