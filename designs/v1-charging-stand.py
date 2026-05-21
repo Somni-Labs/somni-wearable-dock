@@ -309,38 +309,57 @@ def build_bottom_tray():
         tray = tray.cut(gap)
 
     # ── Zone 2: VanBon charger bay (completely open) ─────────────────────
-    # The charger recess is carved into the floor. No ribs in this zone.
-    # The charger drops straight in when the top tray is removed.
-    charger_recess = (
+    # The charger sits on the floor and is accessed from ABOVE when the
+    # top tray is removed. The bay must:
+    #   1. Be open all the way to the top of the bottom tray (Z=SPLIT_Z)
+    #      so the charger drops straight in.
+    #   2. Have enough headroom above the charger for USB-A cables to
+    #      bend out of the ports (cables enter horizontally, need room
+    #      to curve upward through the top tray cable pass-throughs).
+    #   3. Not have corner tabs that reduce the opening below the
+    #      charger's actual footprint.
+    #
+    # The charger bay is a full-depth pocket from the floor (BASE_H)
+    # all the way up through the tray top surface (SPLIT_Z + 1).
+    charger_bay = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
         .center(charger_x, charger_y)
-        .box(CHARGER_W, CHARGER_D, CHARGER_H, centered=[True, True, False])
+        .box(CHARGER_W, CHARGER_D, SPLIT_Z - BASE_H + 1, centered=[True, True, False])
     )
-    tray = tray.cut(charger_recess)
+    tray = tray.cut(charger_bay)
 
-    # Small corner bumps inside the recess to keep the charger centered
-    # (4 corner tabs, 3mm square, rising from the floor)
-    _tab = 3
-    for dx, dy in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
-        tab = (
+    # Low-profile ledge around the bay perimeter to support the charger
+    # at the correct height and prevent it from shifting. The ledge is
+    # only 5mm tall — well below the charger top, leaving the bay open.
+    _ledge_w = 4       # ledge width (inward from bay wall)
+    _ledge_h = 5       # ledge height from floor
+    # Front and back ledge strips
+    for dy, sign in [(-1, -1), (1, 1)]:
+        ledge = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
-            .center(
-                charger_x + dx * (CHARGER_W / 2 - _tab / 2),
-                charger_y + dy * (CHARGER_D / 2 - _tab / 2),
-            )
-            .box(_tab, _tab, CHARGER_H, centered=[True, True, False])
+            .center(charger_x, charger_y + sign * (CHARGER_D / 2 - _ledge_w / 2))
+            .box(CHARGER_W - 20, _ledge_w, _ledge_h, centered=[True, True, False])
         )
-        tray = tray.union(tab)
+        tray = tray.union(ledge)
+    # Left and right ledge strips
+    for dx, sign in [(-1, -1), (1, 1)]:
+        ledge = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(charger_x + sign * (CHARGER_W / 2 - _ledge_w / 2), charger_y)
+            .box(_ledge_w, CHARGER_D - 20, _ledge_h, centered=[True, True, False])
+        )
+        tray = tray.union(ledge)
 
     # AC input cable slot through left wall (-X side)
-    # The VanBon's AC cable exits its short side.
+    # The VanBon's AC cable exits its short side. Full height slot.
     ac_slot = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H + 4)
+        .workplane(offset=BASE_H)
         .center(-STAND_W / 2, charger_y)
-        .box(WALL * 4, CHARGER_CABLE_SLOT_W, 14, centered=True)
+        .box(WALL * 4, CHARGER_CABLE_SLOT_W, SPLIT_Z - BASE_H, centered=True)
     )
     tray = tray.cut(ac_slot)
 
