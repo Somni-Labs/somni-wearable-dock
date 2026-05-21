@@ -924,28 +924,77 @@ def build_top_tray():
 
     # =====================================================================
     # SLOT 6: iPad — channel at the very rear with back support wall.
-    # iPad (in thick case) stands upright in landscape, leaning against
-    # the back wall. Front lip prevents it from sliding forward.
     #
-    # HIDDEN CABLE ROUTING: The USB-C cable enters from the bottom tray
-    # through a floor hole, runs through a concealed tunnel inside the
-    # top tray body toward the left side wall, then exits neatly at the
-    # left edge. The cable plugs into the iPad from below in the slot.
-    # This keeps the cable completely hidden — no visible wires.
+    # STRUCTURE (bottom to top):
+    #   1. Hidden cable tunnel inside the tray body (Z=42–50)
+    #   2. Solid floor with cable opening (Z=50, part of top tray)
+    #   3. iPad channel above the floor (Z=50 to STAND_H)
+    #   4. Removable cover plate slides in on rails, hides the cable
+    #      opening and provides a clean surface
+    #   5. Back wall + front lip hold the iPad in place
+    #
+    # Cable path: bottom tray → floor hole → tunnel (exits both sides)
+    #             → up through floor opening → iPad connector
     # =====================================================================
     ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
 
-    # Channel cut into the base for the iPad's bottom edge
+    # ── Tunnel dimensions ────────────────────────────────────────────
+    _tunnel_w = 14      # tunnel width (Y) — USB-C cable + clearance
+    _tunnel_h = 8       # tunnel height (Z) — cable body ~5mm + margin
+    _tunnel_z = SPLIT_Z + 1  # tunnel bottom (Z=42)
+    _floor_z = _tunnel_z + _tunnel_h  # solid floor at top of tunnel (Z=50)
+    _floor_thick = 2.5  # floor thickness
+    _cover_thick = 2    # removable cover thickness
+    _rail_h = _cover_thick + 1  # rail groove height (cover + clearance)
+    _rail_depth = 3     # how far rail extends inward from channel wall
+
+    # ── iPad channel — cut from floor surface up (NOT all the way through)
+    # The channel has a solid floor at _floor_z + _floor_thick = Z=52.5
+    _channel_floor_z = _floor_z + _floor_thick
+    _channel_depth = STAND_H - _channel_floor_z  # ~5.5mm
     ipad_channel = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - IPAD_SLOT_DEPTH)
+        .workplane(offset=_channel_floor_z)
         .center(0, ipad_y)
         .rect(IPAD_SLOT_W, IPAD_SLOT_GAP)
-        .extrude(IPAD_SLOT_DEPTH + 1)
+        .extrude(_channel_depth + 1)
     )
     base = base.cut(ipad_channel)
 
-    # Back wall — the iPad leans against this
+    # ── Cable opening in the floor ───────────────────────────────────
+    # A rectangular hole through the solid floor so the USB-C cable
+    # can come up from the tunnel to reach the iPad. Centered.
+    _cable_hole_w = 18   # wide enough for USB-C head
+    _cable_hole_d = 14   # deep enough for cable + bend
+    ipad_floor_hole = (
+        cq.Workplane("XY")
+        .workplane(offset=_floor_z - 0.5)
+        .center(0, ipad_y)
+        .rect(_cable_hole_w, _cable_hole_d)
+        .extrude(_floor_thick + 1)
+    )
+    base = base.cut(ipad_floor_hole)
+
+    # ── Slide-in rails for the cover plate ───────────────────────────
+    # Two continuous L-shaped rails run the FULL WIDTH of the iPad
+    # channel along the front and back walls. The cover plate slides
+    # in from either side on these rails.
+    #
+    # The rail is a groove cut into the channel wall: a horizontal
+    # slot _rail_depth deep and _rail_h tall, starting at the floor.
+    # The cover slides into these grooves from left or right.
+    for rail_sign in [-1, 1]:  # -1 = front wall, +1 = back wall
+        rail_y = ipad_y + rail_sign * (IPAD_SLOT_GAP / 2 - _rail_depth / 2)
+        rail_groove = (
+            cq.Workplane("XY")
+            .workplane(offset=_channel_floor_z)
+            .center(0, rail_y)
+            .rect(IPAD_SLOT_W + 2, _rail_depth)  # full width + exits both sides
+            .extrude(_rail_h)
+        )
+        base = base.cut(rail_groove)
+
+    # ── Back wall — the iPad leans against this ──────────────────────
     ipad_back = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H)
@@ -955,7 +1004,7 @@ def build_top_tray():
     )
     base = base.union(ipad_back)
 
-    # Front lip — raised ridge to catch the iPad from sliding forward
+    # ── Front lip — prevents iPad sliding forward ────────────────────
     ipad_lip = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H)
@@ -965,80 +1014,26 @@ def build_top_tray():
     )
     base = base.union(ipad_lip)
 
-    # ── Hidden iPad cable tunnel ─────────────────────────────────────────
-    # The cable enters from the bottom tray through a floor hole, then
-    # runs through a concealed tunnel spanning the FULL WIDTH of the
-    # top tray, exiting through BOTH the left and right side walls.
-    # This lets you choose which side the cable exits from.
-    #
-    # A removable cover plate sits on top of the tunnel, forming the
-    # floor that the iPad rests on. The cover has a small cable notch
-    # so the USB-C connector can poke up to reach the iPad.
-    #
-    # Tunnel cross-section: 14mm wide × 8mm tall (fits USB-C cable
-    # body comfortably). Sits just above SPLIT_Z inside the tray slab.
-    _tunnel_w = 14      # tunnel width (Y) — USB-C cable + clearance
-    _tunnel_h = 8       # tunnel height (Z) — cable body ~5mm + margin
-    _tunnel_z = SPLIT_Z + 1  # sits just above the tray joint
-    _cover_thick = 2.5  # thickness of the removable cover plate
-    _cover_z = _tunnel_z + _tunnel_h  # cover sits on top of the tunnel
-
-    # Cable entry point: centered under the iPad slot
-    _cable_entry_x = 0  # centered
-
-    # STEP 1: Floor hole — cuts from BELOW the top tray (bottom tray
-    # cavity) all the way up through the tray floor into the tunnel.
-    # This is the vertical passage where the cable comes up from the
-    # bottom tray into the hidden tunnel.
-    ipad_cable_floor = (
+    # ── Hidden cable tunnel (full width, exits both sides) ───────────
+    # Floor hole: bottom tray cavity → tunnel
+    ipad_cable_up = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(_cable_entry_x, ipad_y)
+        .center(0, ipad_y)
         .rect(_tunnel_w, _tunnel_w)
-        .extrude(_tunnel_h + 2)  # cuts through entire tray floor into tunnel
+        .extrude(_tunnel_h + 2)
     )
-    base = base.cut(ipad_cable_floor)
+    base = base.cut(ipad_cable_up)
 
-    # STEP 2: Vertical shaft — from the tunnel up through the iPad
-    # slot floor, so the cable can reach the iPad connector.
-    ipad_cable_entry = (
-        cq.Workplane("XY")
-        .workplane(offset=_tunnel_z)
-        .center(_cable_entry_x, ipad_y)
-        .rect(_tunnel_w, _tunnel_w)
-        .extrude(STAND_H - _tunnel_z + 1)  # up through slot floor
-    )
-    base = base.cut(ipad_cable_entry)
-
-    # STEP 3: Horizontal tunnel — spans the FULL WIDTH of the stand,
-    # from left wall to right wall. Completely hidden inside the tray
-    # body, invisible from above or below. Exit on whichever side
-    # you prefer — just route the cable left or right.
+    # Horizontal tunnel: spans full width, exits both side walls
     ipad_cable_tunnel = (
         cq.Workplane("XY")
         .workplane(offset=_tunnel_z)
         .center(0, ipad_y)
-        .rect(STAND_W + 2, _tunnel_w)  # full width + break through both walls
+        .rect(STAND_W + 2, _tunnel_w)
         .extrude(_tunnel_h)
     )
     base = base.cut(ipad_cable_tunnel)
-
-    # ── Support ledges for the removable iPad cover plate ────────────
-    # Two narrow ledges run along the front and back inner walls of
-    # the iPad channel, at the top of the tunnel. The cover plate
-    # rests on these ledges, forming a solid floor for the iPad.
-    _ledge_depth = 3     # how far the ledge sticks out from the wall (Y)
-    _ledge_h_dim = _cover_thick + 0.5  # ledge height = cover thickness + slack
-    for ledge_sign in [-1, 1]:  # front (-Y) and back (+Y) walls of iPad channel
-        ledge_y = ipad_y + ledge_sign * (IPAD_SLOT_GAP / 2 - _ledge_depth / 2)
-        ipad_ledge = (
-            cq.Workplane("XY")
-            .workplane(offset=_cover_z - 0.5)
-            .center(0, ledge_y)
-            .rect(IPAD_SLOT_W - 2, _ledge_depth)
-            .extrude(_ledge_h_dim)
-        )
-        base = base.union(ipad_ledge)
 
     # ── AC cable pass-through (left wall, matching bottom tray) ──────────
     # The VanBon's AC cable exits the short side (-X). Route it through
@@ -1074,42 +1069,47 @@ def build_top_tray():
 # =============================================================================
 
 def build_ipad_cover():
-    """Removable cover plate that sits between the hidden cable tunnel and
-    the iPad slot. Forms the floor the iPad rests on.
+    """Removable cover plate that slides into rails inside the iPad channel.
 
-    The cover drops into the iPad channel and rests on small ledges at
-    the tunnel top. A cable notch in the center lets the USB-C connector
-    poke up through to reach the iPad.
+    Sits on top of the solid floor, covering the cable opening and
+    providing a clean surface. Slides in from either side on continuous
+    L-shaped rail grooves cut into the front and back channel walls.
 
-    Printed as a separate piece — just lay it in place.
+    The cover has a centered cable notch so the USB-C connector can
+    poke up through to reach the iPad even with the cover in place.
+
+    Printed as a separate piece — slide in from left or right.
     """
     ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
     _tunnel_h = 8
     _tunnel_z = SPLIT_Z + 1
-    _cover_thick = 2.5
-    _cover_z = _tunnel_z + _tunnel_h  # Z=51
-    _ledge_depth = 3
+    _floor_z = _tunnel_z + _tunnel_h       # Z=50
+    _floor_thick = 2.5
+    _channel_floor_z = _floor_z + _floor_thick  # Z=52.5
+    _cover_thick = 2
+    _rail_depth = 3
+    _rail_h = _cover_thick + 1
 
-    # Cover plate dimensions — fits inside the iPad channel, resting
-    # on the ledges. Slightly undersized for easy drop-in fit.
-    _cover_w = IPAD_SLOT_W - 2 - TOL * 2   # slightly narrower than ledges
-    _cover_d = IPAD_SLOT_GAP - _ledge_depth * 2 - TOL * 2  # fits between ledges
+    # Cover plate slides into the rail grooves. Its depth (Y) matches
+    # the rail groove span: full channel width including the rail slots.
+    # Width (X) is the full iPad slot width minus a tiny clearance.
+    _cover_w = IPAD_SLOT_W - TOL * 2          # nearly full slot width
+    _cover_d = IPAD_SLOT_GAP - TOL * 2        # spans channel including rails
 
     cover = (
         cq.Workplane("XY")
-        .workplane(offset=_cover_z)
+        .workplane(offset=_channel_floor_z)
         .center(0, ipad_y)
         .rect(_cover_w, _cover_d)
         .extrude(_cover_thick)
     )
 
     # Cable notch — centered slot so USB-C connector can reach the iPad.
-    # Wide enough for a USB-C head (14mm) with clearance.
-    _notch_w = 18   # wider than USB-C head for easy cable routing
+    _notch_w = 20   # wider than USB-C head for easy cable routing
     _notch_d = _cover_d + 2  # cuts all the way through front-to-back
     cable_notch = (
         cq.Workplane("XY")
-        .workplane(offset=_cover_z - 0.5)
+        .workplane(offset=_channel_floor_z - 0.5)
         .center(0, ipad_y)
         .rect(_notch_w, _notch_d)
         .extrude(_cover_thick + 1)
