@@ -230,11 +230,15 @@ def build_bottom_tray():
     )
     tray = tray.edges("|Z").fillet(CORNER_R)
 
-    # ── Hollow interior (cable space) ────────────────────────────────────
+    # ── Hollow interior (open-top tray) ─────────────────────────────────
+    # Cut all the way to the top — NO ceiling. The bottom tray is an
+    # open box. The top tray acts as the lid when snapped on.
+    # This lets you set the tray on the desk, drop in the charger,
+    # route all cables, then snap the top tray on to close it.
     cavity = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
-        .box(STAND_W - WALL * 2, STAND_D - WALL * 2, SPLIT_Z - BASE_H - WALL,
+        .box(STAND_W - WALL * 2, STAND_D - WALL * 2, SPLIT_Z - BASE_H + 1,
              centered=[True, True, False])
     )
     tray = tray.cut(cavity)
@@ -459,33 +463,10 @@ def build_bottom_tray():
         tray = tray.union(arch_outer)
         tray = tray.cut(arch_inner)
 
-    # ── Cable pass-through holes in the top surface ──────────────────────
-    # Each hole is large enough for a USB-C connector HEAD to pass through.
-    # Positioned directly above each device so cables drop straight down
-    # into the front cable channel, then route back to the charger.
-    for name, (px, py) in SLOT_POSITIONS.items():
-        hw = USBC_HEAD_W + 2 if name == "g2_case" else USBC_HEAD_W
-        hh = USBC_HEAD_H + 2 if name == "g2_case" else USBC_HEAD_H
-
-        if name == "uh_ring":
-            hole_x, hole_y = px - UH_SIDE / 2, py
-        elif name == "r1_ring":
-            hole_x, hole_y = px - R1_DIA / 2, py
-        elif name == "omi":
-            _v4_rel = (-22.5, -6.5)
-            hole_x = px + _v4_rel[0] + 8.0 * math.cos(math.radians(60))
-            hole_y = py + _v4_rel[1] + 8.0 * math.sin(math.radians(60))
-        else:
-            hole_x, hole_y = px, py
-
-        hole = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z - WALL - 0.5)
-            .center(hole_x, hole_y)
-            .rect(hw, hh)
-            .extrude(WALL + 1)
-        )
-        tray = tray.cut(hole)
+    # ── Cable pass-through holes — NOT NEEDED in bottom tray ────────────
+    # The bottom tray is now an open-top box (no ceiling). Cables route
+    # freely up through the open top into the top tray's pass-through
+    # holes. No cuts needed here.
 
     # ── Snap-fit clips (4 clips — one on each long side, centered) ───────
     # Cantilever clips that hook over a lip on the top tray's inner wall.
