@@ -1,6 +1,6 @@
 """
 Wearable Charging Stand — V1
-Unified charging dock for 5 wearable devices + iPad slot, all USB-C powered.
+Unified charging dock for 5 wearable devices + iPad slot, USB-A powered via VanBon hub.
 
 Devices (front row, left to right):
   1. Ultrahuman Ring Air   — SQUARE charging dock 39×39×13mm
@@ -12,7 +12,7 @@ Rear row:
   6. iPad                  — wide slot behind G2 (fits 13" Pro, diagonal if cased)
 
 Design goals:
-  - Single AC input to internal slim 4-port USB-C charger (under G2 shelf)
+  - Single AC input to internal VanBon 8-port USB-A charger (under G2 shelf)
   - Hidden cable routing channels in the bottom tray cavity
   - Each charger sits in a fitted pocket with cable pass-through
   - Mudra wristband drapes over pole arm shelf; charger flush in underside
@@ -33,16 +33,16 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 38           # TOTAL assembled height (bottom + top)
+STAND_H = 58           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 0.5              # print tolerance per side
 
 # --- Two-part split ---
-# Bottom tray: cable management, USB-C charger, rubber feet
+# Bottom tray: cable management, VanBon charger, rubber feet
 # Top tray: device pockets, Mudra pole, iPad wall — sits on top of bottom
-# Bottom tray height raised to 22mm to house slim 4-port USB-C charger.
-SPLIT_Z = 22           # Z where the two parts meet (bottom tray height)
+# Bottom tray height = 41mm to house VanBon charger (33mm + 3mm floor + 2.5mm ceiling + margin).
+SPLIT_Z = 41           # Z where the two parts meet (bottom tray height)
 TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
 SNAP_LIP = 1.5         # ledge depth for snap engagement
@@ -55,19 +55,20 @@ BASE_H = 3             # solid floor at very bottom of bottom tray
 CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height (~8.5mm)
 CHANNEL_W = 12         # cable channel width (wider for better cable mgmt)
 
-# --- USB-C multi-port charger recess (under G2 shelf) ---
-# Sized for the class of slim flat 4-port USB-C wall chargers
-# (e.g. BUDI 34W 4-Port / similar 30-35W flat bricks, ~83×44×14mm).
+# --- VanBon Smart USB Charger recess (under G2 shelf) ---
+# Measured: 134mm long × 68mm wide × 33mm tall.
+# 8× USB-A ports on the long side, AC cable exits the short side (left),
+# 45×45mm LCD screen centered on the top face.
 # The charger sits flush in the bottom tray cavity, accessed by
 # removing the top tray.
-CHARGER_W = 88         # charger external width  + tolerance
-CHARGER_D = 55         # charger external depth  + tolerance
-CHARGER_H = 17         # charger external height + tolerance
-CHARGER_CABLE_SLOT_W = 14  # slot for input USB-C cable through rear wall
-CHARGER_AUX_PORT_COUNT = 2  # spare ports on charger for ad-hoc cables
-CHARGER_AUX_SLOT_W = 14     # aux cable slot width (USB-A head ~12mm + clearance)
-CHARGER_AUX_SLOT_H = 8      # aux cable slot height
-CHARGER_AUX_SPACING = 24    # spacing between the 2 aux slots (center-to-center)
+CHARGER_W = 138        # charger length + 4mm tolerance (measured: 134mm)
+CHARGER_D = 72         # charger width  + 4mm tolerance (measured: 68mm)
+CHARGER_H = 35         # charger height + 2mm tolerance (measured: 33mm)
+CHARGER_CABLE_SLOT_W = 18  # slot for AC input cable through wall (wider for AC plug)
+CHARGER_USB_PORT_COUNT = 8  # USB-A ports on the long side
+CHARGER_USB_SLOT_W = 16     # USB-A cable slot width (USB-A head ~14mm + clearance)
+CHARGER_USB_SLOT_H = 10     # USB-A cable slot height
+CHARGER_USB_SPACING = 16    # spacing between USB port exit slots (center-to-center)
 # Legacy aliases retained so any older references compile.
 HUB_W, HUB_D, HUB_H = CHARGER_W, CHARGER_D, CHARGER_H
 HUB_CABLE_SLOT_W = CHARGER_CABLE_SLOT_W
@@ -296,10 +297,11 @@ def build_bottom_tray():
         )
         tray = tray.cut(hole)
 
-    # ── USB-C charger recess (under G2 shelf) ────────────────────────────
+    # ── VanBon charger recess (under G2 shelf) ─────────────────────────
     # Charger sits in the bottom tray cavity, centered under where the
-    # G2 case pocket lives on the top tray. Cable channels and ribs in
-    # this region were already cleared by the hollow cavity above.
+    # G2 case pocket lives on the top tray. The charger's long side
+    # (with USB-A ports) faces toward the front of the stand (-Y) so
+    # cables route forward to devices. AC cable exits the short side.
     charger_x, charger_y = SLOT_POSITIONS["g2_case"]
     charger = (
         cq.Workplane("XY")
@@ -309,27 +311,33 @@ def build_bottom_tray():
     )
     tray = tray.cut(charger)
 
-    # Input cable slot through rear wall (at charger level)
-    usb_slot = (
+    # AC input cable slot through left wall (charger's short side faces -X)
+    # The AC cable exits the short side of the VanBon charger.
+    ac_slot = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H + 4)
-        .center(charger_x, STAND_D / 2)
-        .box(CHARGER_CABLE_SLOT_W, WALL * 4, 8, centered=True)
+        .center(-STAND_W / 2, charger_y)
+        .box(WALL * 4, CHARGER_CABLE_SLOT_W, 12, centered=True)
     )
-    tray = tray.cut(usb_slot)
+    tray = tray.cut(ac_slot)
 
-    # ── Auxiliary cable slots (2 spare ports, exit through rear wall) ────
-    # These let you plug 2 extra cables into the charger's spare ports
-    # and route them out the back of the stand for ad-hoc device charging.
-    for aux_i in range(CHARGER_AUX_PORT_COUNT):
-        _aux_x_offset = (aux_i - 0.5) * CHARGER_AUX_SPACING  # centered around charger_x
-        aux_slot = (
+    # ── USB-A cable exit slots (8 ports face -Y, toward front devices) ──
+    # The USB-A ports line the long side of the charger. Cables route
+    # forward from the charger to each device's cable pass-through.
+    # We cut slots in the charger recess wall to allow cables to exit
+    # toward the front row. Only need a few exit slots (not 8 individual
+    # ones) — cables bundle and route through the cable ribs.
+    _usb_exit_count = 4  # 4 grouped exit slots for 8 cables
+    _usb_total_span = CHARGER_W - 20  # span across charger long side
+    for usb_i in range(_usb_exit_count):
+        _usb_x_offset = -_usb_total_span / 2 + (usb_i + 0.5) * (_usb_total_span / _usb_exit_count)
+        usb_exit = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H + 4)
-            .center(charger_x + _aux_x_offset, STAND_D / 2)
-            .box(CHARGER_AUX_SLOT_W, WALL * 4, CHARGER_AUX_SLOT_H, centered=True)
+            .center(charger_x + _usb_x_offset, charger_y - CHARGER_D / 2)
+            .box(CHARGER_USB_SLOT_W, WALL * 4, CHARGER_USB_SLOT_H, centered=True)
         )
-        tray = tray.cut(aux_slot)
+        tray = tray.cut(usb_exit)
 
     # ── Snap-fit clips (4 clips — one on each long side, centered) ───────
     # Cantilever clips that hook over a lip on the top tray's inner wall.
@@ -771,21 +779,17 @@ def build_top_tray():
     )
     base = base.cut(ipad_cable_wall)
 
-    # ── Auxiliary cable pass-throughs (2 spare charger ports → rear) ─────
-    # Matching slots in the top tray rear wall so cables can exit the back.
-    # Positioned to align with the bottom tray aux slots below.
+    # ── AC cable pass-through (left wall, matching bottom tray) ──────────
+    # The VanBon's AC cable exits the short side (-X). Route it through
+    # the top tray left wall so it can reach the outlet.
     charger_x, _charger_y = SLOT_POSITIONS["g2_case"]
-    for aux_i in range(CHARGER_AUX_PORT_COUNT):
-        _aux_x_offset = (aux_i - 0.5) * CHARGER_AUX_SPACING
-        # Slot through the top tray rear wall
-        aux_top_slot = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z)
-            .center(charger_x + _aux_x_offset, STAND_D / 2)
-            .box(CHARGER_AUX_SLOT_W, WALL * 4, CHARGER_AUX_SLOT_H,
-                 centered=True)
-        )
-        base = base.cut(aux_top_slot)
+    ac_top_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .center(-STAND_W / 2, _charger_y)
+        .box(WALL * 4, CHARGER_CABLE_SLOT_W, 12, centered=True)
+    )
+    base = base.cut(ac_top_slot)
 
     return base
 
