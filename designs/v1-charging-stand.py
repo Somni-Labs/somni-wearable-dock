@@ -846,6 +846,37 @@ def build_top_tray():
 
     base = base.union(pole)
 
+    # ── Ensure cable channel is continuous through the pole ──────────
+    # The vertical cavity was cut in local pole space before the union.
+    # Re-cut through the assembled geometry to guarantee the channel is
+    # open from the bottom tray (Z=0) all the way up through the pole
+    # to the horizontal cable slot under the charger bay. This prevents
+    # any solid fill at the base–pole junction from blocking the cable.
+    _pole_cable_bottom = 0       # start from floor
+    _pole_cable_top = STAND_H + cable_slot_z + MUDRA_CABLE_CH_W + 1
+    mudra_full_channel = (
+        cq.Workplane("XY")
+        .workplane(offset=_pole_cable_bottom)
+        .center(mx, my)
+        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
+        .extrude(_pole_cable_top - _pole_cable_bottom)
+    )
+    base = base.cut(mudra_full_channel)
+
+    # Also re-cut the horizontal cable slot (charger bay → post cavity)
+    # in world coordinates to ensure it's open after the union.
+    _horiz_slot_z = STAND_H + cable_slot_z  # world Z of horizontal slot
+    _horiz_slot_x_start = mx                # post center
+    _horiz_slot_x_end = mx + charger_bay_x  # charger bay center
+    mudra_horiz_channel = (
+        cq.Workplane("XY")
+        .workplane(offset=_horiz_slot_z)
+        .center((_horiz_slot_x_start + _horiz_slot_x_end) / 2, my)
+        .rect(abs(_horiz_slot_x_end - _horiz_slot_x_start) + 2, MUDRA_CABLE_CH_W)
+        .extrude(MUDRA_CABLE_CH_W)
+    )
+    base = base.cut(mudra_horiz_channel)
+
     # =====================================================================
     # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
     # =====================================================================
