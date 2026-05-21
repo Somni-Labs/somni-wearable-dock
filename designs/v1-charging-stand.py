@@ -32,7 +32,7 @@ from cq_server.ui import ui, show_object
 
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
-STAND_D = 200          # total depth — increased from 175 to give G2 case 23mm clearance from front-row wearables
+STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
 STAND_H = 61           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
@@ -160,13 +160,10 @@ IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
 # --- Layout positions (X, Y from center) ---
 FRONT_ROW_Y = -STAND_D / 2 + 38
 
-# Rear row: G2 case must fit BETWEEN the front-row devices and the iPad slot.
-# iPad front edge = STAND_D/2 - IPAD_BACK_THICK - IPAD_SLOT_GAP (= 59.5mm).
-# Front row rear edge ≈ FRONT_ROW_Y + 20mm (half of largest front device).
-# Center the G2 in the available gap for even clearance on both sides.
-_IPAD_FRONT_EDGE = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP
-_FRONT_REAR_EDGE = FRONT_ROW_Y + 20          # conservative: half of UH_SIDE
-REAR_ROW_Y = (_FRONT_REAR_EDGE + _IPAD_FRONT_EDGE) / 2  # centered in gap
+# Rear row: G2 case sits near the rear of the stand, offset 8mm from the back
+# wall. The G2 pocket and iPad slot overlap in Y but coexist as separate cuts
+# from the top surface — this is intentional (the iPad leans above the G2 area).
+REAR_ROW_Y = STAND_D / 2 - G2_D / 2 - 8
 
 FRONT_SPACING = 54
 FRONT_START = -1.5 * FRONT_SPACING
