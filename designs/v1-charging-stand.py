@@ -335,6 +335,23 @@ def build_bottom_tray():
     # so the entire rear zone stays clear for plugging in cables,
     # iPad cable routing, and AC cable access.
 
+    # ── Spare USB-A port exit — back wall (+Y side) ──────────────────
+    # The VanBon has 8 USB-A ports but only 6 are used by devices.
+    # Two spare ports need cables routed OUT the back of the stand
+    # so they're accessible for ad-hoc charging (phone, earbuds, etc).
+    # Slot is wide enough for 2 USB-A cables side by side (~36mm)
+    # and positioned directly behind the charger bay center.
+    _spare_usb_slot_w = 36   # width for 2 USB-A cables (~16mm each + gap)
+    _spare_usb_slot_h = 14   # height for USB-A heads + cable bend
+    spare_usb_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(charger_x, STAND_D / 2)
+        .box(_spare_usb_slot_w, WALL * 4, _spare_usb_slot_h,
+             centered=[True, True, False])
+    )
+    tray = tray.cut(spare_usb_slot)
+
     # ── Side pockets: cable corridor + loom + Velcro slots ──────────────
     # Each side pocket (48mm wide × 170mm long) serves TWO purposes:
     #
@@ -919,6 +936,20 @@ def build_top_tray():
         .box(WALL * 4, CHARGER_CABLE_SLOT_W, 12, centered=True)
     )
     base = base.cut(ac_top_slot)
+
+    # ── Spare USB-A exit (back wall, matching bottom tray) ──────────────
+    # 2 spare USB-A cables exit through the back wall so they're
+    # accessible from behind the stand for ad-hoc charging.
+    _spare_usb_slot_w = 36
+    _spare_usb_slot_h = 14
+    spare_usb_top = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .center(charger_x, STAND_D / 2)
+        .box(_spare_usb_slot_w, WALL * 4, _spare_usb_slot_h,
+             centered=[True, True, False])
+    )
+    base = base.cut(spare_usb_top)
 
     return base
 
