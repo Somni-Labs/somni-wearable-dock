@@ -127,11 +127,12 @@ MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
 # --- Device 5: Even Realities G2 glasses case ---
-# Real measurements: 170mm × 75mm × 30mm
-G2_W = 170 + TOL * 2         # case length (measured: 170mm)
-G2_D = 75 + TOL * 2          # case depth (measured: 75mm)
-G2_H = 30                    # case height (measured: 30mm)
-G2_CRADLE_DEPTH = 18          # how deep case sits
+# Caliper measurements: 174mm × 66mm × 36mm (simple rectangular box).
+# Cradle only needs a shallow insert to hold the case in place.
+G2_W = 174 + TOL * 2         # case length (measured: 174mm)
+G2_D = 66 + TOL * 2          # case depth (measured: 66mm)
+G2_H = 36                    # case height (measured: 36mm)
+G2_CRADLE_DEPTH = 18          # how deep case sits (shallow insert, not full enclosure)
 G2_CABLE_W = 14               # USB-C cable slot
 
 # --- Device 6: iPad slot (rear, behind G2 case) ---
