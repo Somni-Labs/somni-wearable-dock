@@ -879,22 +879,45 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
+    # The pocket has a SOLID FLOOR so the case sits on a surface, but
+    # with a rectangular window cut through it so the VanBon charger's
+    # LCD screen (45×45mm, centered on its top face) is visible from
+    # above. The charger sits directly below at the same X,Y position.
     # =====================================================================
     gx, gy = SLOT_POSITIONS["g2_case"]
+
+    # Pocket cuts down from the top surface but stops at the floor
+    # (SPLIT_Z + WALL) — leaving a solid floor of WALL thickness.
+    _g2_floor_z = SPLIT_Z + WALL  # floor of G2 pocket (43.5mm)
+    _g2_pocket_depth = STAND_H - _g2_floor_z  # depth from top surface to floor
     g2_pocket = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
+        .workplane(offset=_g2_floor_z)
         .center(gx, gy)
         .rect(G2_W, G2_D)
-        .extrude(G2_CRADLE_DEPTH + 1)
+        .extrude(_g2_pocket_depth + 1)
     )
     base = base.cut(g2_pocket)
+
+    # LCD viewing window — cut through the G2 pocket floor so the
+    # VanBon charger's 45×45mm LCD screen is visible from above.
+    # Slightly oversized (48×48mm) for easy viewing at an angle.
+    _lcd_window = 48  # slightly larger than 45mm LCD for visibility
+    g2_lcd_window = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(gx, gy)
+        .rect(_lcd_window, _lcd_window)
+        .extrude(WALL + 1.5)
+    )
+    base = base.cut(g2_lcd_window)
+
     # USB-C cable slot at rear
     g2_cable = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - G2_CRADLE_DEPTH)
+        .workplane(offset=_g2_floor_z)
         .center(gx, STAND_D / 2)
-        .box(G2_CABLE_W, WALL * 4, G2_CRADLE_DEPTH,
+        .box(G2_CABLE_W, WALL * 4, _g2_pocket_depth,
              centered=[True, True, False])
     )
     base = base.cut(g2_cable)
