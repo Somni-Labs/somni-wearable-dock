@@ -30,8 +30,8 @@ def export_stl_files():
 
         # Remove the cq_server import line and show_object calls
         design_code = design_code.replace("from cq_server.ui import ui, show_object", "# cq_server not available")
-        design_code = design_code.replace('show_object(bottom_tray, name="bottom_tray",\n            options={"color": (0.15, 0.15, 0.17, 0.9)})', "# show_object removed")
-        design_code = design_code.replace('show_object(top_tray, name="top_tray",\n            options={"color": (0.2, 0.2, 0.22, 0.95)})', "# show_object removed")
+        import re
+        design_code = re.sub(r'show_object\(.*?\)', '# show_object removed', design_code, flags=re.DOTALL)
 
         # Execute the modified design file code
         exec_globals = {}
@@ -40,6 +40,7 @@ def export_stl_files():
         # Get the built objects
         bottom_tray = exec_globals['bottom_tray']
         top_tray = exec_globals['top_tray']
+        ipad_cover = exec_globals.get('ipad_cover')
 
         print("✅ Design objects loaded successfully")
 
@@ -65,8 +66,15 @@ def export_stl_files():
     top_flipped_bb = top_flipped.val().BoundingBox()
     top_print = top_flipped.translate((0, 0, -top_flipped_bb.zmin))
 
+    # iPad cover plate — translate to Z=0 for printing
+    if ipad_cover:
+        cover_bb = ipad_cover.val().BoundingBox()
+        cover_print = ipad_cover.translate((0, 0, -cover_bb.zmin))
+
     print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
     print(f"   Top tray: flipped upside-down + translated Z by {-top_flipped_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
+    if ipad_cover:
+        print(f"   iPad cover: translated Z by {-cover_bb.zmin:+.1f}mm (was Z={cover_bb.zmin:.1f})")
 
     # Create output directory
     output_dir = Path("output")
@@ -91,6 +99,16 @@ def export_stl_files():
         top_step_path = output_dir / "v1-charging-stand-top-tray.step"
         cq.exporters.export(top_tray, str(top_step_path))
         print(f"✅ {top_step_path} - Top tray STEP (assembly position)")
+
+        # iPad cover plate
+        if ipad_cover:
+            cover_stl_path = output_dir / "v1-charging-stand-ipad-cover.stl"
+            cq.exporters.export(cover_print, str(cover_stl_path))
+            print(f"✅ {cover_stl_path} - iPad cover plate")
+
+            cover_step_path = output_dir / "v1-charging-stand-ipad-cover.step"
+            cq.exporters.export(ipad_cover, str(cover_step_path))
+            print(f"✅ {cover_step_path} - iPad cover STEP (assembly position)")
 
         return True
 

@@ -971,11 +971,17 @@ def build_top_tray():
     # top tray, exiting through BOTH the left and right side walls.
     # This lets you choose which side the cable exits from.
     #
+    # A removable cover plate sits on top of the tunnel, forming the
+    # floor that the iPad rests on. The cover has a small cable notch
+    # so the USB-C connector can poke up to reach the iPad.
+    #
     # Tunnel cross-section: 14mm wide × 8mm tall (fits USB-C cable
     # body comfortably). Sits just above SPLIT_Z inside the tray slab.
     _tunnel_w = 14      # tunnel width (Y) — USB-C cable + clearance
     _tunnel_h = 8       # tunnel height (Z) — cable body ~5mm + margin
     _tunnel_z = SPLIT_Z + 1  # sits just above the tray joint
+    _cover_thick = 2.5  # thickness of the removable cover plate
+    _cover_z = _tunnel_z + _tunnel_h  # cover sits on top of the tunnel
 
     # Cable entry point: centered under the iPad slot
     _cable_entry_x = 0  # centered
@@ -1017,6 +1023,23 @@ def build_top_tray():
     )
     base = base.cut(ipad_cable_tunnel)
 
+    # ── Support ledges for the removable iPad cover plate ────────────
+    # Two narrow ledges run along the front and back inner walls of
+    # the iPad channel, at the top of the tunnel. The cover plate
+    # rests on these ledges, forming a solid floor for the iPad.
+    _ledge_depth = 3     # how far the ledge sticks out from the wall (Y)
+    _ledge_h_dim = _cover_thick + 0.5  # ledge height = cover thickness + slack
+    for ledge_sign in [-1, 1]:  # front (-Y) and back (+Y) walls of iPad channel
+        ledge_y = ipad_y + ledge_sign * (IPAD_SLOT_GAP / 2 - _ledge_depth / 2)
+        ipad_ledge = (
+            cq.Workplane("XY")
+            .workplane(offset=_cover_z - 0.5)
+            .center(0, ledge_y)
+            .rect(IPAD_SLOT_W - 2, _ledge_depth)
+            .extrude(_ledge_h_dim)
+        )
+        base = base.union(ipad_ledge)
+
     # ── AC cable pass-through (left wall, matching bottom tray) ──────────
     # The VanBon's AC cable exits the short side (-X). Route it through
     # the top tray left wall so it can reach the outlet.
@@ -1047,13 +1070,66 @@ def build_top_tray():
 
 
 # =============================================================================
+# BUILD IPAD COVER PLATE (removable)
+# =============================================================================
+
+def build_ipad_cover():
+    """Removable cover plate that sits between the hidden cable tunnel and
+    the iPad slot. Forms the floor the iPad rests on.
+
+    The cover drops into the iPad channel and rests on small ledges at
+    the tunnel top. A cable notch in the center lets the USB-C connector
+    poke up through to reach the iPad.
+
+    Printed as a separate piece — just lay it in place.
+    """
+    ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
+    _tunnel_h = 8
+    _tunnel_z = SPLIT_Z + 1
+    _cover_thick = 2.5
+    _cover_z = _tunnel_z + _tunnel_h  # Z=51
+    _ledge_depth = 3
+
+    # Cover plate dimensions — fits inside the iPad channel, resting
+    # on the ledges. Slightly undersized for easy drop-in fit.
+    _cover_w = IPAD_SLOT_W - 2 - TOL * 2   # slightly narrower than ledges
+    _cover_d = IPAD_SLOT_GAP - _ledge_depth * 2 - TOL * 2  # fits between ledges
+
+    cover = (
+        cq.Workplane("XY")
+        .workplane(offset=_cover_z)
+        .center(0, ipad_y)
+        .rect(_cover_w, _cover_d)
+        .extrude(_cover_thick)
+    )
+
+    # Cable notch — centered slot so USB-C connector can reach the iPad.
+    # Wide enough for a USB-C head (14mm) with clearance.
+    _notch_w = 18   # wider than USB-C head for easy cable routing
+    _notch_d = _cover_d + 2  # cuts all the way through front-to-back
+    cable_notch = (
+        cq.Workplane("XY")
+        .workplane(offset=_cover_z - 0.5)
+        .center(0, ipad_y)
+        .rect(_notch_w, _notch_d)
+        .extrude(_cover_thick + 1)
+    )
+    cover = cover.cut(cable_notch)
+
+    return cover
+
+
+# =============================================================================
 # BUILD AND DISPLAY
 # =============================================================================
 
 bottom_tray = build_bottom_tray()
 top_tray = build_top_tray()
+ipad_cover = build_ipad_cover()
 
 show_object(bottom_tray, name="bottom_tray",
             options={"color": (0.15, 0.15, 0.17, 0.9)})
 show_object(top_tray, name="top_tray",
             options={"color": (0.2, 0.2, 0.22, 0.95)})
+show_object(ipad_cover, name="ipad_cover",
+            options={"color": (0.3, 0.3, 0.32, 0.9)})
