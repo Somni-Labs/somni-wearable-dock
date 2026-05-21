@@ -370,49 +370,50 @@ def build_bottom_tray():
     # so the entire rear zone stays clear for plugging in cables,
     # iPad cable routing, and AC cable access.
 
-    # ── Side pockets: cable loom + Velcro slots + storage ──────────────
-    # Each side pocket (48mm wide × 170mm long) is a cable management
-    # station. Design:
+    # ── Side pockets: cable corridor + loom + Velcro slots ──────────────
+    # Each side pocket (48mm wide × 170mm long) serves TWO purposes:
     #
-    #   CABLE LOOM — Two staggered columns of posts forming a weave
-    #   pattern. Cables wrap in and out between them. The offset columns
-    #   grip the cable naturally so it doesn't unravel.
+    #   INNER CORRIDOR (charger side, ~20mm wide) — CLEAR PATH for
+    #   cables routing from the charger's USB-A ports (rear) through
+    #   to the front channel and up to each device. No posts here.
     #
-    #   VELCRO SLOTS — Narrow through-floor slots between the post
-    #   columns. Thread a Velcro strap down through one slot, under the
-    #   floor, and up through the next slot to cinch the cable bundle.
+    #   OUTER LOOM (wall side, ~25mm wide) — Cable winding posts
+    #   where excess cable length gets wrapped up. Velcro strap slots
+    #   between posts for cinching bundles.
     #
-    #   STORAGE BIN — Small walled compartment at the rear of each
-    #   pocket for spare adapters, dongles, Velcro strips, etc.
+    # This way cables route naturally: plug into charger rear → run
+    # forward along the inner corridor → pass through the front spine
+    # gaps → up to each device. Excess cable wraps on the outer loom.
     #
     _post_dia = 5       # slim posts, cable-friendly
     _post_h = 25        # tall enough for several wraps
     _post_spacing_y = 22  # spacing between posts along Y
 
-    # Two columns per side, staggered so cables weave between them
-    _col_inset_inner = 10  # inner column distance from charger wall
-    _col_inset_outer = 34  # outer column distance from charger wall
+    # Outer loom: posts pushed toward the outer wall
+    # Inner corridor: clear 20mm path next to charger bay
+    _corridor_w = 20    # clear cable routing corridor (no posts)
+    _col1_offset = 26   # first post column offset from charger wall
+    _col2_offset = 40   # second post column offset from charger wall
 
     # Velcro strap slots: 15mm × 3mm through the floor
     _velcro_slot_l = 15
     _velcro_slot_w = 3
 
-    # Posts run from front of pocket to just before the storage bin
-    _pocket_y_start = -STAND_D / 2 + WALL + 15
-    _pocket_y_end = STAND_D / 2 - WALL - 40  # leave room for bin
+    # Posts run the full length of the pocket
+    _pocket_y_start = -STAND_D / 2 + WALL + 12
+    _pocket_y_end = STAND_D / 2 - WALL - 12
 
     for side_sign in [-1, 1]:  # -1 = left pocket, +1 = right pocket
-        # Reference edge (the charger bay wall on this side)
         if side_sign == -1:
-            edge_x = _charger_left  # inner edge of left pocket
-            col1_x = edge_x - _col_inset_inner
-            col2_x = edge_x - _col_inset_outer
+            edge_x = _charger_left
+            col1_x = edge_x - _col1_offset
+            col2_x = edge_x - _col2_offset
         else:
-            edge_x = _charger_right  # inner edge of right pocket
-            col1_x = edge_x + _col_inset_inner
-            col2_x = edge_x + _col_inset_outer
+            edge_x = _charger_right
+            col1_x = edge_x + _col1_offset
+            col2_x = edge_x + _col2_offset
 
-        # ── Column 1 posts (inner, closer to charger) ──
+        # ── Column 1 posts (inner loom column) ──
         _y = _pocket_y_start
         _col1_ys = []
         while _y < _pocket_y_end:
@@ -427,7 +428,7 @@ def build_bottom_tray():
             tray = tray.union(post)
             _y += _post_spacing_y
 
-        # ── Column 2 posts (outer, closer to wall) — offset by half spacing ──
+        # ── Column 2 posts (outer loom column, staggered) ──
         _y = _pocket_y_start + _post_spacing_y / 2
         _col2_ys = []
         while _y < _pocket_y_end:
@@ -442,9 +443,8 @@ def build_bottom_tray():
             tray = tray.union(post)
             _y += _post_spacing_y
 
-        # ── Velcro strap slots between the columns ──
-        # Each slot is a narrow rectangle cut through the floor.
-        # Place one slot between every other pair of col1 posts.
+        # ── Velcro strap slots between the loom columns ──
+        # Thread Velcro down through one slot, under floor, up next slot.
         _velcro_x = (col1_x + col2_x) / 2
         for i in range(0, len(_col1_ys) - 1, 2):
             slot_y = (_col1_ys[i] + _col1_ys[i + 1]) / 2
@@ -457,33 +457,23 @@ def build_bottom_tray():
             )
             tray = tray.cut(velcro)
 
-        # ── Storage bin at the rear of the pocket ──
-        _bin_w = 42
-        _bin_d = 30
-        _bin_wall = 2
-        _bin_h = 20
-        pocket_cx = (col1_x + col2_x) / 2
-        bin_y = STAND_D / 2 - WALL - _bin_d / 2 - 2
-
-        bin_outer = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(pocket_cx, bin_y)
-            .box(_bin_w, _bin_d, _bin_h, centered=[True, True, False])
-        )
-        bin_inner = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(pocket_cx, bin_y + _bin_wall / 2)
-            .box(_bin_w - _bin_wall * 2, _bin_d - _bin_wall, _bin_h + 1,
-                 centered=[True, True, False])
-        )
-        tray = tray.union(bin_outer)
-        tray = tray.cut(bin_inner)
+        # ── Velcro slot in the inner corridor too ──
+        # For cinching the routed cables (not the wrapped ones).
+        _corridor_velcro_x = edge_x + side_sign * (_corridor_w / 2)
+        for vy in [_charger_front - 10, charger_y, _charger_back + 10]:
+            if -STAND_D / 2 + WALL + 10 < vy < STAND_D / 2 - WALL - 10:
+                velcro = (
+                    cq.Workplane("XY")
+                    .workplane(offset=-0.5)
+                    .center(_corridor_velcro_x, vy)
+                    .rect(_velcro_slot_l, _velcro_slot_w)
+                    .extrude(BASE_H + 2)
+                )
+                tray = tray.cut(velcro)
 
     # ── Cable routing clips in the front channel ─────────────────────────
-    # Small arch bridges along the front channel floor near each device's
-    # cable pass-through. Cable threads under the arch, stays organized.
+    # Small arch bridges near each device's cable pass-through.
+    # Cable threads under the arch, stays organized on its way up.
     _clip_w = 14       # slightly wider than USB cable
     _clip_h = 8        # arch height (cable passes under)
     _clip_t = 2.5      # arch wall thickness
@@ -491,7 +481,6 @@ def build_bottom_tray():
 
     for name in ("uh_ring", "r1_ring", "omi", "mudra"):
         px, py = SLOT_POSITIONS[name]
-        # Outer arch
         arch_outer = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
@@ -499,7 +488,6 @@ def build_bottom_tray():
             .box(_clip_w + _clip_t * 2, _clip_t, _clip_h,
                  centered=[True, True, False])
         )
-        # Inner cutout (the tunnel)
         arch_inner = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
