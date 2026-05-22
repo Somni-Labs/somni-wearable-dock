@@ -42,6 +42,10 @@ def export_stl_files():
         top_tray = exec_globals['top_tray']
         ipad_cover = exec_globals.get('ipad_cover')
         mudra_pole = exec_globals.get('mudra_pole')
+        uh_tilt_plate = exec_globals.get('uh_tilt_plate')
+        r1_tilt_plate = exec_globals.get('r1_tilt_plate')
+        omi_tilt_plate = exec_globals.get('omi_tilt_plate')
+        push_rods = exec_globals.get('push_rods', {})
 
         print("✅ Design objects loaded successfully")
 
@@ -80,6 +84,22 @@ def export_stl_files():
         pole_rotated = mudra_pole.rotate((0, 0, 0), (1, 0, 0), -90)
         pole_rot_bb = pole_rotated.val().BoundingBox()
         pole_print = pole_rotated.translate((0, 0, -pole_rot_bb.zmin))
+
+    # Tilt plates — already at origin, just ensure Z_min = 0
+    tilt_plates_print = {}
+    for name, plate_var in [("uh", uh_tilt_plate), ("r1", r1_tilt_plate), ("omi", omi_tilt_plate)]:
+        if plate_var:
+            plate_bb = plate_var.val().BoundingBox()
+            tilt_plates_print[name] = plate_var.translate((0, 0, -plate_bb.zmin))
+            print(f"   Tilt plate ({name}): translated Z by {-plate_bb.zmin:+.1f}mm")
+
+    # Push rods — already at origin, ensure Z_min = 0
+    push_rods_print = {}
+    for name, rod in push_rods.items():
+        if rod:
+            rod_bb = rod.val().BoundingBox()
+            push_rods_print[name] = rod.translate((0, 0, -rod_bb.zmin))
+            print(f"   Push rod ({name}): translated Z by {-rod_bb.zmin:+.1f}mm")
 
     print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
     print(f"   Top tray: flipped upside-down + translated Z by {-top_flipped_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
@@ -131,6 +151,27 @@ def export_stl_files():
             pole_step_path = output_dir / "v1-charging-stand-mudra-pole.step"
             cq.exporters.export(mudra_pole, str(pole_step_path))
             print(f"✅ {pole_step_path} - Mudra pole STEP (origin position)")
+
+        # Tilt plates
+        for name, plate_print in tilt_plates_print.items():
+            plate_stl = output_dir / f"v1-charging-stand-tilt-plate-{name}.stl"
+            cq.exporters.export(plate_print, str(plate_stl))
+            print(f"✅ {plate_stl} - Tilt plate ({name})")
+
+            plate_step = output_dir / f"v1-charging-stand-tilt-plate-{name}.step"
+            plate_orig = {"uh": uh_tilt_plate, "r1": r1_tilt_plate, "omi": omi_tilt_plate}[name]
+            cq.exporters.export(plate_orig, str(plate_step))
+            print(f"✅ {plate_step} - Tilt plate ({name}) STEP")
+
+        # Push rods
+        for name, rod_print in push_rods_print.items():
+            rod_stl = output_dir / f"v1-charging-stand-push-rod-{name}.stl"
+            cq.exporters.export(rod_print, str(rod_stl))
+            print(f"✅ {rod_stl} - Push rod ({name})")
+
+            rod_step = output_dir / f"v1-charging-stand-push-rod-{name}.step"
+            cq.exporters.export(push_rods[name], str(rod_step))
+            print(f"✅ {rod_step} - Push rod ({name}) STEP")
 
         return True
 
