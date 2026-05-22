@@ -72,17 +72,21 @@ def export_stl_files():
         cover_bb = ipad_cover.val().BoundingBox()
         cover_print = ipad_cover.translate((0, 0, -cover_bb.zmin))
 
-    # Mudra pole — translate to Z=0 for printing (no rotation, prints upright)
+    # Mudra pole — rotate 90° to print on its side (back face down).
+    # Printing upright puts thin snap clips on the build plate where brim
+    # removal tears them off. On its side, the wide back face (22mm x 85mm)
+    # sits on the plate and clips print horizontally (strongest orientation).
     if mudra_pole:
-        pole_bb = mudra_pole.val().BoundingBox()
-        pole_print = mudra_pole.translate((0, 0, -pole_bb.zmin))
+        pole_rotated = mudra_pole.rotate((0, 0, 0), (1, 0, 0), -90)
+        pole_rot_bb = pole_rotated.val().BoundingBox()
+        pole_print = pole_rotated.translate((0, 0, -pole_rot_bb.zmin))
 
     print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
     print(f"   Top tray: flipped upside-down + translated Z by {-top_flipped_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
     if ipad_cover:
         print(f"   iPad cover: translated Z by {-cover_bb.zmin:+.1f}mm (was Z={cover_bb.zmin:.1f})")
     if mudra_pole:
-        print(f"   Mudra pole: translated Z by {-pole_bb.zmin:+.1f}mm (was Z={pole_bb.zmin:.1f})")
+        print(f"   Mudra pole: rotated 90° (on side) + translated Z by {-pole_rot_bb.zmin:+.1f}mm")
 
     # Create output directory
     output_dir = Path("output")
@@ -142,7 +146,7 @@ def print_print_info():
     print(f"   Infill: 15-20% (functional print, not decorative)")
     print(f"   Supports: Top tray and mudra pole need NO supports (pole prints upright)")
     print(f"   Build plate: Fits QIDI Q2 (245×255mm) - verify in slicer")
-    print(f"   Print orientation: Bottom tray down, top tray upside down, mudra pole upright")
+    print(f"   Print orientation: Bottom tray down, top tray upside down, mudra pole on side")
     print(f"")
     print(f"🔧 MUDRA LINK TEST FIT:")
     print(f"   Updated charger pocket dimensions:")
