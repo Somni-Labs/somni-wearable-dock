@@ -1090,6 +1090,21 @@ def build_top_tray():
         )
         base = base.cut(lip_pocket)
 
+    # ── Push rod slots (servo actuator pass-through) ─────────────────────
+    # Rectangular slots through the top tray floor for servo push rods.
+    # One slot per servo, positioned at the servo shaft X and SERVO_Y.
+    _push_rod_devices = ["uh_ring", "r1_ring", "omi", "mudra"]
+    for name in _push_rod_devices:
+        px, py = SLOT_POSITIONS[name]
+        push_slot = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - 0.5)
+            .center(px, SERVO_Y)
+            .rect(PUSH_ROD_SLOT_W, PUSH_ROD_SLOT_L)
+            .extrude(TOP_H + 1)
+        )
+        base = base.cut(push_slot)
+
     # ── Cable pass-through holes (matching bottom tray positions) ────────
     # UH, R1, and Omi have custom cable cuts in their cradle sections below.
     # Only cut generic holes for devices that don't have custom routing.
@@ -1651,6 +1666,134 @@ def build_mudra_pole():
         pole = pole.union(nub)
 
     return pole
+
+
+# =============================================================================
+# GHOST VISUALIZATION OBJECTS (component placement preview)
+# =============================================================================
+
+def build_ghost_components():
+    """Create translucent colored boxes representing internal components.
+
+    Returns a dict of {name: (solid, (r, g, b, alpha))} tuples.
+    These overlay objects are displayed in cadquery-server for visual
+    verification of component fit. They are NOT boolean-operated with
+    the tray geometry.
+    """
+    parts = {}
+
+    # ── ESP32 board (front-left corner) ──────────────────────────────────
+    _esp_x = -STAND_W / 2 + WALL + ESP32_W / 2
+    _esp_y = -STAND_D / 2 + WALL + ESP32_L / 2
+    _esp_z = BASE_H + ESP32_RAIL_H  # PCB sits on top of rails
+    esp32 = (
+        cq.Workplane("XY")
+        .workplane(offset=_esp_z)
+        .center(_esp_x, _esp_y)
+        .rect(28, 55)  # actual PCB size (no tolerance)
+        .extrude(12)    # component height above PCB
+    )
+    parts["esp32"] = (esp32, (0.1, 0.35, 0.7, 0.85))
+
+    # ── QuinLED-Dig-Uno (front-right corner) ─────────────────────────────
+    _qled_x = STAND_W / 2 - WALL - QLED_W / 2
+    _qled_y = -STAND_D / 2 + WALL + QLED_D / 2
+    _qled_z = BASE_H + QLED_STANDOFF_H
+    quinled = (
+        cq.Workplane("XY")
+        .workplane(offset=_qled_z)
+        .center(_qled_x, _qled_y)
+        .rect(50, 50)  # actual PCB size
+        .extrude(QLED_H)
+    )
+    parts["quinled"] = (quinled, (0.15, 0.55, 0.15, 0.85))
+
+    # ── SG90 servos (4x behind front-row devices) ───────────────────────
+    _servo_names = ["uh_ring", "r1_ring", "omi", "mudra"]
+    for i, name in enumerate(_servo_names):
+        sx = SLOT_POSITIONS[name][0]
+        # Servo body
+        servo_body = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(sx, SERVO_Y)
+            .rect(SG90_BODY_L, SG90_BODY_W)
+            .extrude(SG90_BODY_H)
+        )
+        # Mounting ears (thin plate wider than body)
+        servo_ears = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H + SG90_BODY_H - SG90_EAR_T - 5)
+            .center(sx, SERVO_Y)
+            .rect(SG90_EAR_W, SG90_BODY_W)
+            .extrude(SG90_EAR_T)
+        )
+        servo = servo_body.union(servo_ears)
+        parts[f"servo_{name}"] = (servo, (0.85, 0.45, 0.1, 0.8))
+
+    # ── VL53L0X proximity sensor ─────────────────────────────────────────
+    _prox_x = _esp_x + ESP32_W / 2 + 5 + PROX_W / 2
+    _prox_y = -STAND_D / 2 + WALL + PROX_D / 2
+    sensor = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(_prox_x, _prox_y)
+        .rect(PROX_W, PROX_D)
+        .extrude(PROX_H)
+    )
+    parts["vl53l0x"] = (sensor, (0.3, 0.3, 0.8, 0.85))
+
+    # ── VanBon charger (in charger bay) ──────────────────────────────────
+    gx, gy = SLOT_POSITIONS["g2_case"]
+    charger = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(gx, gy)
+        .rect(134, 68)  # actual charger size (no tolerance)
+        .extrude(33)     # actual charger height
+    )
+    parts["vanbon_charger"] = (charger, (0.3, 0.3, 0.3, 0.5))
+
+    # ── LED strip (U-shaped path along 3 walls) ─────────────────────────
+    _inner_left = -STAND_W / 2 + WALL
+    _inner_right = STAND_W / 2 - WALL
+    _inner_front = -STAND_D / 2 + WALL
+    _inner_back = STAND_D / 2 - WALL
+    _ch_inset = 1
+    _strip_w = 10   # actual LED strip width
+    _strip_h = 2    # LED strip thickness
+    _strip_z = BASE_H - LED_CHANNEL_D + 0.5  # sitting in channel
+
+    # Left wall segment
+    led_left = (
+        cq.Workplane("XY")
+        .workplane(offset=_strip_z)
+        .center(_inner_left + _ch_inset + _strip_w / 2,
+                (_inner_front + _inner_back) / 2)
+        .rect(_strip_w, _inner_back - _inner_front)
+        .extrude(_strip_h)
+    )
+    # Front wall segment
+    led_front = (
+        cq.Workplane("XY")
+        .workplane(offset=_strip_z)
+        .center(0, _inner_front + _ch_inset + _strip_w / 2)
+        .rect(_inner_right - _inner_left, _strip_w)
+        .extrude(_strip_h)
+    )
+    # Right wall segment
+    led_right = (
+        cq.Workplane("XY")
+        .workplane(offset=_strip_z)
+        .center(_inner_right - _ch_inset - _strip_w / 2,
+                (_inner_front + _inner_back) / 2)
+        .rect(_strip_w, _inner_back - _inner_front)
+        .extrude(_strip_h)
+    )
+    led_strip = led_left.union(led_front).union(led_right)
+    parts["led_strip"] = (led_strip, (0.2, 1.0, 0.3, 0.7))
+
+    return parts
 
 
 # =============================================================================
