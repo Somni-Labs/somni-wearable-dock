@@ -1698,6 +1698,71 @@ def build_mudra_pole():
 
 
 # =============================================================================
+# TILT PLATES (drop-in cradle inserts with pin hinges)
+# =============================================================================
+
+def build_uh_tilt_plate():
+    """UH Ring tilt plate — 40x40mm square with rounded corners.
+
+    Built at origin (centered on X/Y, Z=0 to TILT_PLATE_T).
+    Two hinge barrels on the +Y edge (rear), captured slot on underside
+    for push rod T-head.
+    """
+    plate_side = UH_SIDE - TILT_CLEARANCE * 2  # 40mm
+
+    # ── Main plate body ──────────────────────────────────────────────────
+    plate = (
+        cq.Workplane("XY")
+        .rect(plate_side, plate_side)
+        .extrude(TILT_PLATE_T)
+    )
+    plate = plate.edges("|Z").fillet(UH_CORNER_R - TILT_CLEARANCE)
+
+    # ── Two hinge barrels on rear (+Y) edge ──────────────────────────────
+    # Barrels protrude beyond the rear edge, axis parallel to X.
+    # Spaced symmetrically, ~10mm from each end.
+    barrel_spacing = plate_side - 2 * 10  # 20mm apart
+    barrel_center_y = plate_side / 2 + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2
+
+    for x_sign in [-1, 1]:
+        bx = x_sign * barrel_spacing / 2
+        barrel = (
+            cq.Workplane("YZ")
+            .workplane(offset=bx - HINGE_BARREL_L / 2)
+            .center(barrel_center_y, TILT_PLATE_T / 2)
+            .circle(HINGE_BARREL_OD / 2)
+            .extrude(HINGE_BARREL_L)
+        )
+        # Bore for filament pin
+        bore = (
+            cq.Workplane("YZ")
+            .workplane(offset=bx - HINGE_BARREL_L / 2 - 0.5)
+            .center(barrel_center_y, TILT_PLATE_T / 2)
+            .circle(HINGE_BARREL_ID / 2)
+            .extrude(HINGE_BARREL_L + 1)
+        )
+        plate = plate.union(barrel).cut(bore)
+
+    # ── Captured slot on underside for push rod T-head ───────────────────
+    # The push rod comes up at (X=0, Y=SERVO_Y relative to world).
+    # In plate-local coords: X=0, Y = SERVO_Y - pocket_center_Y
+    # pocket_center_Y = FRONT_ROW_Y = -49.5
+    # SERVO_Y = -37
+    # local_y = -37 - (-49.5) = 12.5  (12.5mm from plate center toward rear)
+    slot_local_y = SERVO_Y - FRONT_ROW_Y  # 12.5mm
+    captured_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.1)
+        .center(0, slot_local_y)
+        .rect(PUSH_ROD_THEAD_W + 0.5, 3)  # 6.5mm wide x 3mm deep channel
+        .extrude(TILT_PLATE_T / 2 + 0.1)  # cut into bottom half of plate
+    )
+    plate = plate.cut(captured_slot)
+
+    return plate
+
+
+# =============================================================================
 # GHOST VISUALIZATION OBJECTS (component placement preview)
 # =============================================================================
 
@@ -1847,6 +1912,17 @@ mudra_pole_assembly = mudra_pole.translate((mx, my, STAND_H))
 show_object(mudra_pole_assembly,
             name="mudra_pole",
             options={"color": (0.25, 0.25, 0.27, 0.95)})
+
+# Tilt plates — displayed at assembly position (in cradle pockets, flat)
+uh_tilt_plate = build_uh_tilt_plate()
+_uh_plate_assembly = uh_tilt_plate.translate((
+    SLOT_POSITIONS["uh_ring"][0],
+    SLOT_POSITIONS["uh_ring"][1],
+    STAND_H - UH_CRADLE_DEPTH
+))
+show_object(_uh_plate_assembly, name="uh_tilt_plate",
+            options={"color": (0.6, 0.85, 0.6, 0.9)})
+pass  # keep loop body after show_object is stripped by export script
 
 # Ghost visualization objects (translucent component overlays)
 ghosts = build_ghost_components()
