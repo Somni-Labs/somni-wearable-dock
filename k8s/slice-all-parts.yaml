@@ -69,10 +69,84 @@ spec:
 
           sed -i 's/^[[:space:]]*//' "$INI"
 
+          validate_gcode() {
+            local FILE="$1"
+            local REQUIRE_SUPPORTS="${2:-}"
+            local ERRORS=0
+
+            echo "  Validating $FILE..."
+
+            # Check 1: Bed temperature — M140 or M190 with target >= 55
+            local BED_TEMP
+            BED_TEMP=$(grep -oP '^M1[49]0 S\K[0-9]+' "$FILE" | head -1)
+            if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 55 ]; then
+              echo "  FAIL: Bed temperature missing or too low (got: ${BED_TEMP:-none}, need >= 55)"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "  OK: Bed temperature = ${BED_TEMP}C"
+            fi
+
+            # Check 2: Extruder temperature — M104 or M109 with target >= 210
+            local EXT_TEMP
+            EXT_TEMP=$(grep -oP '^M10[49] S\K[0-9]+' "$FILE" | sort -n | tail -1)
+            if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 210 ]; then
+              echo "  FAIL: Extruder temperature missing or too low (got: ${EXT_TEMP:-none}, need >= 210)"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "  OK: Extruder temperature = ${EXT_TEMP}C"
+            fi
+
+            # Check 3: Support material (conditional)
+            if [ "$REQUIRE_SUPPORTS" = "--require-supports" ]; then
+              local SUPPORT_LINES
+              SUPPORT_LINES=$(grep -c ';TYPE:Support' "$FILE" || true)
+              if [ "$SUPPORT_LINES" -eq 0 ]; then
+                echo "  FAIL: No support material found (;TYPE:Support missing)"
+                ERRORS=$((ERRORS + 1))
+              else
+                echo "  OK: Support material present ($SUPPORT_LINES sections)"
+              fi
+            fi
+
+            # Check 4: Layer count sanity (> 10 layers)
+            local LAYER_COUNT
+            LAYER_COUNT=$(grep -c ';LAYER_CHANGE' "$FILE" || true)
+            if [ "$LAYER_COUNT" -lt 10 ]; then
+              echo "  FAIL: Only $LAYER_COUNT layers — file may be corrupt or empty"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "  OK: $LAYER_COUNT layers"
+            fi
+
+            # Check 5: Coordinate bounds (X <= 275, Y <= 295)
+            local X_MAX Y_MAX
+            X_MAX=$(awk '/^G1 .*X[0-9]/ { match($0, /X([0-9.]+)/, a); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' "$FILE")
+            Y_MAX=$(awk '/^G1 .*Y[0-9]/ { match($0, /Y([0-9.]+)/, a); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' "$FILE")
+            if [ "$(echo "$X_MAX > 275" | bc -l)" -eq 1 ]; then
+              echo "  FAIL: X coordinate out of bounds (max X = ${X_MAX}, limit 275)"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "  OK: X max = ${X_MAX} (limit 275)"
+            fi
+            if [ "$(echo "$Y_MAX > 295" | bc -l)" -eq 1 ]; then
+              echo "  FAIL: Y coordinate out of bounds (max Y = ${Y_MAX}, limit 295)"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "  OK: Y max = ${Y_MAX} (limit 295)"
+            fi
+
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "  ABORT: $ERRORS validation error(s) in $FILE"
+              exit 1
+            fi
+            echo "  PASS: All checks passed for $FILE"
+          }
+
           # ── BOTTOM TRAY ──
           echo "--- Slicing bottom tray ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/bottom.gcode --export-gcode /tmp/input-bottom/bottom-tray.stl
+          validate_gcode /tmp/bottom.gcode
           echo "--- Uploading bottom tray ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-bottom-tray.gcode" || true
           sleep 2
@@ -85,6 +159,7 @@ spec:
           echo "--- Slicing top tray ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/top.gcode --export-gcode /tmp/input-top/top-tray.stl
+          validate_gcode /tmp/top.gcode --require-supports
           echo "--- Uploading top tray ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-top-tray.gcode" || true
           sleep 2
@@ -97,6 +172,7 @@ spec:
           echo "--- Slicing iPad cover ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/cover.gcode --export-gcode /tmp/input-cover/ipad-cover.stl
+          validate_gcode /tmp/cover.gcode
           echo "--- Uploading iPad cover ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-ipad-cover.gcode" || true
           sleep 2
