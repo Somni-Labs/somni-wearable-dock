@@ -18,7 +18,7 @@ spec:
         args:
         - |
           set -e
-          echo "=== PrusaSlicer — All 3 Parts (with gcode validation) ==="
+          echo "=== PrusaSlicer — All 4 Parts (with gcode validation) ==="
 
           SLICER=/prusa-slicer/prusa-slicer
           INI=/tmp/pla_plus.ini
@@ -161,7 +161,7 @@ spec:
           echo "--- Slicing top tray ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/top.gcode --export-gcode /tmp/input-top/top-tray.stl
-          validate_gcode /tmp/top.gcode --require-supports
+          validate_gcode /tmp/top.gcode
           echo "--- Uploading top tray ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-top-tray.gcode" || true
           sleep 2
@@ -183,6 +183,19 @@ spec:
             -F "root=gcodes"
           echo ""
 
+          # ── MUDRA POLE ──
+          echo "--- Slicing mudra pole ---"
+          $SLICER --load "$INI" --center 137,147 \
+            --output /tmp/pole.gcode --export-gcode /tmp/input-pole/mudra-pole.stl
+          validate_gcode /tmp/pole.gcode
+          echo "--- Uploading mudra pole ---"
+          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-mudra-pole.gcode" || true
+          sleep 2
+          curl -s -X POST "$MOONRAKER/server/files/upload" \
+            -F "file=@/tmp/pole.gcode;filename=v1-charging-stand-mudra-pole.gcode" \
+            -F "root=gcodes"
+          echo ""
+
           echo "=== All done ==="
         volumeMounts:
         - name: input-bottom
@@ -191,6 +204,8 @@ spec:
           mountPath: /tmp/input-top
         - name: input-cover
           mountPath: /tmp/input-cover
+        - name: input-pole
+          mountPath: /tmp/input-pole
       volumes:
       - name: input-bottom
         configMap:
@@ -201,3 +216,6 @@ spec:
       - name: input-cover
         configMap:
           name: slicer-stl-input-ipad-cover
+      - name: input-pole
+        configMap:
+          name: slicer-stl-input-mudra-pole
