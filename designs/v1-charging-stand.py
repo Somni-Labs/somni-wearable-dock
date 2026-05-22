@@ -131,6 +131,36 @@ MUDRA_CABLE_CH_W = 12         # cable cavity width (Y) — room for USB cable
 MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
+# --- ESP32 DevKitC V4 mount ---
+ESP32_L = 55 + 1          # board length + tolerance (along Y)
+ESP32_W = 28 + 1          # board width + tolerance (along X)
+ESP32_H = 12              # board height (tallest component)
+ESP32_STANDOFF_H = 2      # standoff post height
+ESP32_STANDOFF_D = 3      # standoff post diameter
+ESP32_CRADLE_H = 6        # cradle wall height
+ESP32_CRADLE_T = 1.5      # cradle wall thickness
+ESP32_USB_SLOT_W = 12     # USB port slot width through front wall
+ESP32_USB_SLOT_H = 8      # USB port slot height through front wall
+
+# --- RGB LED strip (WS2812B 30/m) ---
+LED_CHANNEL_W = 12        # channel width (10mm strip + clearance)
+LED_CHANNEL_D = 4         # channel depth into floor
+LED_SLOT_H = 3            # light exit slot height on exterior walls
+LED_SLOT_Z = 1            # slot bottom edge Z (above desk)
+
+# --- Backlit logo ---
+LOGO_TEXT = "Somni Labs"
+LOGO_FONT_SIZE = 12       # cap height in mm
+LOGO_RECESS_DEPTH = 1.9   # cut depth (WALL - 0.6mm diffuser)
+LOGO_Z = 20               # vertical center of text on front wall
+
+# --- LED driver / level shifter mount ---
+DRIVER_L = 22             # pocket length (Y)
+DRIVER_W = 16             # pocket width (X)
+DRIVER_H = 8              # pocket depth (Z)
+DRIVER_STANDOFF_H = 2     # standoff height
+DRIVER_STANDOFF_D = 2     # standoff diameter
+
 # --- Device 5: Even Realities G2 glasses case ---
 # Caliper measurements: 174mm × 66mm × 36mm (simple rectangular box).
 # Cradle only needs a shallow insert to hold the case in place.
@@ -479,6 +509,217 @@ def build_bottom_tray():
         )
         tray = tray.union(arch_outer)
         tray = tray.cut(arch_inner)
+
+    # ── ESP32 DevKitC V4 mount (front-left corner) ───────────────────────
+    # Board oriented with long edge along Y (55mm), short edge (28mm, with
+    # USB port) facing the front wall. Sits on standoff posts with cradle
+    # walls on two sides for a snug drop-in fit.
+    _esp_x = -STAND_W / 2 + WALL + ESP32_W / 2   # center X = -103mm
+    _esp_y = -STAND_D / 2 + WALL + ESP32_L / 2   # center Y = -57mm
+
+    # 4 standoff posts at mounting hole positions (2mm inset from board edges)
+    _standoff_inset = 2
+    for sx, sy in [
+        (_esp_x - ESP32_W / 2 + _standoff_inset, _esp_y - ESP32_L / 2 + _standoff_inset),
+        (_esp_x + ESP32_W / 2 - _standoff_inset, _esp_y - ESP32_L / 2 + _standoff_inset),
+        (_esp_x - ESP32_W / 2 + _standoff_inset, _esp_y + ESP32_L / 2 - _standoff_inset),
+        (_esp_x + ESP32_W / 2 - _standoff_inset, _esp_y + ESP32_L / 2 - _standoff_inset),
+    ]:
+        standoff = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(sx, sy)
+            .circle(ESP32_STANDOFF_D / 2)
+            .extrude(ESP32_STANDOFF_H)
+        )
+        tray = tray.union(standoff)
+
+    # Cradle wall — left side (against the left inner wall)
+    cradle_left = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(_esp_x - ESP32_W / 2 - ESP32_CRADLE_T / 2, _esp_y)
+        .rect(ESP32_CRADLE_T, ESP32_L)
+        .extrude(ESP32_CRADLE_H)
+    )
+    tray = tray.union(cradle_left)
+
+    # Cradle wall — front side (against the front inner wall)
+    cradle_front = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(_esp_x, _esp_y - ESP32_L / 2 - ESP32_CRADLE_T / 2)
+        .rect(ESP32_W, ESP32_CRADLE_T)
+        .extrude(ESP32_CRADLE_H)
+    )
+    tray = tray.union(cradle_front)
+
+    # USB port slot through the front wall
+    _usb_z = BASE_H + ESP32_STANDOFF_H + 4   # center of USB port
+    esp_usb_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=_usb_z - ESP32_USB_SLOT_H / 2)
+        .center(_esp_x, -STAND_D / 2)
+        .rect(ESP32_USB_SLOT_W, WALL * 3)
+        .extrude(ESP32_USB_SLOT_H)
+    )
+    tray = tray.cut(esp_usb_slot)
+
+    # ── LED driver / level shifter pocket ────────────────────────────────
+    # Small component pocket behind the ESP32 for the 3.3V→5V level shifter.
+    # Sits between the ESP32 and the left wall LED channel start.
+    _drv_x = _esp_x                                      # aligned with ESP32 center X
+    _drv_y = _esp_y + ESP32_L / 2 + 5 + DRIVER_L / 2    # 5mm gap behind ESP32
+
+    # Pocket cut into the floor
+    driver_pocket = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H - 0.5)
+        .center(_drv_x, _drv_y)
+        .rect(DRIVER_W, DRIVER_L)
+        .extrude(DRIVER_H + 0.5)
+    )
+    tray = tray.cut(driver_pocket)
+
+    # 2 standoff posts inside the pocket
+    for dy_sign in [-1, 1]:
+        drv_standoff = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(_drv_x, _drv_y + dy_sign * (DRIVER_L / 2 - 3))
+            .circle(DRIVER_STANDOFF_D / 2)
+            .extrude(DRIVER_STANDOFF_H)
+        )
+        tray = tray.union(drv_standoff)
+
+    # ── RGB LED channel (U-shaped: left wall → front wall → right wall) ──
+    # Groove in the floor for WS2812B LED strip. Inset 1mm from the inner
+    # wall so light reflects off the wall before exiting through the slots.
+    _inner_left   = -STAND_W / 2 + WALL            # X = -117.5
+    _inner_right  =  STAND_W / 2 - WALL            # X =  117.5
+    _inner_front  = -STAND_D / 2 + WALL             # Y = -85
+    _inner_back   =  STAND_D / 2 - WALL             # Y =  85
+    _ch_inset = 1   # inset from inner wall face
+    _ch_z = BASE_H - LED_CHANNEL_D  # channel bottom (may cut into floor)
+
+    # Left wall segment (runs along Y)
+    led_ch_left = (
+        cq.Workplane("XY")
+        .workplane(offset=_ch_z)
+        .center(_inner_left + _ch_inset + LED_CHANNEL_W / 2,
+                (_inner_front + _inner_back) / 2)
+        .rect(LED_CHANNEL_W, _inner_back - _inner_front)
+        .extrude(LED_CHANNEL_D + 0.5)
+    )
+    tray = tray.cut(led_ch_left)
+
+    # Front wall segment (runs along X)
+    led_ch_front = (
+        cq.Workplane("XY")
+        .workplane(offset=_ch_z)
+        .center(0, _inner_front + _ch_inset + LED_CHANNEL_W / 2)
+        .rect(_inner_right - _inner_left, LED_CHANNEL_W)
+        .extrude(LED_CHANNEL_D + 0.5)
+    )
+    tray = tray.cut(led_ch_front)
+
+    # Right wall segment (runs along Y)
+    led_ch_right = (
+        cq.Workplane("XY")
+        .workplane(offset=_ch_z)
+        .center(_inner_right - _ch_inset - LED_CHANNEL_W / 2,
+                (_inner_front + _inner_back) / 2)
+        .rect(LED_CHANNEL_W, _inner_back - _inner_front)
+        .extrude(LED_CHANNEL_D + 0.5)
+    )
+    tray = tray.cut(led_ch_right)
+
+    # ── Light exit slots (exterior walls, near desk level) ───────────────
+    # Narrow horizontal slots cut through the bottom of each exterior wall.
+    # Light from the LED channel spills downward onto the desk.
+
+    # Front wall light slot
+    led_slot_front = (
+        cq.Workplane("XY")
+        .workplane(offset=LED_SLOT_Z)
+        .center(0, -STAND_D / 2)
+        .rect(STAND_W - CORNER_R * 4, WALL * 3)
+        .extrude(LED_SLOT_H)
+    )
+    tray = tray.cut(led_slot_front)
+
+    # Left wall light slot
+    led_slot_left = (
+        cq.Workplane("XY")
+        .workplane(offset=LED_SLOT_Z)
+        .center(-STAND_W / 2, 0)
+        .rect(WALL * 3, STAND_D - CORNER_R * 4)
+        .extrude(LED_SLOT_H)
+    )
+    tray = tray.cut(led_slot_left)
+
+    # Right wall light slot
+    led_slot_right = (
+        cq.Workplane("XY")
+        .workplane(offset=LED_SLOT_Z)
+        .center(STAND_W / 2, 0)
+        .rect(WALL * 3, STAND_D - CORNER_R * 4)
+        .extrude(LED_SLOT_H)
+    )
+    tray = tray.cut(led_slot_right)
+
+    # ── Floor wiring grooves ─────────────────────────────────────────────
+    # Shallow channels in the floor for routing wires between the ESP32,
+    # driver pocket, LED channel, and charger bay.
+    _wire_w = 6    # groove width
+    _wire_d = 3    # groove depth
+    _wire_z = BASE_H - _wire_d
+
+    # Groove 1: ESP32 → driver pocket (short Y-axis run)
+    wire_esp_to_drv = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center(_esp_x, (_esp_y + _drv_y) / 2)
+        .rect(_wire_w, abs(_drv_y - _esp_y) + ESP32_L / 2 + DRIVER_L / 2)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_esp_to_drv)
+
+    # Groove 2: Driver pocket → left wall LED channel start (short X-axis run)
+    _led_ch_x = _inner_left + _ch_inset + LED_CHANNEL_W / 2
+    wire_drv_to_led = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center((_drv_x + _led_ch_x) / 2, _drv_y)
+        .rect(abs(_drv_x - _led_ch_x) + DRIVER_W / 2 + LED_CHANNEL_W / 2, _wire_w)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_drv_to_led)
+
+    # Groove 3: ESP32 → charger bay (USB power cable from VanBon)
+    # Runs from ESP32 position rightward (+X) to the charger bay left edge
+    wire_esp_to_charger = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center((_esp_x + _charger_left) / 2, _esp_y)
+        .rect(abs(_charger_left - _esp_x) + ESP32_W / 2, _wire_w)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_esp_to_charger)
+
+    # ── "Somni Labs" backlit logo (front wall exterior) ──────────────────
+    # Text recessed into the front wall, leaving a 0.6mm thin wall as a
+    # natural light diffuser. The RGB strip behind the front wall
+    # backlights the letters for a soft glow effect.
+    _logo_y = -STAND_D / 2  # exterior face of front wall
+    logo_text = (
+        cq.Workplane("XZ")
+        .workplane(offset=-_logo_y)  # position at front wall exterior face
+        .center(0, LOGO_Z)
+        .text(LOGO_TEXT, LOGO_FONT_SIZE, -LOGO_RECESS_DEPTH,
+              font="Sans", halign="center", valign="center")
+    )
+    tray = tray.cut(logo_text)
 
     # ── Cable pass-through holes — NOT NEEDED in bottom tray ────────────
     # The bottom tray is now an open-top box (no ceiling). Cables route
