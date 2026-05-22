@@ -131,6 +131,15 @@ MUDRA_CABLE_CH_W = 12         # cable cavity width (Y) — room for USB cable
 MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
+# --- Mudra pole snap clips (beefier than tray-to-tray clips) ---
+# The original SNAP_HOOK (1.2mm) arms were too thin and broke during
+# insertion. These dedicated constants make the Mudra clips much stronger.
+MUDRA_CLIP_T = 2.5            # arm thickness (was SNAP_HOOK=1.2, now 2x thicker)
+MUDRA_CLIP_W = 14             # clip width along Y (was SNAP_CLIP_W=12)
+MUDRA_CLIP_H = 8              # cantilever height (same as before)
+MUDRA_HOOK = 2.0              # hook overhang that catches the lip (was 1.2)
+MUDRA_HOOK_H = 2.0            # hook nub height (was SNAP_HOOK=1.2)
+
 # --- ESP32 DevKitC V4 mount (pin-header slot-cradle) ---
 ESP32_L = 56              # board length + tolerance (along Y)
 ESP32_W = 29              # board width + tolerance (along X)
@@ -1382,12 +1391,13 @@ def build_top_tray():
     base = base.cut(mudra_socket)
 
     # ── Snap hook engagement pockets on the bottom face ──────────────────
-    # Small recesses on the bottom face of the top tray around the socket,
+    # Recesses on the bottom face of the top tray around the socket,
     # one on each X-axis face. These give the snap hooks room to spring
     # out and catch after passing through the socket.
-    _pocket_w = SNAP_CLIP_W + SNAP_TOL * 2    # 12.6mm
-    _pocket_depth = SNAP_HOOK                  # 1.2mm into tray bottom face
-    _pocket_h = SNAP_HOOK * 2                  # 2.4mm
+    # Uses MUDRA_CLIP_* constants (beefier clips than tray-to-tray).
+    _pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2   # 14.6mm
+    _pocket_depth = MUDRA_HOOK                 # 2.0mm into tray bottom face
+    _pocket_h = MUDRA_HOOK_H + 1              # 3.0mm (hook height + clearance)
     for side_sign in [-1, 1]:
         pocket_x = mx + side_sign * (_socket_w / 2 + _pocket_depth / 2)
         snap_pocket = (
@@ -1726,32 +1736,35 @@ def build_mudra_pole():
     pole = pole.cut(cable_cavity_vert)
 
     # ── Snap clip tabs on the base ───────────────────────────────────────
-    # Two cantilever hooks, one on each long side (the MUDRA_POLE_D / X-axis
-    # faces). They extend downward from the pole base into negative Z.
+    # Two cantilever hooks, one on each X-axis face of the pole base.
+    # They extend downward from the pole base into negative Z.
     # When inserting the pole into the socket, the hooks flex inward, pass
     # through the socket, and snap out to catch the bottom face of the top tray.
+    #
+    # Uses MUDRA_CLIP_* constants (beefier than the tray-to-tray SNAP_* clips).
+    # The original 1.2mm arms broke on insertion — these are 2.5mm thick.
     for side_sign in [-1, 1]:
-        clip_x = side_sign * (MUDRA_POLE_D / 2 + SNAP_HOOK / 2)
+        clip_x = side_sign * (MUDRA_POLE_D / 2 + MUDRA_CLIP_T / 2)
 
         # Cantilever arm extending downward from pole base
         arm = (
             cq.Workplane("XY")
-            .workplane(offset=-SNAP_CLIP_H)
+            .workplane(offset=-MUDRA_CLIP_H)
             .center(clip_x, 0)
-            .rect(SNAP_HOOK, SNAP_CLIP_W)
-            .extrude(SNAP_CLIP_H)
+            .rect(MUDRA_CLIP_T, MUDRA_CLIP_W)
+            .extrude(MUDRA_CLIP_H)
         )
         pole = pole.union(arm)
 
         # Hook nub at the bottom of the arm (outward-facing)
         # Catches the underside of the top tray floor
-        nub_x = clip_x + side_sign * (SNAP_HOOK / 2)
+        nub_x = clip_x + side_sign * (MUDRA_HOOK / 2)
         nub = (
             cq.Workplane("XY")
-            .workplane(offset=-SNAP_CLIP_H)
+            .workplane(offset=-MUDRA_CLIP_H)
             .center(nub_x, 0)
-            .rect(SNAP_HOOK, SNAP_CLIP_W)
-            .extrude(SNAP_HOOK)
+            .rect(MUDRA_HOOK, MUDRA_CLIP_W)
+            .extrude(MUDRA_HOOK_H)
         )
         pole = pole.union(nub)
 

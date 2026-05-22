@@ -94,7 +94,19 @@ Each printable part needs its own STL at Z=0. The top tray must be flipped 180 d
 
 The Mudra L-pole overhang required 48% of the top tray's filament for support material (110m, 20+ extra hours). Separating the pole into its own snap-in part eliminates supports entirely — the pole prints upright and the top tray has a simple through-socket. Assembly: 4 parts (bottom tray, top tray, mudra pole, iPad cover plate).
 
+### Mudra pole snap clips need dedicated beefier constants
+
+The tray-to-tray SNAP_* constants (SNAP_HOOK=1.2mm, SNAP_CLIP_W=12mm) are too thin for the Mudra pole clips. A 1.2mm cantilever arm snaps on insertion every time. The Mudra pole now uses dedicated MUDRA_CLIP_* constants: MUDRA_CLIP_T=2.5mm arm thickness, MUDRA_CLIP_W=14mm width, MUDRA_HOOK=2.0mm overhang. The top tray socket engagement pockets are sized to match.
+
 ## Errors Encountered and Fixed
+
+### Mudra pole snap clips broke on insertion
+
+**Error**: The snap clips on the Mudra pole base snapped off during insertion into the top tray socket. The arms were too thin (1.2mm) to survive the flex required during snap-in.
+
+**Cause**: Used shared SNAP_HOOK (1.2mm) constant — adequate for the wide tray-to-tray clips backed by 2.5mm walls, but far too thin for standalone cantilever arms on a small pole.
+
+**Fix**: Added dedicated MUDRA_CLIP_* constants (MUDRA_CLIP_T=2.5mm, MUDRA_CLIP_W=14mm, MUDRA_HOOK=2.0mm, MUDRA_HOOK_H=2.0mm). Updated both `build_mudra_pole()` clip geometry and the top tray socket engagement pockets to use the new constants. More than 2× the arm thickness of the original design.
 
 ### PrusaSlicer "Move out of range" error
 
