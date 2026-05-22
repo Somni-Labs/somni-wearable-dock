@@ -41,6 +41,7 @@ def export_stl_files():
         bottom_tray = exec_globals['bottom_tray']
         top_tray = exec_globals['top_tray']
         ipad_cover = exec_globals.get('ipad_cover')
+        mudra_pole = exec_globals.get('mudra_pole')
 
         print("✅ Design objects loaded successfully")
 
@@ -71,10 +72,17 @@ def export_stl_files():
         cover_bb = ipad_cover.val().BoundingBox()
         cover_print = ipad_cover.translate((0, 0, -cover_bb.zmin))
 
+    # Mudra pole — translate to Z=0 for printing (no rotation, prints upright)
+    if mudra_pole:
+        pole_bb = mudra_pole.val().BoundingBox()
+        pole_print = mudra_pole.translate((0, 0, -pole_bb.zmin))
+
     print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
     print(f"   Top tray: flipped upside-down + translated Z by {-top_flipped_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
     if ipad_cover:
         print(f"   iPad cover: translated Z by {-cover_bb.zmin:+.1f}mm (was Z={cover_bb.zmin:.1f})")
+    if mudra_pole:
+        print(f"   Mudra pole: translated Z by {-pole_bb.zmin:+.1f}mm (was Z={pole_bb.zmin:.1f})")
 
     # Create output directory
     output_dir = Path("output")
@@ -110,6 +118,16 @@ def export_stl_files():
             cq.exporters.export(ipad_cover, str(cover_step_path))
             print(f"✅ {cover_step_path} - iPad cover STEP (assembly position)")
 
+        # Mudra pole — snap-in part (no rotation, prints upright)
+        if mudra_pole:
+            pole_stl_path = output_dir / "v1-charging-stand-mudra-pole.stl"
+            cq.exporters.export(pole_print, str(pole_stl_path))
+            print(f"✅ {pole_stl_path} - Mudra pole (snap-in, prints upright)")
+
+            pole_step_path = output_dir / "v1-charging-stand-mudra-pole.step"
+            cq.exporters.export(mudra_pole, str(pole_step_path))
+            print(f"✅ {pole_step_path} - Mudra pole STEP (origin position)")
+
         return True
 
     except Exception as e:
@@ -122,9 +140,9 @@ def print_print_info():
     print(f"   Material: PETG recommended (good strength + heat resistance)")
     print(f"   Layer height: 0.2mm (0.15mm for finer details)")
     print(f"   Infill: 15-20% (functional print, not decorative)")
-    print(f"   Supports: Likely needed for Mudra pole overhang")
+    print(f"   Supports: Top tray and mudra pole need NO supports (pole prints upright)")
     print(f"   Build plate: Fits QIDI Q2 (245×255mm) - verify in slicer")
-    print(f"   Print orientation: Bottom tray down, top tray upside down")
+    print(f"   Print orientation: Bottom tray down, top tray upside down, mudra pole upright")
     print(f"")
     print(f"🔧 MUDRA LINK TEST FIT:")
     print(f"   Updated charger pocket dimensions:")
