@@ -1818,3 +1818,9 @@ mudra_pole_assembly = mudra_pole.translate((mx, my, STAND_H))
 show_object(mudra_pole_assembly,
             name="mudra_pole",
             options={"color": (0.25, 0.25, 0.27, 0.95)})
+
+# Ghost visualization objects (translucent component overlays)
+ghosts = build_ghost_components()
+for comp_name, (comp_solid, comp_color) in ghosts.items():
+    show_object(comp_solid, name=f"ghost_{comp_name}", options={"color": comp_color})
+    pass  # keep loop body after show_object is stripped by export script
