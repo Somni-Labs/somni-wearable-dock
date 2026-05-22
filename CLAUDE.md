@@ -8,6 +8,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 - **`export_charging_stand.py`** — STL/STEP export script (strips cq_server dependency, flips top tray for printing)
 - **`k8s/slice-all-parts.yaml`** — K8s Job template for PrusaSlicer slicing + Moonraker upload
 - **`output/`** — Generated STL/STEP files
+- **`scripts/pre-print-check.sh`** — Pre-print validation (Moonraker API checks: printer state, filament, gcode metadata)
 - Live preview via `cadquery-server` deployment in K8s (`utilities` namespace), synced from GitHub via git-sync init container
 
 ## QIDI Q2 Printer
@@ -19,21 +20,34 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 
 ## Lessons Learned
 
-### PrusaSlicer ignores filament temperatures from combined INI profiles
+### PrusaSlicer `--load` requires flat INI — no section headers
 
-PrusaSlicer does NOT reliably parse `[filament]` section temperatures when all sections (`[print]`, `[filament]`, `[printer]`) are combined in a single INI file loaded via `--load`. It falls back to defaults: extruder 200C, bed 0C. The `start_gcode` field with `\n` escapes is also not interpreted correctly.
+PrusaSlicer's `--load` flag expects a flat key=value INI file (like those exported via File > Export > Export Config). If the file contains `[section]` headers (like `[print:PLA+]`, `[filament:PLA+]`, `[printer:QIDI_Q2]`), PrusaSlicer silently ignores all settings and falls back to defaults (extruder 200C, bed 0C, supports off, etc).
 
-**Fix**: Post-process the generated gcode with `sed` to replace `M104 S200` / `M109 S200` with correct temperatures and inject `M140`/`M190` bed heating commands. The K8s slicer job template in `k8s/slice-all-parts.yaml` has the `fix_temps()` function that does this automatically.
+**Fix**: Use comment-based grouping (`# --- Print settings ---`) instead of section headers. The K8s slicer job in `k8s/slice-all-parts.yaml` uses a flat INI with all settings as top-level key=value pairs.
+
+### Post-slice gcode validation is mandatory
+
+After slicing, the `validate_gcode()` function in `k8s/slice-all-parts.yaml` checks the generated gcode for: bed temperature >= 55C, extruder temperature >= 210C, layer count > 10, coordinate bounds within build volume (X <= 275, Y <= 295), and support material presence (for parts with `--require-supports` flag). If any check fails, the job aborts before uploading to Moonraker.
+
+### Always run pre-print-check.sh before starting a print
+
+The `scripts/pre-print-check.sh` script validates printer readiness via Moonraker API before any print:
+
+```
+./scripts/pre-print-check.sh <gcode-filename>
+```
+
+It checks: printer reachable, printer state ready, not already printing, filament sensor enabled (auto-enables if disabled), filament detected, gcode file exists, bed temp > 0 in metadata, estimated time > 60s.
 
 ### Always check the filament sensor before starting a print
 
-The QIDI Q2 has a `filament_switch_sensor` in Klipper but it ships **disabled by default**. Query it via Moonraker before printing:
+The QIDI Q2 has a `filament_switch_sensor` in Klipper but it ships **disabled by default**. The `scripts/pre-print-check.sh` script handles this automatically — it queries the sensor state, enables it via the `ENABLE_ALL_SENSOR` macro if disabled, and verifies filament is physically present before allowing the print to start.
 
+Manual check if needed:
 ```
 GET /printer/objects/query?filament_switch_sensor+filament_switch_sensor
 ```
-
-If `enabled: false` or `filament_detected: false`, enable it with the `ENABLE_ALL_SENSOR` gcode macro before starting the print. The printer will happily run an entire job with an empty extruder if the sensor is off.
 
 ### CadQuery boolean operations can fill internal cavities at union joints
 
@@ -127,9 +141,9 @@ Each printable part needs its own STL at Z=0. The top tray must be flipped 180 d
 
 **Error**: First print ran with bed heater completely off (target 0C). PLA+ adhesion was poor.
 
-**Cause**: PrusaSlicer ignored the `[filament]` section's `bed_temperature = 60` and `first_layer_bed_temperature = 65` from the combined INI. No `M140`/`M190` commands appeared in the generated gcode.
+**Cause**: PrusaSlicer's `--load` flag silently ignores settings from INI files with `[section]` headers. It fell back to the default `bed_temperature = 0`.
 
-**Fix**: Post-process gcode after slicing with `sed` to inject `M140 S65` (bed preheat) and `M190 S65` (wait for bed) before the print starts. The `fix_temps()` function in `k8s/slice-all-parts.yaml` handles this.
+**Fix**: Removed section headers from the INI profile (flat key=value format). The `validate_gcode()` function now checks that bed temp commands are present and >= 55C before uploading. The `pre-print-check.sh` script also checks the metadata `first_layer_bed_temp > 0` before starting.
 
 ### Moonraker upload 500 error (disk space / file locking)
 
