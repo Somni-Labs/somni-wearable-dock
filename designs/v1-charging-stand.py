@@ -1197,12 +1197,13 @@ def build_top_tray():
     )
     base = base.cut(uh_cable)
 
-    # ── Hinge barrel sockets in rear (+Y) wall ───────────────────────────
-    # Two semicircular channels in the pocket's rear wall for tilt plate
+    # ── Hinge barrel sockets in FRONT (-Y) wall ─────────────────────────
+    # Two semicircular channels in the pocket's front wall for tilt plate
     # hinge barrels. Filament pin threads through barrels + sockets.
+    # Front hinge → rear edge tilts UP toward the user.
     _uh_plate_side = UH_SIDE - TILT_CLEARANCE * 2  # 40mm
     _uh_barrel_spacing = _uh_plate_side - 2 * 10  # 20mm
-    _uh_rear_y = uy + UH_SIDE / 2  # rear wall Y position (-29.0)
+    _uh_front_y = uy - UH_SIDE / 2  # front wall Y position (-70.0)
     _uh_socket_z = STAND_H - UH_CRADLE_DEPTH  # pocket floor Z (48.0)
     _socket_od = HINGE_BARREL_OD + HINGE_SOCKET_TOL * 2  # 3.6mm
     _socket_len = HINGE_BARREL_L + HINGE_SOCKET_TOL * 2  # 8.6mm
@@ -1212,7 +1213,7 @@ def build_top_tray():
         barrel_socket = (
             cq.Workplane("YZ")
             .workplane(offset=_bx - _socket_len / 2)
-            .center(_uh_rear_y, _uh_socket_z + TILT_PLATE_T / 2)
+            .center(_uh_front_y, _uh_socket_z + TILT_PLATE_T / 2)
             .circle(_socket_od / 2)
             .extrude(_socket_len)
         )
@@ -1256,10 +1257,10 @@ def build_top_tray():
     )
     base = base.cut(r1_cable)
 
-    # ── Hinge barrel sockets in rear (+Y) wall ───────────────────────────
+    # ── Hinge barrel sockets in FRONT (-Y) wall ─────────────────────────
     _r1_plate_dia = R1_DIA - TILT_CLEARANCE * 2  # 31mm
     _r1_chord_cut_y = _r1_plate_dia / 2 - 2  # 13.5mm from plate center
-    _r1_rear_y = ry + _r1_chord_cut_y  # world Y of barrel center
+    _r1_front_y = ry - _r1_chord_cut_y  # world Y of barrel center (front)
     _r1_socket_z = STAND_H - R1_CRADLE_DEPTH  # pocket floor Z (48.0)
     _r1_barrel_spacing = 8  # matches plate barrel spacing
 
@@ -1268,7 +1269,7 @@ def build_top_tray():
         barrel_socket = (
             cq.Workplane("YZ")
             .workplane(offset=_bx - _socket_len / 2)
-            .center(_r1_rear_y, _r1_socket_z + TILT_PLATE_T / 2)
+            .center(_r1_front_y, _r1_socket_z + TILT_PLATE_T / 2)
             .circle(_socket_od / 2)
             .extrude(_socket_len)
         )
@@ -1333,14 +1334,14 @@ def build_top_tray():
     )
     base = base.cut(omi_cable)
 
-    # ── Hinge barrel sockets in rear (+Y) wall ───────────────────────────
+    # ── Hinge barrel sockets in FRONT (-Y) wall ─────────────────────────
     _omi_pts = six_sided_diamond_points(
         OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2,
         OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2
     )
-    _omi_rear_y_local = max(p[1] for p in _omi_pts)
-    _omi_chord_cut_y = _omi_rear_y_local - 2
-    _omi_rear_y = oy + _omi_chord_cut_y  # world Y of barrel center
+    _omi_front_y_local = min(p[1] for p in _omi_pts)  # frontmost vertex (negative)
+    _omi_chord_cut_y = _omi_front_y_local + 2  # front chord position
+    _omi_front_y = oy + _omi_chord_cut_y  # world Y of barrel center (front)
     _omi_socket_z = STAND_H - OMI_CRADLE_DEPTH  # pocket floor Z (43.0)
     _omi_barrel_spacing = 8  # matches plate barrel spacing
 
@@ -1349,7 +1350,7 @@ def build_top_tray():
         barrel_socket = (
             cq.Workplane("YZ")
             .workplane(offset=_bx - _socket_len / 2)
-            .center(_omi_rear_y, _omi_socket_z + TILT_PLATE_T / 2)
+            .center(_omi_front_y, _omi_socket_z + TILT_PLATE_T / 2)
             .circle(_socket_od / 2)
             .extrude(_socket_len)
         )
@@ -1742,23 +1743,29 @@ def build_mudra_pole():
     # through the socket, and snap out to catch the bottom face of the top tray.
     #
     # Uses MUDRA_CLIP_* constants (beefier than the tray-to-tray SNAP_* clips).
-    # The original 1.2mm arms broke on insertion — these are 2.5mm thick.
+    # The arms overlap 1.5mm INTO the pole body so the union creates a
+    # solid structural joint (not just an edge-to-edge seam that cracks).
+    _clip_overlap = 1.5  # mm of arm that overlaps into the pole body
     for side_sign in [-1, 1]:
-        clip_x = side_sign * (MUDRA_POLE_D / 2 + MUDRA_CLIP_T / 2)
+        # Arm center is shifted inward so it overlaps with the pole body
+        clip_x = side_sign * (MUDRA_POLE_D / 2 + MUDRA_CLIP_T / 2 - _clip_overlap)
 
         # Cantilever arm extending downward from pole base
+        # Also extends 3mm UP into the pole body for a stronger root
+        _arm_root_h = 3  # how far the arm extends up into the pole
         arm = (
             cq.Workplane("XY")
             .workplane(offset=-MUDRA_CLIP_H)
             .center(clip_x, 0)
             .rect(MUDRA_CLIP_T, MUDRA_CLIP_W)
-            .extrude(MUDRA_CLIP_H)
+            .extrude(MUDRA_CLIP_H + _arm_root_h)
         )
         pole = pole.union(arm)
 
         # Hook nub at the bottom of the arm (outward-facing)
         # Catches the underside of the top tray floor
-        nub_x = clip_x + side_sign * (MUDRA_HOOK / 2)
+        # Nub position accounts for the overlap shift
+        nub_x = clip_x + side_sign * (MUDRA_CLIP_T / 2 + MUDRA_HOOK / 2)
         nub = (
             cq.Workplane("XY")
             .workplane(offset=-MUDRA_CLIP_H)
@@ -1779,8 +1786,9 @@ def build_uh_tilt_plate():
     """UH Ring tilt plate — 40x40mm square with rounded corners.
 
     Built at origin (centered on X/Y, Z=0 to TILT_PLATE_T).
-    Two hinge barrels on the +Y edge (rear), captured slot on underside
-    for push rod T-head.
+    Two hinge barrels on the -Y edge (FRONT), so the rear edge tilts UP
+    toward the user when the push rod pushes from below.
+    Captured slot on underside for push rod T-head.
     """
     plate_side = UH_SIDE - TILT_CLEARANCE * 2  # 40mm
 
@@ -1792,11 +1800,12 @@ def build_uh_tilt_plate():
     )
     plate = plate.edges("|Z").fillet(UH_CORNER_R - TILT_CLEARANCE)
 
-    # ── Two hinge barrels on rear (+Y) edge ──────────────────────────────
-    # Barrels protrude beyond the rear edge, axis parallel to X.
+    # ── Two hinge barrels on FRONT (-Y) edge ─────────────────────────────
+    # Barrels protrude beyond the front edge, axis parallel to X.
     # Spaced symmetrically, ~10mm from each end.
+    # Negative Y = front edge (toward user).
     barrel_spacing = plate_side - 2 * 10  # 20mm apart
-    barrel_center_y = plate_side / 2 + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2
+    barrel_center_y = -(plate_side / 2 + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2)
 
     for x_sign in [-1, 1]:
         bx = x_sign * barrel_spacing / 2
@@ -1840,7 +1849,8 @@ def build_r1_tilt_plate():
     """R1 Ring tilt plate — 31mm diameter disc.
 
     Built at origin (centered on X/Y, Z=0 to TILT_PLATE_T).
-    The rear (+Y) edge has a flat chord for hinge barrel mounting.
+    The front (-Y) edge has a flat chord for hinge barrel mounting,
+    so the rear edge tilts UP toward the user when pushed from below.
     Two hinge barrels on the flat, captured slot on underside.
     """
     plate_dia = R1_DIA - TILT_CLEARANCE * 2  # 31mm
@@ -1852,24 +1862,24 @@ def build_r1_tilt_plate():
         .extrude(TILT_PLATE_T)
     )
 
-    # ── Flat chord on rear edge for barrel mounting ──────────────────────
-    # Cut a 2mm slice off the rear to create a flat mounting surface.
-    # The flat is at Y = plate_dia/2 - 2 = 13.5mm from center.
-    _chord_cut_y = plate_dia / 2 - 2  # 13.5mm
+    # ── Flat chord on FRONT (-Y) edge for barrel mounting ────────────────
+    # Cut a 2mm slice off the front to create a flat mounting surface.
+    # The flat is at Y = -(plate_dia/2 - 2) = -13.5mm from center.
+    _chord_cut_y = plate_dia / 2 - 2  # 13.5mm (absolute distance)
     chord_cut = (
         cq.Workplane("XY")
         .workplane(offset=-0.1)
-        .center(0, _chord_cut_y + 10)  # center of a 20mm-deep block beyond the chord
+        .center(0, -(_chord_cut_y + 10))  # center of block beyond the FRONT chord
         .rect(plate_dia + 2, 20)
         .extrude(TILT_PLATE_T + 0.2)
     )
     plate = plate.cut(chord_cut)
 
-    # ── Two hinge barrels on the flat chord ──────────────────────────────
-    # Chord width at Y=13.5: w = 2*sqrt(r^2 - y^2) = 2*sqrt(15.5^2 - 13.5^2) ≈ 15.2mm
+    # ── Two hinge barrels on the FRONT flat chord ────────────────────────
+    # Chord width at Y=-13.5: w = 2*sqrt(r^2 - y^2) ≈ 15.2mm
     # Two 8mm barrels need ~20mm — so space them 8mm apart (4mm from center each)
     barrel_spacing = 8  # closer together to fit on the chord
-    barrel_center_y = _chord_cut_y + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2
+    barrel_center_y = -(_chord_cut_y + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2)
 
     for x_sign in [-1, 1]:
         bx = x_sign * barrel_spacing / 2
@@ -1908,7 +1918,8 @@ def build_omi_tilt_plate():
 
     Built at origin (centered on X/Y, Z=0 to TILT_PLATE_T).
     Uses the same six_sided_diamond_points() helper as the pocket.
-    Hinge barrels at the rearmost vertex (+Y), with a small flat added.
+    Hinge barrels at the frontmost vertex (-Y), with a small flat added,
+    so the rear edge tilts UP toward the user when pushed from below.
     Captured slot on underside for push rod T-head.
     """
     # Diamond points with clearance reduction
@@ -1926,24 +1937,24 @@ def build_omi_tilt_plate():
     )
     plate = plate.edges("|Z").fillet(OMI_VERTEX_R - TILT_CLEARANCE)
 
-    # ── Find the rearmost vertex (max Y) for barrel placement ────────────
-    rear_y = max(p[1] for p in pts)  # rearmost Y coordinate
+    # ── Find the frontmost vertex (min Y) for barrel placement ───────────
+    front_y = min(p[1] for p in pts)  # frontmost Y coordinate (negative)
 
-    # Add a small flat at the rear vertex to mount barrels.
-    # Cut 2mm off the rear to create a flat surface.
-    _chord_cut_y = rear_y - 2
+    # Add a small flat at the front vertex to mount barrels.
+    # Cut 2mm off the front to create a flat surface.
+    _chord_cut_y = front_y + 2  # e.g. -rear_y + 2 (negative, closer to center)
     chord_cut = (
         cq.Workplane("XY")
         .workplane(offset=-0.1)
-        .center(0, _chord_cut_y + 10)
+        .center(0, _chord_cut_y - 10)  # center of block beyond the FRONT chord
         .rect(50, 20)  # wide enough to span the diamond
         .extrude(TILT_PLATE_T + 0.2)
     )
     plate = plate.cut(chord_cut)
 
-    # ── Two hinge barrels on the flat ────────────────────────────────────
+    # ── Two hinge barrels on the FRONT flat ──────────────────────────────
     barrel_spacing = 8
-    barrel_center_y = _chord_cut_y + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2
+    barrel_center_y = _chord_cut_y - HINGE_BARREL_PROTRUDE + HINGE_BARREL_OD / 2
 
     for x_sign in [-1, 1]:
         bx = x_sign * barrel_spacing / 2
@@ -2165,9 +2176,9 @@ def build_ghost_components():
     # Show plates partially tilted so you can see the mechanism concept.
     _tilt_preview_angle = 15  # degrees, partial tilt for preview
 
-    # UH Ring tilt plate ghost
+    # UH Ring tilt plate ghost — hinge on FRONT (-Y) edge
     _uh_plate = build_uh_tilt_plate()
-    _uh_hinge_y = SLOT_POSITIONS["uh_ring"][1] + (UH_SIDE - TILT_CLEARANCE * 2) / 2
+    _uh_hinge_y = SLOT_POSITIONS["uh_ring"][1] - (UH_SIDE - TILT_CLEARANCE * 2) / 2
     _uh_hinge_z = STAND_H - UH_CRADLE_DEPTH + TILT_PLATE_T / 2
     _uh_plate_pos = _uh_plate.translate((
         SLOT_POSITIONS["uh_ring"][0],
@@ -2177,14 +2188,14 @@ def build_ghost_components():
     _uh_plate_tilted = _uh_plate_pos.rotate(
         (SLOT_POSITIONS["uh_ring"][0], _uh_hinge_y, _uh_hinge_z),
         (SLOT_POSITIONS["uh_ring"][0] + 1, _uh_hinge_y, _uh_hinge_z),
-        -_tilt_preview_angle
+        _tilt_preview_angle  # positive = rear edge rises toward user
     )
     parts["tilt_plate_uh"] = (_uh_plate_tilted, (0.4, 0.8, 0.4, 0.6))
 
-    # R1 Ring tilt plate ghost
+    # R1 Ring tilt plate ghost — hinge on FRONT (-Y) edge
     _r1_plate = build_r1_tilt_plate()
     _r1_chord_y = (R1_DIA - TILT_CLEARANCE * 2) / 2 - 2
-    _r1_hinge_y = SLOT_POSITIONS["r1_ring"][1] + _r1_chord_y
+    _r1_hinge_y = SLOT_POSITIONS["r1_ring"][1] - _r1_chord_y  # front (-Y)
     _r1_hinge_z = STAND_H - R1_CRADLE_DEPTH + TILT_PLATE_T / 2
     _r1_plate_pos = _r1_plate.translate((
         SLOT_POSITIONS["r1_ring"][0],
@@ -2194,18 +2205,18 @@ def build_ghost_components():
     _r1_plate_tilted = _r1_plate_pos.rotate(
         (SLOT_POSITIONS["r1_ring"][0], _r1_hinge_y, _r1_hinge_z),
         (SLOT_POSITIONS["r1_ring"][0] + 1, _r1_hinge_y, _r1_hinge_z),
-        -_tilt_preview_angle
+        _tilt_preview_angle  # positive = rear edge rises toward user
     )
     parts["tilt_plate_r1"] = (_r1_plate_tilted, (0.4, 0.8, 0.4, 0.6))
 
-    # Omi tilt plate ghost
+    # Omi tilt plate ghost — hinge on FRONT (-Y) edge
     _omi_plate = build_omi_tilt_plate()
     _omi_pts_ghost = six_sided_diamond_points(
         OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2,
         OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2
     )
-    _omi_rear_local = max(p[1] for p in _omi_pts_ghost) - 2
-    _omi_hinge_y = SLOT_POSITIONS["omi"][1] + _omi_rear_local
+    _omi_front_local = min(p[1] for p in _omi_pts_ghost) + 2  # front chord
+    _omi_hinge_y = SLOT_POSITIONS["omi"][1] + _omi_front_local  # front (-Y)
     _omi_hinge_z = STAND_H - OMI_CRADLE_DEPTH + TILT_PLATE_T / 2
     _omi_plate_pos = _omi_plate.translate((
         SLOT_POSITIONS["omi"][0],
@@ -2215,7 +2226,7 @@ def build_ghost_components():
     _omi_plate_tilted = _omi_plate_pos.rotate(
         (SLOT_POSITIONS["omi"][0], _omi_hinge_y, _omi_hinge_z),
         (SLOT_POSITIONS["omi"][0] + 1, _omi_hinge_y, _omi_hinge_z),
-        -_tilt_preview_angle
+        _tilt_preview_angle  # positive = rear edge rises toward user
     )
     parts["tilt_plate_omi"] = (_omi_plate_tilted, (0.4, 0.8, 0.4, 0.6))
 
