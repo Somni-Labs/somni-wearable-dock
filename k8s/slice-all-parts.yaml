@@ -78,7 +78,7 @@ spec:
 
             # Check 1: Bed temperature — M140 or M190 with target >= 55
             local BED_TEMP
-            BED_TEMP=$(grep -oP '^M1[49]0 S\K[0-9]+' "$FILE" | head -1)
+            BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' "$FILE" | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
             if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 55 ]; then
               echo "  FAIL: Bed temperature missing or too low (got: ${BED_TEMP:-none}, need >= 55)"
               ERRORS=$((ERRORS + 1))
@@ -88,7 +88,7 @@ spec:
 
             # Check 2: Extruder temperature — M104 or M109 with target >= 210
             local EXT_TEMP
-            EXT_TEMP=$(grep -oP '^M10[49] S\K[0-9]+' "$FILE" | sort -n | tail -1)
+            EXT_TEMP=$(grep -E '^M10[49] S[0-9]+' "$FILE" | sed 's/.*S\([0-9]*\).*/\1/' | sort -n | tail -1)
             if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 210 ]; then
               echo "  FAIL: Extruder temperature missing or too low (got: ${EXT_TEMP:-none}, need >= 210)"
               ERRORS=$((ERRORS + 1))
@@ -119,16 +119,17 @@ spec:
             fi
 
             # Check 5: Coordinate bounds (X <= 275, Y <= 295)
+            # Uses POSIX-compatible awk (no GNU match() capture groups)
             local X_MAX Y_MAX
-            X_MAX=$(awk '/^G1 .*X[0-9]/ { match($0, /X([0-9.]+)/, a); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' "$FILE")
-            Y_MAX=$(awk '/^G1 .*Y[0-9]/ { match($0, /Y([0-9.]+)/, a); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' "$FILE")
-            if [ "$(echo "$X_MAX > 275" | bc -l)" -eq 1 ]; then
+            X_MAX=$(awk -F'X' '/^G1 .*X[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' "$FILE")
+            Y_MAX=$(awk -F'Y' '/^G1 .*Y[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' "$FILE")
+            if [ "$(awk "BEGIN { print ($X_MAX > 275) }")" -eq 1 ]; then
               echo "  FAIL: X coordinate out of bounds (max X = ${X_MAX}, limit 275)"
               ERRORS=$((ERRORS + 1))
             else
               echo "  OK: X max = ${X_MAX} (limit 275)"
             fi
-            if [ "$(echo "$Y_MAX > 295" | bc -l)" -eq 1 ]; then
+            if [ "$(awk "BEGIN { print ($Y_MAX > 295) }")" -eq 1 ]; then
               echo "  FAIL: Y coordinate out of bounds (max Y = ${Y_MAX}, limit 295)"
               ERRORS=$((ERRORS + 1))
             else
