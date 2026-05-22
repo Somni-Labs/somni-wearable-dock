@@ -1188,6 +1188,27 @@ def build_top_tray():
     )
     base = base.cut(uh_cable)
 
+    # ── Hinge barrel sockets in rear (+Y) wall ───────────────────────────
+    # Two semicircular channels in the pocket's rear wall for tilt plate
+    # hinge barrels. Filament pin threads through barrels + sockets.
+    _uh_plate_side = UH_SIDE - TILT_CLEARANCE * 2  # 40mm
+    _uh_barrel_spacing = _uh_plate_side - 2 * 10  # 20mm
+    _uh_rear_y = uy + UH_SIDE / 2  # rear wall Y position (-29.0)
+    _uh_socket_z = STAND_H - UH_CRADLE_DEPTH  # pocket floor Z (48.0)
+    _socket_od = HINGE_BARREL_OD + HINGE_SOCKET_TOL * 2  # 3.6mm
+    _socket_len = HINGE_BARREL_L + HINGE_SOCKET_TOL * 2  # 8.6mm
+
+    for x_sign in [-1, 1]:
+        _bx = ux + x_sign * _uh_barrel_spacing / 2
+        barrel_socket = (
+            cq.Workplane("YZ")
+            .workplane(offset=_bx - _socket_len / 2)
+            .center(_uh_rear_y, _uh_socket_z + TILT_PLATE_T / 2)
+            .circle(_socket_od / 2)
+            .extrude(_socket_len)
+        )
+        base = base.cut(barrel_socket)
+
     # =====================================================================
     # CRADLE 2: Even R1 Ring — CIRCULAR pocket
     # Fixed cable exits from the LEFT edge (-X) of the disc.
@@ -1225,6 +1246,24 @@ def build_top_tray():
         .extrude(TOP_H + 1)
     )
     base = base.cut(r1_cable)
+
+    # ── Hinge barrel sockets in rear (+Y) wall ───────────────────────────
+    _r1_plate_dia = R1_DIA - TILT_CLEARANCE * 2  # 31mm
+    _r1_chord_cut_y = _r1_plate_dia / 2 - 2  # 13.5mm from plate center
+    _r1_rear_y = ry + _r1_chord_cut_y  # world Y of barrel center
+    _r1_socket_z = STAND_H - R1_CRADLE_DEPTH  # pocket floor Z (48.0)
+    _r1_barrel_spacing = 8  # matches plate barrel spacing
+
+    for x_sign in [-1, 1]:
+        _bx = rx + x_sign * _r1_barrel_spacing / 2
+        barrel_socket = (
+            cq.Workplane("YZ")
+            .workplane(offset=_bx - _socket_len / 2)
+            .center(_r1_rear_y, _r1_socket_z + TILT_PLATE_T / 2)
+            .circle(_socket_od / 2)
+            .extrude(_socket_len)
+        )
+        base = base.cut(barrel_socket)
 
     # =====================================================================
     # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
@@ -1284,6 +1323,28 @@ def build_top_tray():
         .extrude(TOP_H + 1)
     )
     base = base.cut(omi_cable)
+
+    # ── Hinge barrel sockets in rear (+Y) wall ───────────────────────────
+    _omi_pts = six_sided_diamond_points(
+        OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2,
+        OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2
+    )
+    _omi_rear_y_local = max(p[1] for p in _omi_pts)
+    _omi_chord_cut_y = _omi_rear_y_local - 2
+    _omi_rear_y = oy + _omi_chord_cut_y  # world Y of barrel center
+    _omi_socket_z = STAND_H - OMI_CRADLE_DEPTH  # pocket floor Z (43.0)
+    _omi_barrel_spacing = 8  # matches plate barrel spacing
+
+    for x_sign in [-1, 1]:
+        _bx = ox + x_sign * _omi_barrel_spacing / 2
+        barrel_socket = (
+            cq.Workplane("YZ")
+            .workplane(offset=_bx - _socket_len / 2)
+            .center(_omi_rear_y, _omi_socket_z + TILT_PLATE_T / 2)
+            .circle(_socket_od / 2)
+            .extrude(_socket_len)
+        )
+        base = base.cut(barrel_socket)
 
     # =====================================================================
     # CRADLE 4: Mudra Link — L-pole with flush top-open charger pocket
