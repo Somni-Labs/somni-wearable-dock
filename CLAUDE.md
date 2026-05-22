@@ -9,10 +9,13 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 - **`k8s/slice-all-parts.yaml`** — K8s Job template for PrusaSlicer slicing + Moonraker upload
 - **`output/`** — Generated STL/STEP files
 - **`scripts/pre-print-check.sh`** — Pre-print validation (Moonraker API checks: printer state, filament, gcode metadata)
-- **ESP32 mount** — DevKitC V4 cradle in bottom tray front-left corner, USB port through front wall
+- **ESP32 mount** — DevKitC V4 pin-header slot-cradle in bottom tray front-left corner, USB port through front wall
 - **RGB underglow** — WS2812B LED strip channel (U-shaped: left, front, right walls) with 3mm light exit slots at base
 - **Backlit logo** — "Somni Labs" recessed into front wall exterior with 0.6mm thin-wall diffuser, backlit by RGB strip
-- **LED driver pocket** — Level shifter mount behind ESP32 for 3.3V→5V logic conversion
+- **QuinLED-Dig-Uno mount** — WLED controller (50x50mm) in bottom tray front-right corner, onboard level shifting, drives WS2812B LED strip
+- **Motorized reveal** — 4x SG90 servo mounts in bottom tray (Y=-37), push rod slots in top tray, servo wiring channels with arch clips
+- **Proximity sensor** — VL53L0X ToF laser mount (front wall, right of ESP32) with front wall window for hands-free reveal activation
+- **Ghost visualization** — Translucent colored component overlays in cadquery-server preview (ESP32, QuinLED, servos, sensor, charger, LED strip)
 - Live preview via `cadquery-server` deployment in K8s (`utilities` namespace), synced from GitHub via git-sync init container
 
 ## QIDI Q2 Printer
