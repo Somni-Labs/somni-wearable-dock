@@ -2148,6 +2148,78 @@ def build_ghost_components():
     led_strip = led_left.union(led_front).union(led_right)
     parts["led_strip"] = (led_strip, (0.2, 1.0, 0.3, 0.7))
 
+    # ── Tilt plates (shown tilted ~15° for visual preview) ───────────────
+    # Show plates partially tilted so you can see the mechanism concept.
+    _tilt_preview_angle = 15  # degrees, partial tilt for preview
+
+    # UH Ring tilt plate ghost
+    _uh_plate = build_uh_tilt_plate()
+    _uh_hinge_y = SLOT_POSITIONS["uh_ring"][1] + (UH_SIDE - TILT_CLEARANCE * 2) / 2
+    _uh_hinge_z = STAND_H - UH_CRADLE_DEPTH + TILT_PLATE_T / 2
+    _uh_plate_pos = _uh_plate.translate((
+        SLOT_POSITIONS["uh_ring"][0],
+        SLOT_POSITIONS["uh_ring"][1],
+        STAND_H - UH_CRADLE_DEPTH
+    ))
+    _uh_plate_tilted = _uh_plate_pos.rotate(
+        (SLOT_POSITIONS["uh_ring"][0], _uh_hinge_y, _uh_hinge_z),
+        (SLOT_POSITIONS["uh_ring"][0] + 1, _uh_hinge_y, _uh_hinge_z),
+        -_tilt_preview_angle
+    )
+    parts["tilt_plate_uh"] = (_uh_plate_tilted, (0.4, 0.8, 0.4, 0.6))
+
+    # R1 Ring tilt plate ghost
+    _r1_plate = build_r1_tilt_plate()
+    _r1_chord_y = (R1_DIA - TILT_CLEARANCE * 2) / 2 - 2
+    _r1_hinge_y = SLOT_POSITIONS["r1_ring"][1] + _r1_chord_y
+    _r1_hinge_z = STAND_H - R1_CRADLE_DEPTH + TILT_PLATE_T / 2
+    _r1_plate_pos = _r1_plate.translate((
+        SLOT_POSITIONS["r1_ring"][0],
+        SLOT_POSITIONS["r1_ring"][1],
+        STAND_H - R1_CRADLE_DEPTH
+    ))
+    _r1_plate_tilted = _r1_plate_pos.rotate(
+        (SLOT_POSITIONS["r1_ring"][0], _r1_hinge_y, _r1_hinge_z),
+        (SLOT_POSITIONS["r1_ring"][0] + 1, _r1_hinge_y, _r1_hinge_z),
+        -_tilt_preview_angle
+    )
+    parts["tilt_plate_r1"] = (_r1_plate_tilted, (0.4, 0.8, 0.4, 0.6))
+
+    # Omi tilt plate ghost
+    _omi_plate = build_omi_tilt_plate()
+    _omi_pts_ghost = six_sided_diamond_points(
+        OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2,
+        OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2
+    )
+    _omi_rear_local = max(p[1] for p in _omi_pts_ghost) - 2
+    _omi_hinge_y = SLOT_POSITIONS["omi"][1] + _omi_rear_local
+    _omi_hinge_z = STAND_H - OMI_CRADLE_DEPTH + TILT_PLATE_T / 2
+    _omi_plate_pos = _omi_plate.translate((
+        SLOT_POSITIONS["omi"][0],
+        SLOT_POSITIONS["omi"][1],
+        STAND_H - OMI_CRADLE_DEPTH
+    ))
+    _omi_plate_tilted = _omi_plate_pos.rotate(
+        (SLOT_POSITIONS["omi"][0], _omi_hinge_y, _omi_hinge_z),
+        (SLOT_POSITIONS["omi"][0] + 1, _omi_hinge_y, _omi_hinge_z),
+        -_tilt_preview_angle
+    )
+    parts["tilt_plate_omi"] = (_omi_plate_tilted, (0.4, 0.8, 0.4, 0.6))
+
+    # ── Push rods (shown in extended/up position) ────────────────────────
+    _rod_configs = [
+        ("uh_ring", PUSH_ROD_LEN_UH, "thead"),
+        ("r1_ring", PUSH_ROD_LEN_R1, "thead"),
+        ("omi", PUSH_ROD_LEN_OMI, "thead"),
+        ("mudra", PUSH_ROD_LEN_MUDRA, "pad"),
+    ]
+    for name, rod_len, top_type in _rod_configs:
+        _rod = build_push_rod(rod_len, top_type)
+        _rod_x = SLOT_POSITIONS[name][0]
+        _rod_z = BASE_H + SG90_BODY_H
+        _rod_pos = _rod.translate((_rod_x, SERVO_Y, _rod_z))
+        parts[f"push_rod_{name}"] = (_rod_pos, (0.9, 0.6, 0.2, 0.5))
+
     return parts
 
 
