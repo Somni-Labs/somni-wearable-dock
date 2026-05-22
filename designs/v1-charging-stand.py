@@ -190,6 +190,35 @@ SERVO_PILOT_D = 1.0       # pilot hole for M2 self-tapping
 PUSH_ROD_SLOT_W = 4       # slot width (X)
 PUSH_ROD_SLOT_L = 12      # slot length (Y)
 
+# --- Tilt plate (drop-in cradle inserts) ---
+TILT_PLATE_T = 2           # plate thickness (Z)
+TILT_CLEARANCE = 0.5       # clearance per side from pocket walls
+HINGE_BARREL_OD = 3        # hinge barrel outer diameter
+HINGE_BARREL_ID = 1.75     # hinge barrel bore (filament diameter)
+HINGE_BARREL_L = 8         # hinge barrel length
+HINGE_SOCKET_TOL = 0.3     # tolerance per dimension on barrel sockets
+HINGE_BARREL_PROTRUDE = 1.5  # how far barrel extends beyond rear edge
+
+# --- Push rod parts ---
+PUSH_ROD_W = 3.5           # rod cross-section width (square)
+PUSH_ROD_THEAD_W = 6       # T-head width (wider than slot to prevent fallthrough)
+PUSH_ROD_THEAD_H = 2       # T-head height
+PUSH_ROD_PAD_W = 8         # Mudra push rod flat pad width
+PUSH_ROD_PAD_H = 1.5       # Mudra push rod flat pad height
+PUSH_ROD_HORN_HOLE = 1.5   # hole diameter for servo horn screw
+PUSH_ROD_HORN_TAB_W = 6    # horn attachment tab width
+PUSH_ROD_HORN_TAB_H = 4    # horn attachment tab height
+
+# --- Per-device push rod lengths ---
+# From servo horn (~Z = BASE_H + SG90_BODY_H) to tilt plate underside
+# UH/R1: plate at Z = STAND_H - cradle_depth = 48, servo top ~25.7 → ~22mm
+# Omi: plate at Z = STAND_H - cradle_depth = 43, servo top ~25.7 → ~17mm
+# Mudra: pole base at Z = SPLIT_Z (41), servo top ~25.7 → ~15mm
+PUSH_ROD_LEN_UH = 22
+PUSH_ROD_LEN_R1 = 22
+PUSH_ROD_LEN_OMI = 17
+PUSH_ROD_LEN_MUDRA = 15
+
 # --- VL53L0X proximity sensor ---
 PROX_W = 13               # sensor board width (X)
 PROX_D = 18               # sensor board depth (Y)
