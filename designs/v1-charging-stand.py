@@ -131,13 +131,17 @@ MUDRA_CABLE_CH_W = 12         # cable cavity width (Y) — room for USB cable
 MUDRA_CABLE_CH_D = 14         # cable cavity depth (X) — room for cable + bend
 MUDRA_CABLE_BEND_R = 15       # minimum cable bend radius
 
-# --- ESP32 DevKitC V4 mount ---
-ESP32_L = 55 + 1          # board length + tolerance (along Y)
-ESP32_W = 28 + 1          # board width + tolerance (along X)
-ESP32_H = 12              # board height (tallest component)
-ESP32_STANDOFF_H = 2      # standoff post height
-ESP32_STANDOFF_D = 3      # standoff post diameter
-ESP32_CRADLE_H = 6        # cradle wall height
+# --- ESP32 DevKitC V4 mount (pin-header slot-cradle) ---
+ESP32_L = 56              # board length + tolerance (along Y)
+ESP32_W = 29              # board width + tolerance (along X)
+ESP32_H = 23              # total height with pin headers
+ESP32_PIN_H = 8.5         # pin header length below PCB
+ESP32_RAIL_H = 10         # slot-cradle rail height
+ESP32_RAIL_W = 5          # rail width
+ESP32_RAIL_PITCH = 25.4   # center-to-center of rail grooves (0.1" header pitch)
+ESP32_GROOVE_W = 3.5      # groove width (2.54mm header + 1mm tolerance)
+ESP32_GROOVE_D = 8.5      # groove depth (full pin length)
+ESP32_CRADLE_H = 6        # cradle wall height (above rail top)
 ESP32_CRADLE_T = 1.5      # cradle wall thickness
 ESP32_USB_SLOT_W = 12     # USB port slot width through front wall
 ESP32_USB_SLOT_H = 8      # USB port slot height through front wall
@@ -154,12 +158,50 @@ LOGO_FONT_SIZE = 12       # cap height in mm
 LOGO_RECESS_DEPTH = 1.9   # cut depth (WALL - 0.6mm diffuser)
 LOGO_Z = 20               # vertical center of text on front wall
 
-# --- LED driver / level shifter mount ---
-DRIVER_L = 22             # pocket length (Y)
-DRIVER_W = 16             # pocket width (X)
-DRIVER_H = 8              # pocket depth (Z)
-DRIVER_STANDOFF_H = 2     # standoff height
-DRIVER_STANDOFF_D = 2     # standoff diameter
+# --- QuinLED-Dig-Uno mount (WLED controller, replaces old driver pocket) ---
+QLED_W = 50               # board width (X)
+QLED_D = 50               # board depth (Y)
+QLED_H = 30               # board height (Z, tallest component)
+QLED_STANDOFF_H = 3       # standoff post height
+QLED_STANDOFF_D = 3       # standoff post diameter
+QLED_MOUNT_INSET = 4      # M2 hole inset from board edge
+QLED_MOUNT_PITCH = 42     # M2 hole spacing (50 - 2*4)
+QLED_CRADLE_H = 8         # cradle wall height
+QLED_CRADLE_T = 1.5       # cradle wall thickness
+
+# --- SG90 micro servo mount (4x) ---
+SG90_BODY_L = 23          # body length (X)
+SG90_BODY_W = 12.2        # body width (Y)
+SG90_BODY_H = 22.7        # body height (Z, not including shaft)
+SG90_EAR_W = 32.4         # total width with mounting ears
+SG90_EAR_T = 2.5          # ear thickness (Z)
+SG90_SHAFT_H = 4          # shaft + horn height above body
+SG90_SCREW_SPACING = 27.5 # distance between M2 screw holes on ears
+SG90_SCREW_D = 2          # M2 screw hole diameter
+SERVO_Y = -37             # Y position for all servo mounts
+SERVO_POCKET_W = 34       # pocket width (ears + tolerance)
+SERVO_POCKET_D = 14       # pocket depth in Y (body + tolerance)
+SERVO_POCKET_H = 5        # pocket depth in Z (into floor)
+SERVO_POST_H = 5          # screw post height
+SERVO_POST_OD = 2.5       # screw post outer diameter
+SERVO_PILOT_D = 1.0       # pilot hole for M2 self-tapping
+
+# --- Push rod slots (top tray) ---
+PUSH_ROD_SLOT_W = 4       # slot width (X)
+PUSH_ROD_SLOT_L = 12      # slot length (Y)
+
+# --- VL53L0X proximity sensor ---
+PROX_W = 13               # sensor board width (X)
+PROX_D = 18               # sensor board depth (Y)
+PROX_H = 3                # sensor board height (Z)
+PROX_CLIP_H = 5           # clip bracket height
+PROX_CLIP_T = 1.5         # clip bracket thickness
+PROX_WINDOW_W = 8         # window width through front wall
+PROX_WINDOW_H = 6         # window height through front wall
+
+# --- Servo wiring channels ---
+SERVO_WIRE_W = 8          # servo wire channel width
+SERVO_WIRE_D = 4          # servo wire channel depth
 
 # --- Device 5: Even Realities G2 glasses case ---
 # Caliper measurements: 174mm × 66mm × 36mm (simple rectangular box).
@@ -429,6 +471,10 @@ def build_bottom_tray():
         _y = _pocket_y_start
         _col1_ys = []
         while _y < _pocket_y_end:
+            # Skip posts that overlap the QuinLED footprint (right side, Y < -35)
+            if side_sign == 1 and _y < -35:
+                _y += _post_spacing_y
+                continue
             _col1_ys.append(_y)
             post = (
                 cq.Workplane("XY")
@@ -444,6 +490,10 @@ def build_bottom_tray():
         _y = _pocket_y_start + _post_spacing_y / 2
         _col2_ys = []
         while _y < _pocket_y_end:
+            # Skip posts that overlap the QuinLED footprint (right side, Y < -35)
+            if side_sign == 1 and _y < -35:
+                _y += _post_spacing_y
+                continue
             _col2_ys.append(_y)
             post = (
                 cq.Workplane("XY")
@@ -510,52 +560,76 @@ def build_bottom_tray():
         tray = tray.union(arch_outer)
         tray = tray.cut(arch_inner)
 
-    # ── ESP32 DevKitC V4 mount (front-left corner) ───────────────────────
-    # Board oriented with long edge along Y (55mm), short edge (28mm, with
-    # USB port) facing the front wall. Sits on standoff posts with cradle
-    # walls on two sides for a snug drop-in fit.
-    _esp_x = -STAND_W / 2 + WALL + ESP32_W / 2   # center X = -103mm
+    # ── ESP32 DevKitC V4 mount (front-left corner, slot-cradle) ──────────
+    # Board with pre-soldered pin headers rides in grooved rails.
+    # Long edge along Y (56mm), short edge (29mm, USB port) faces front wall.
+    # Pin headers sit in grooves; board slides in from the rear (+Y).
+    _esp_x = -STAND_W / 2 + WALL + ESP32_W / 2   # center X = -105.5mm
     _esp_y = -STAND_D / 2 + WALL + ESP32_L / 2   # center Y = -57mm
 
-    # 4 standoff posts at mounting hole positions (2mm inset from board edges)
-    _standoff_inset = 2
-    for sx, sy in [
-        (_esp_x - ESP32_W / 2 + _standoff_inset, _esp_y - ESP32_L / 2 + _standoff_inset),
-        (_esp_x + ESP32_W / 2 - _standoff_inset, _esp_y - ESP32_L / 2 + _standoff_inset),
-        (_esp_x - ESP32_W / 2 + _standoff_inset, _esp_y + ESP32_L / 2 - _standoff_inset),
-        (_esp_x + ESP32_W / 2 - _standoff_inset, _esp_y + ESP32_L / 2 - _standoff_inset),
-    ]:
-        standoff = (
+    # Proximity sensor position (defined early for use in wiring grooves below)
+    _prox_x = _esp_x + ESP32_W / 2 + 5 + PROX_W / 2   # sensor center X = -74.5mm
+    _prox_y = -STAND_D / 2 + WALL + PROX_D / 2          # sensor center Y = -76mm
+
+    # Two parallel rails with grooves for pin headers
+    for rail_sign in [-1, 1]:  # -1 = left rail, +1 = right rail
+        rail_x = _esp_x + rail_sign * (ESP32_RAIL_PITCH / 2)
+
+        # Solid rail body
+        rail = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
-            .center(sx, sy)
-            .circle(ESP32_STANDOFF_D / 2)
-            .extrude(ESP32_STANDOFF_H)
+            .center(rail_x, _esp_y)
+            .rect(ESP32_RAIL_W, ESP32_L)
+            .extrude(ESP32_RAIL_H)
         )
-        tray = tray.union(standoff)
+        tray = tray.union(rail)
 
-    # Cradle wall — left side (against the left inner wall)
+        # Groove cut into the inner face of each rail
+        # Groove faces inward (toward the board center)
+        groove_x = rail_x - rail_sign * (ESP32_RAIL_W / 2 - ESP32_GROOVE_W / 2)
+        groove = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H + (ESP32_RAIL_H - ESP32_GROOVE_D))
+            .center(groove_x, _esp_y)
+            .rect(ESP32_GROOVE_W, ESP32_L + 1)  # +1 so rear end is open for insertion
+            .extrude(ESP32_GROOVE_D + 0.5)
+        )
+        tray = tray.cut(groove)
+
+        # Retaining tab at front end of groove (prevents board sliding out)
+        tab_y = _esp_y - ESP32_L / 2
+        tab = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H + (ESP32_RAIL_H - ESP32_GROOVE_D))
+            .center(groove_x, tab_y)
+            .rect(ESP32_GROOVE_W, 2)
+            .extrude(2)  # 2mm tall bump
+        )
+        tray = tray.union(tab)
+
+    # Cradle wall — left side (against the left inner wall, above rail top)
     cradle_left = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H)
+        .workplane(offset=BASE_H + ESP32_RAIL_H)
         .center(_esp_x - ESP32_W / 2 - ESP32_CRADLE_T / 2, _esp_y)
         .rect(ESP32_CRADLE_T, ESP32_L)
         .extrude(ESP32_CRADLE_H)
     )
     tray = tray.union(cradle_left)
 
-    # Cradle wall — front side (against the front inner wall)
+    # Cradle wall — front side (against the front inner wall, above rail top)
     cradle_front = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H)
+        .workplane(offset=BASE_H + ESP32_RAIL_H)
         .center(_esp_x, _esp_y - ESP32_L / 2 - ESP32_CRADLE_T / 2)
         .rect(ESP32_W, ESP32_CRADLE_T)
         .extrude(ESP32_CRADLE_H)
     )
     tray = tray.union(cradle_front)
 
-    # USB port slot through the front wall
-    _usb_z = BASE_H + ESP32_STANDOFF_H + 4   # center of USB port
+    # USB port slot through the front wall (repositioned for taller board)
+    _usb_z = BASE_H + ESP32_RAIL_H + 4   # center of USB port on raised board
     esp_usb_slot = (
         cq.Workplane("XY")
         .workplane(offset=_usb_z - ESP32_USB_SLOT_H / 2)
@@ -565,32 +639,45 @@ def build_bottom_tray():
     )
     tray = tray.cut(esp_usb_slot)
 
-    # ── LED driver / level shifter pocket ────────────────────────────────
-    # Small component pocket behind the ESP32 for the 3.3V→5V level shifter.
-    # Sits between the ESP32 and the left wall LED channel start.
-    _drv_x = _esp_x                                      # aligned with ESP32 center X
-    _drv_y = _esp_y + ESP32_L / 2 + 5 + DRIVER_L / 2    # 5mm gap behind ESP32
+    # ── QuinLED-Dig-Uno WLED controller mount (front-right corner) ───────
+    # 50x50mm PCB mirrors the ESP32 position on the opposite side.
+    # Has onboard level shifting — replaces the old separate driver pocket.
+    _qled_x = STAND_W / 2 - WALL - QLED_W / 2    # center X = +92.5mm
+    _qled_y = -STAND_D / 2 + WALL + QLED_D / 2   # center Y = -60mm
 
-    # Pocket cut into the floor
-    driver_pocket = (
-        cq.Workplane("XY")
-        .workplane(offset=BASE_H - 0.5)
-        .center(_drv_x, _drv_y)
-        .rect(DRIVER_W, DRIVER_L)
-        .extrude(DRIVER_H + 0.5)
-    )
-    tray = tray.cut(driver_pocket)
-
-    # 2 standoff posts inside the pocket
-    for dy_sign in [-1, 1]:
-        drv_standoff = (
+    # 4 standoff posts at M2 mounting hole positions
+    for qx_sign, qy_sign in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
+        qled_standoff = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
-            .center(_drv_x, _drv_y + dy_sign * (DRIVER_L / 2 - 3))
-            .circle(DRIVER_STANDOFF_D / 2)
-            .extrude(DRIVER_STANDOFF_H)
+            .center(
+                _qled_x + qx_sign * (QLED_MOUNT_PITCH / 2),
+                _qled_y + qy_sign * (QLED_MOUNT_PITCH / 2),
+            )
+            .circle(QLED_STANDOFF_D / 2)
+            .extrude(QLED_STANDOFF_H)
         )
-        tray = tray.union(drv_standoff)
+        tray = tray.union(qled_standoff)
+
+    # Cradle wall — right side (against the right inner wall)
+    qled_cradle_right = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(_qled_x + QLED_W / 2 + QLED_CRADLE_T / 2, _qled_y)
+        .rect(QLED_CRADLE_T, QLED_D)
+        .extrude(QLED_CRADLE_H)
+    )
+    tray = tray.union(qled_cradle_right)
+
+    # Cradle wall — front side (against the front inner wall)
+    qled_cradle_front = (
+        cq.Workplane("XY")
+        .workplane(offset=BASE_H)
+        .center(_qled_x, _qled_y - QLED_D / 2 - QLED_CRADLE_T / 2)
+        .rect(QLED_W, QLED_CRADLE_T)
+        .extrude(QLED_CRADLE_H)
+    )
+    tray = tray.union(qled_cradle_front)
 
     # ── RGB LED channel (U-shaped: left wall → front wall → right wall) ──
     # Groove in the floor for WS2812B LED strip. Inset 1mm from the inner
@@ -670,33 +757,12 @@ def build_bottom_tray():
 
     # ── Floor wiring grooves ─────────────────────────────────────────────
     # Shallow channels in the floor for routing wires between the ESP32,
-    # driver pocket, LED channel, and charger bay.
+    # QuinLED, LED channels, charger bay, and proximity sensor.
     _wire_w = 6    # groove width
     _wire_d = 3    # groove depth
     _wire_z = BASE_H - _wire_d
 
-    # Groove 1: ESP32 → driver pocket (short Y-axis run)
-    wire_esp_to_drv = (
-        cq.Workplane("XY")
-        .workplane(offset=_wire_z)
-        .center(_esp_x, (_esp_y + _drv_y) / 2)
-        .rect(_wire_w, abs(_drv_y - _esp_y) + ESP32_L / 2 + DRIVER_L / 2)
-        .extrude(_wire_d + 0.5)
-    )
-    tray = tray.cut(wire_esp_to_drv)
-
-    # Groove 2: Driver pocket → left wall LED channel start (short X-axis run)
-    _led_ch_x = _inner_left + _ch_inset + LED_CHANNEL_W / 2
-    wire_drv_to_led = (
-        cq.Workplane("XY")
-        .workplane(offset=_wire_z)
-        .center((_drv_x + _led_ch_x) / 2, _drv_y)
-        .rect(abs(_drv_x - _led_ch_x) + DRIVER_W / 2 + LED_CHANNEL_W / 2, _wire_w)
-        .extrude(_wire_d + 0.5)
-    )
-    tray = tray.cut(wire_drv_to_led)
-
-    # Groove 3: ESP32 → charger bay (USB power cable from VanBon)
+    # Groove 1: ESP32 → charger bay (USB power cable from VanBon)
     # Runs from ESP32 position rightward (+X) to the charger bay left edge
     wire_esp_to_charger = (
         cq.Workplane("XY")
@@ -706,6 +772,38 @@ def build_bottom_tray():
         .extrude(_wire_d + 0.5)
     )
     tray = tray.cut(wire_esp_to_charger)
+
+    # Groove 2: ESP32 → left wall LED channel start (data wire to LED strip)
+    _led_ch_x = _inner_left + _ch_inset + LED_CHANNEL_W / 2
+    wire_esp_to_led = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center((_esp_x + _led_ch_x) / 2, _esp_y)
+        .rect(abs(_esp_x - _led_ch_x) + ESP32_W / 2 + LED_CHANNEL_W / 2, _wire_w)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_esp_to_led)
+
+    # Groove 3: QuinLED → right wall LED channel start
+    _led_ch_right_x = _inner_right - _ch_inset - LED_CHANNEL_W / 2
+    wire_qled_to_led = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center((_qled_x + _led_ch_right_x) / 2, _qled_y)
+        .rect(abs(_led_ch_right_x - _qled_x) + QLED_W / 2 + LED_CHANNEL_W / 2, _wire_w)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_qled_to_led)
+
+    # Groove 4: VL53L0X sensor → ESP32 (I2C wires, short run)
+    wire_sensor_to_esp = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center((_esp_x + _prox_x) / 2, _esp_y)
+        .rect(abs(_prox_x - _esp_x) + ESP32_W / 2 + PROX_W / 2, _wire_w)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_sensor_to_esp)
 
     # ── "Somni Labs" backlit logo (front wall exterior) ──────────────────
     # Text recessed into the front wall, leaving a 0.6mm thin wall as a
