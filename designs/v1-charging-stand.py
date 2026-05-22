@@ -805,6 +805,169 @@ def build_bottom_tray():
     )
     tray = tray.cut(wire_sensor_to_esp)
 
+    # ── SG90 servo mounts (4x, behind front-row devices) ────────────────
+    # Servos sit upright in the bottom tray, shaft pointing UP (+Z).
+    # Push rods extend through top tray to actuate wearable cradles.
+    _servo_x_positions = [
+        SLOT_POSITIONS["uh_ring"][0],   # X = -81
+        SLOT_POSITIONS["r1_ring"][0],   # X = -27
+        SLOT_POSITIONS["omi"][0],       # X = +27
+        SLOT_POSITIONS["mudra"][0],     # X = +73
+    ]
+
+    for sx in _servo_x_positions:
+        # Rectangular pocket — body drops in, ears rest on rim
+        servo_pocket = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H - SERVO_POCKET_H)
+            .center(sx, SERVO_Y)
+            .rect(SERVO_POCKET_W, SERVO_POCKET_D)
+            .extrude(SERVO_POCKET_H + 0.5)
+        )
+        tray = tray.cut(servo_pocket)
+
+        # 2x M2 screw posts on the ear mounting holes
+        for screw_sign in [-1, 1]:
+            screw_x = sx + screw_sign * (SG90_SCREW_SPACING / 2)
+            # Outer post
+            screw_post = (
+                cq.Workplane("XY")
+                .workplane(offset=BASE_H)
+                .center(screw_x, SERVO_Y)
+                .circle(SERVO_POST_OD / 2)
+                .extrude(SERVO_POST_H)
+            )
+            tray = tray.union(screw_post)
+
+            # Pilot hole for M2 self-tapping screw
+            pilot = (
+                cq.Workplane("XY")
+                .workplane(offset=BASE_H - 0.5)
+                .center(screw_x, SERVO_Y)
+                .circle(SERVO_PILOT_D / 2)
+                .extrude(SERVO_POST_H + 1)
+            )
+            tray = tray.cut(pilot)
+
+    # ── Servo wiring channels ────────────────────────────────────────────
+    # Main trunk along X at the servo row, connecting all 4 positions.
+    # Spurs connect to ESP32 (front-left) and QuinLED (front-right).
+    _sw_z = BASE_H - SERVO_WIRE_D  # channel bottom
+
+    # Main trunk: X=-81 to X=+73 at Y=-37
+    _trunk_x_start = _servo_x_positions[0]   # -81
+    _trunk_x_end = _servo_x_positions[-1]     # +73
+    _trunk_length = _trunk_x_end - _trunk_x_start
+    servo_trunk = (
+        cq.Workplane("XY")
+        .workplane(offset=_sw_z)
+        .center((_trunk_x_start + _trunk_x_end) / 2, SERVO_Y)
+        .rect(_trunk_length + SERVO_WIRE_W, SERVO_WIRE_W)
+        .extrude(SERVO_WIRE_D + 0.5)
+    )
+    tray = tray.cut(servo_trunk)
+
+    # ESP32 spur: from trunk at X=-81 toward ESP32 at X=-105.5, Y=-57
+    # L-shaped: horizontal segment along X, then vertical segment along Y
+    _spur_esp_x_mid = (_trunk_x_start + _esp_x) / 2
+    spur_esp_horiz = (
+        cq.Workplane("XY")
+        .workplane(offset=_sw_z)
+        .center(_spur_esp_x_mid, SERVO_Y)
+        .rect(abs(_esp_x - _trunk_x_start) + SERVO_WIRE_W, SERVO_WIRE_W)
+        .extrude(SERVO_WIRE_D + 0.5)
+    )
+    tray = tray.cut(spur_esp_horiz)
+
+    spur_esp_vert = (
+        cq.Workplane("XY")
+        .workplane(offset=_sw_z)
+        .center(_esp_x, (_esp_y + SERVO_Y) / 2)
+        .rect(SERVO_WIRE_W, abs(SERVO_Y - _esp_y) + SERVO_WIRE_W)
+        .extrude(SERVO_WIRE_D + 0.5)
+    )
+    tray = tray.cut(spur_esp_vert)
+
+    # QuinLED spur: from trunk at X=+73 toward QuinLED at X=+92.5, Y=-60
+    spur_qled_horiz = (
+        cq.Workplane("XY")
+        .workplane(offset=_sw_z)
+        .center((_trunk_x_end + _qled_x) / 2, SERVO_Y)
+        .rect(abs(_qled_x - _trunk_x_end) + SERVO_WIRE_W, SERVO_WIRE_W)
+        .extrude(SERVO_WIRE_D + 0.5)
+    )
+    tray = tray.cut(spur_qled_horiz)
+
+    spur_qled_vert = (
+        cq.Workplane("XY")
+        .workplane(offset=_sw_z)
+        .center(_qled_x, (_qled_y + SERVO_Y) / 2)
+        .rect(SERVO_WIRE_W, abs(SERVO_Y - _qled_y) + SERVO_WIRE_W)
+        .extrude(SERVO_WIRE_D + 0.5)
+    )
+    tray = tray.cut(spur_qled_vert)
+
+    # ── Servo wire arch clips along the main trunk ───────────────────────
+    _sw_clip_w = 14       # arch width (same as cable clips)
+    _sw_clip_h = 8        # arch height
+    _sw_clip_t = 2.5      # arch wall thickness
+    _sw_clip_positions_x = [-81, -54, -27, 0, 27, 50, 73]
+
+    for clip_x in _sw_clip_positions_x:
+        # Skip if too close to an existing front-row cable clip
+        # (front-row clips are at _clip_y = FRONT_ROW_Y + 12 = -37.5, nearly same Y)
+        # Since servo clips are at SERVO_Y = -37 and cable clips at -37.5,
+        # they overlap in Y. Only add servo clip if no front-row device is
+        # at this X position (front-row clips are at -81, -27, 27, 73).
+        _is_device_x = any(abs(clip_x - SLOT_POSITIONS[n][0]) < 5
+                           for n in ("uh_ring", "r1_ring", "omi", "mudra"))
+        if _is_device_x:
+            continue  # front-row cable clip already exists at this X
+
+        arch_outer = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(clip_x, SERVO_Y)
+            .box(_sw_clip_w + _sw_clip_t * 2, _sw_clip_t, _sw_clip_h,
+                 centered=[True, True, False])
+        )
+        arch_inner = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(clip_x, SERVO_Y)
+            .box(_sw_clip_w, _sw_clip_t + 2, _sw_clip_h - _sw_clip_t,
+                 centered=[True, True, False])
+        )
+        tray = tray.union(arch_outer)
+        tray = tray.cut(arch_inner)
+
+    # ── VL53L0X proximity sensor mount (front wall, right of ESP32) ──────
+    # ToF laser sensor for hands-free reveal activation.
+    # _prox_x and _prox_y were defined at the top of build_bottom_tray().
+
+    # Clip brackets — two walls on left and right sides of the sensor
+    for clip_sign in [-1, 1]:
+        clip_x = _prox_x + clip_sign * (PROX_W / 2 + PROX_CLIP_T / 2)
+        prox_clip = (
+            cq.Workplane("XY")
+            .workplane(offset=BASE_H)
+            .center(clip_x, _prox_y)
+            .rect(PROX_CLIP_T, PROX_D)
+            .extrude(PROX_CLIP_H)
+        )
+        tray = tray.union(prox_clip)
+
+    # Front wall window — rectangular opening for ToF laser
+    _prox_window_z = BASE_H + PROX_CLIP_H / 2  # center of window
+    prox_window = (
+        cq.Workplane("XY")
+        .workplane(offset=_prox_window_z - PROX_WINDOW_H / 2)
+        .center(_prox_x, -STAND_D / 2)
+        .rect(PROX_WINDOW_W, WALL * 3)
+        .extrude(PROX_WINDOW_H)
+    )
+    tray = tray.cut(prox_window)
+
     # ── "Somni Labs" backlit logo (front wall exterior) ──────────────────
     # Text recessed into the front wall, leaving a 0.6mm thin wall as a
     # natural light diffuser. The RGB strip behind the front wall
