@@ -1762,6 +1762,73 @@ def build_uh_tilt_plate():
     return plate
 
 
+def build_r1_tilt_plate():
+    """R1 Ring tilt plate — 31mm diameter disc.
+
+    Built at origin (centered on X/Y, Z=0 to TILT_PLATE_T).
+    The rear (+Y) edge has a flat chord for hinge barrel mounting.
+    Two hinge barrels on the flat, captured slot on underside.
+    """
+    plate_dia = R1_DIA - TILT_CLEARANCE * 2  # 31mm
+
+    # ── Main disc ────────────────────────────────────────────────────────
+    plate = (
+        cq.Workplane("XY")
+        .circle(plate_dia / 2)
+        .extrude(TILT_PLATE_T)
+    )
+
+    # ── Flat chord on rear edge for barrel mounting ──────────────────────
+    # Cut a 2mm slice off the rear to create a flat mounting surface.
+    # The flat is at Y = plate_dia/2 - 2 = 13.5mm from center.
+    _chord_cut_y = plate_dia / 2 - 2  # 13.5mm
+    chord_cut = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.1)
+        .center(0, _chord_cut_y + 10)  # center of a 20mm-deep block beyond the chord
+        .rect(plate_dia + 2, 20)
+        .extrude(TILT_PLATE_T + 0.2)
+    )
+    plate = plate.cut(chord_cut)
+
+    # ── Two hinge barrels on the flat chord ──────────────────────────────
+    # Chord width at Y=13.5: w = 2*sqrt(r^2 - y^2) = 2*sqrt(15.5^2 - 13.5^2) ≈ 15.2mm
+    # Two 8mm barrels need ~20mm — so space them 8mm apart (4mm from center each)
+    barrel_spacing = 8  # closer together to fit on the chord
+    barrel_center_y = _chord_cut_y + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2
+
+    for x_sign in [-1, 1]:
+        bx = x_sign * barrel_spacing / 2
+        barrel = (
+            cq.Workplane("YZ")
+            .workplane(offset=bx - HINGE_BARREL_L / 2)
+            .center(barrel_center_y, TILT_PLATE_T / 2)
+            .circle(HINGE_BARREL_OD / 2)
+            .extrude(HINGE_BARREL_L)
+        )
+        bore = (
+            cq.Workplane("YZ")
+            .workplane(offset=bx - HINGE_BARREL_L / 2 - 0.5)
+            .center(barrel_center_y, TILT_PLATE_T / 2)
+            .circle(HINGE_BARREL_ID / 2)
+            .extrude(HINGE_BARREL_L + 1)
+        )
+        plate = plate.union(barrel).cut(bore)
+
+    # ── Captured slot on underside ───────────────────────────────────────
+    slot_local_y = SERVO_Y - FRONT_ROW_Y  # 12.5mm
+    captured_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.1)
+        .center(0, slot_local_y)
+        .rect(PUSH_ROD_THEAD_W + 0.5, 3)
+        .extrude(TILT_PLATE_T / 2 + 0.1)
+    )
+    plate = plate.cut(captured_slot)
+
+    return plate
+
+
 # =============================================================================
 # GHOST VISUALIZATION OBJECTS (component placement preview)
 # =============================================================================
@@ -1921,6 +1988,16 @@ _uh_plate_assembly = uh_tilt_plate.translate((
     STAND_H - UH_CRADLE_DEPTH
 ))
 show_object(_uh_plate_assembly, name="uh_tilt_plate",
+            options={"color": (0.6, 0.85, 0.6, 0.9)})
+pass  # keep loop body after show_object is stripped by export script
+
+r1_tilt_plate = build_r1_tilt_plate()
+_r1_plate_assembly = r1_tilt_plate.translate((
+    SLOT_POSITIONS["r1_ring"][0],
+    SLOT_POSITIONS["r1_ring"][1],
+    STAND_H - R1_CRADLE_DEPTH
+))
+show_object(_r1_plate_assembly, name="r1_tilt_plate",
             options={"color": (0.6, 0.85, 0.6, 0.9)})
 pass  # keep loop body after show_object is stripped by export script
 
