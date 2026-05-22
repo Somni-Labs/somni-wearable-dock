@@ -36,7 +36,7 @@ STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
 STAND_H = 58           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
-TOL = 0.5              # print tolerance per side
+TOL = 1.0              # print tolerance per side (1mm clearance each side for snug drop-in fit)
 
 # --- Two-part split ---
 # Bottom tray: cable management, VanBon charger, rubber feet
