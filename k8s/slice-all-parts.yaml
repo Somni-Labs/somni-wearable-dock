@@ -26,8 +26,8 @@ spec:
 
           cat > "$INI" << 'PROFILE'
           # --- Print settings ---
-          layer_height = 0.2
-          first_layer_height = 0.25
+          layer_height = 0.3
+          first_layer_height = 0.35
           perimeters = 3
           top_solid_layers = 5
           bottom_solid_layers = 4
