@@ -108,10 +108,11 @@ spec:
               fi
             fi
 
-            # Check 4: Layer count sanity (> 10 layers)
+            # Check 4: Layer count sanity (> 3 layers — catches empty/corrupt files
+            # but allows thin parts like the 2mm iPad cover plate)
             local LAYER_COUNT
             LAYER_COUNT=$(grep -c ';LAYER_CHANGE' "$FILE" || true)
-            if [ "$LAYER_COUNT" -lt 10 ]; then
+            if [ "$LAYER_COUNT" -lt 3 ]; then
               echo "  FAIL: Only $LAYER_COUNT layers — file may be corrupt or empty"
               ERRORS=$((ERRORS + 1))
             else
