@@ -1903,6 +1903,65 @@ def build_omi_tilt_plate():
     return plate
 
 
+def build_push_rod(length, top_type="thead"):
+    """Push rod connecting servo horn to tilt plate or Mudra pole.
+
+    Built at origin: rod extends from Z=0 upward to Z=length.
+    Top end has either a T-head (for tilt plates) or a flat pad (for Mudra).
+    Bottom end has a flat tab with a hole for the servo horn screw.
+
+    Args:
+        length: rod length in mm (Z extent, excluding top/bottom attachments)
+        top_type: "thead" for tilt plate captured slot, "pad" for Mudra flat pad
+    """
+    # ── Main rod body ────────────────────────────────────────────────────
+    rod = (
+        cq.Workplane("XY")
+        .rect(PUSH_ROD_W, PUSH_ROD_W)
+        .extrude(length)
+    )
+
+    # ── Top attachment ───────────────────────────────────────────────────
+    if top_type == "thead":
+        # T-head: wider cross-piece that sits in the captured slot
+        thead = (
+            cq.Workplane("XY")
+            .workplane(offset=length)
+            .rect(PUSH_ROD_THEAD_W, PUSH_ROD_W)
+            .extrude(PUSH_ROD_THEAD_H)
+        )
+        rod = rod.union(thead)
+    elif top_type == "pad":
+        # Flat pad for Mudra pole — presses against pole base
+        pad = (
+            cq.Workplane("XY")
+            .workplane(offset=length)
+            .rect(PUSH_ROD_PAD_W, PUSH_ROD_PAD_W)
+            .extrude(PUSH_ROD_PAD_H)
+        )
+        rod = rod.union(pad)
+
+    # ── Bottom attachment — horn tab ─────────────────────────────────────
+    # Flat tab extending downward with a hole for the servo horn screw
+    horn_tab = (
+        cq.Workplane("XY")
+        .workplane(offset=-PUSH_ROD_HORN_TAB_H)
+        .rect(PUSH_ROD_HORN_TAB_W, PUSH_ROD_W)
+        .extrude(PUSH_ROD_HORN_TAB_H)
+    )
+    # Screw hole through the tab face (Y axis)
+    horn_hole = (
+        cq.Workplane("XZ")
+        .workplane(offset=-PUSH_ROD_W / 2 - 0.5)
+        .center(0, -PUSH_ROD_HORN_TAB_H / 2)
+        .circle(PUSH_ROD_HORN_HOLE / 2)
+        .extrude(PUSH_ROD_W + 1)
+    )
+    rod = rod.union(horn_tab).cut(horn_hole)
+
+    return rod
+
+
 # =============================================================================
 # GHOST VISUALIZATION OBJECTS (component placement preview)
 # =============================================================================
@@ -2084,6 +2143,25 @@ _omi_plate_assembly = omi_tilt_plate.translate((
 show_object(_omi_plate_assembly, name="omi_tilt_plate",
             options={"color": (0.6, 0.85, 0.6, 0.9)})
 pass  # keep loop body after show_object is stripped by export script
+
+# Push rods — displayed at assembly position (in push rod slots, extended)
+_push_rod_configs = [
+    ("uh_ring", PUSH_ROD_LEN_UH, "thead", UH_CRADLE_DEPTH),
+    ("r1_ring", PUSH_ROD_LEN_R1, "thead", R1_CRADLE_DEPTH),
+    ("omi", PUSH_ROD_LEN_OMI, "thead", OMI_CRADLE_DEPTH),
+    ("mudra", PUSH_ROD_LEN_MUDRA, "pad", TOP_H),
+]
+push_rods = {}
+for name, rod_len, top_type, _cradle_d in _push_rod_configs:
+    rod = build_push_rod(rod_len, top_type)
+    push_rods[name] = rod
+    # Position: rod base at servo horn top, centered at push rod slot
+    _rod_x = SLOT_POSITIONS[name][0]
+    _rod_z = BASE_H + SG90_BODY_H  # top of servo body
+    _rod_assembly = rod.translate((_rod_x, SERVO_Y, _rod_z))
+    show_object(_rod_assembly, name=f"push_rod_{name}",
+                options={"color": (0.9, 0.6, 0.2, 0.85)})
+    pass  # keep loop body after show_object is stripped by export script
 
 # Ghost visualization objects (translucent component overlays)
 ghosts = build_ghost_components()
