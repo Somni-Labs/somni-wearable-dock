@@ -72,15 +72,31 @@ The strip does NOT run along the back wall — the iPad back wall blocks the vie
 
 **Logo backlighting:** The front section of the LED channel runs directly behind the "Somni Labs" logo recess. The same LEDs that create the front underglow also backlight the logo. No additional LEDs needed.
 
-## 4. Wiring
+## 4. LED Driver / Level Shifter Mount
+
+WS2812B strips run at 5V logic but the ESP32 GPIO outputs 3.3V. A small level shifter board (e.g. SN74HCT125 breakout, ~18mm x 12mm) or a discrete circuit (1x 470-ohm resistor + 1x 1000uF capacitor) is needed between the ESP32 and the strip.
+
+**Location:** Small component pocket next to the ESP32, in the front-left corner. Sits between the ESP32 and the left wall LED channel start.
+
+**Mount geometry:**
+- Rectangular pocket: 22mm x 16mm x 8mm deep (fits a small breakout board or a perf board with discrete components)
+- 2 standoff posts: 2mm diameter, 2mm tall
+- Open top — component drops in, secured with friction or a dab of hot glue
+
+**Position (pocket center):**
+- X = ESP32 center X = -103mm (aligned with ESP32)
+- Y = ESP32 rear edge + 5mm gap + pocket half-length = -57 + 28 + 5 + 11 = -13mm
+- This places it behind the ESP32, still in the left side pocket, clear of the charger bay
+
+## 5. Wiring
 
 **Power:**
 - ESP32: powered via Micro-USB cable from VanBon USB-A port (5V, <500mA)
 - LED strip: powered from the same USB cable or a second VanBon USB-A port. 18 LEDs at 60mA max each = 1.08A peak (full white). Typical animated patterns draw 300-500mA.
 
 **Data:**
-- Single GPIO wire from ESP32 to LED strip DIN (data in) pad
-- Wire routes through a small floor channel from the ESP32 position to the start of the LED channel (left side wall)
+- ESP32 GPIO → level shifter input → level shifter output → LED strip DIN
+- Wires route through small floor channels connecting ESP32 → driver pocket → LED channel start
 
 **Floor wiring channels:**
 - 6mm wide x 3mm deep groove in the floor connecting:
@@ -88,14 +104,14 @@ The strip does NOT run along the back wall — the iPad back wall blocks the vie
   2. ESP32 position → charger bay area (for the USB power cable from VanBon)
 - These are shallow grooves — cables sit in them and the top tray covers everything
 
-## 5. Constants
+## 6. Constants
 
 New parametric constants to add:
 
 ```python
 # --- ESP32 DevKitC V4 mount ---
-ESP32_L = 55 + 1          # board length + tolerance (X)
-ESP32_W = 28 + 1          # board width + tolerance (Y)
+ESP32_L = 55 + 1          # board length + tolerance (along Y)
+ESP32_W = 28 + 1          # board width + tolerance (along X)
 ESP32_H = 12              # board height (tallest component)
 ESP32_STANDOFF_H = 2      # standoff post height
 ESP32_STANDOFF_D = 3      # standoff post diameter
@@ -116,9 +132,16 @@ LOGO_WIDTH = 120          # approximate text span
 LOGO_FONT_SIZE = 12       # cap height in mm
 LOGO_RECESS_DEPTH = 1.9   # cut depth (WALL - 0.6mm diffuser)
 LOGO_Z = 20               # vertical center of text on front wall
+
+# --- LED driver / level shifter mount ---
+DRIVER_L = 22             # pocket length (Y)
+DRIVER_W = 16             # pocket width (X)
+DRIVER_H = 8              # pocket depth (Z)
+DRIVER_STANDOFF_H = 2     # standoff height
+DRIVER_STANDOFF_D = 2     # standoff diameter
 ```
 
-## 6. Print Impact
+## 7. Print Impact
 
 These changes only affect the bottom tray:
 - LED channels and wiring grooves are subtractive (cuts) — no added print time
