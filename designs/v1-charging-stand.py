@@ -61,8 +61,8 @@ CHANNEL_W = 12         # cable channel width (wider for better cable mgmt)
 # 45×45mm LCD screen centered on the top face.
 # The charger sits flush in the bottom tray cavity, accessed by
 # removing the top tray.
-CHARGER_W = 138        # charger length + 4mm tolerance (measured: 134mm)
-CHARGER_D = 72         # charger width  + 4mm tolerance (measured: 68mm)
+CHARGER_W = 146        # charger length + ledge inset clearance (134 + 4mm ledge×2 + 4mm tolerance)
+CHARGER_D = 80         # charger width  + ledge inset clearance (68 + 4mm ledge×2 + 4mm tolerance)
 CHARGER_H = 35         # charger height + 2mm tolerance (measured: 33mm)
 CHARGER_CABLE_SLOT_W = 18  # slot for AC input cable through wall (wider for AC plug)
 CHARGER_USB_PORT_COUNT = 8  # USB-A ports on the long side
