@@ -1829,6 +1829,80 @@ def build_r1_tilt_plate():
     return plate
 
 
+def build_omi_tilt_plate():
+    """Omi DevKit 2 tilt plate — six-sided diamond with vertex fillets.
+
+    Built at origin (centered on X/Y, Z=0 to TILT_PLATE_T).
+    Uses the same six_sided_diamond_points() helper as the pocket.
+    Hinge barrels at the rearmost vertex (+Y), with a small flat added.
+    Captured slot on underside for push rod T-head.
+    """
+    # Diamond points with clearance reduction
+    plate_long = OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2   # 31mm
+    plate_short = OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2  # 16mm
+    pts = six_sided_diamond_points(plate_long, plate_short)
+    pts_closed = pts + [pts[0]]
+
+    # ── Main diamond plate ───────────────────────────────────────────────
+    plate = (
+        cq.Workplane("XY")
+        .polyline(pts_closed)
+        .close()
+        .extrude(TILT_PLATE_T)
+    )
+    plate = plate.edges("|Z").fillet(OMI_VERTEX_R - TILT_CLEARANCE)
+
+    # ── Find the rearmost vertex (max Y) for barrel placement ────────────
+    rear_y = max(p[1] for p in pts)  # rearmost Y coordinate
+
+    # Add a small flat at the rear vertex to mount barrels.
+    # Cut 2mm off the rear to create a flat surface.
+    _chord_cut_y = rear_y - 2
+    chord_cut = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.1)
+        .center(0, _chord_cut_y + 10)
+        .rect(50, 20)  # wide enough to span the diamond
+        .extrude(TILT_PLATE_T + 0.2)
+    )
+    plate = plate.cut(chord_cut)
+
+    # ── Two hinge barrels on the flat ────────────────────────────────────
+    barrel_spacing = 8
+    barrel_center_y = _chord_cut_y + HINGE_BARREL_PROTRUDE - HINGE_BARREL_OD / 2
+
+    for x_sign in [-1, 1]:
+        bx = x_sign * barrel_spacing / 2
+        barrel = (
+            cq.Workplane("YZ")
+            .workplane(offset=bx - HINGE_BARREL_L / 2)
+            .center(barrel_center_y, TILT_PLATE_T / 2)
+            .circle(HINGE_BARREL_OD / 2)
+            .extrude(HINGE_BARREL_L)
+        )
+        bore = (
+            cq.Workplane("YZ")
+            .workplane(offset=bx - HINGE_BARREL_L / 2 - 0.5)
+            .center(barrel_center_y, TILT_PLATE_T / 2)
+            .circle(HINGE_BARREL_ID / 2)
+            .extrude(HINGE_BARREL_L + 1)
+        )
+        plate = plate.union(barrel).cut(bore)
+
+    # ── Captured slot on underside ───────────────────────────────────────
+    slot_local_y = SERVO_Y - FRONT_ROW_Y  # 12.5mm
+    captured_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.1)
+        .center(0, slot_local_y)
+        .rect(PUSH_ROD_THEAD_W + 0.5, 3)
+        .extrude(TILT_PLATE_T / 2 + 0.1)
+    )
+    plate = plate.cut(captured_slot)
+
+    return plate
+
+
 # =============================================================================
 # GHOST VISUALIZATION OBJECTS (component placement preview)
 # =============================================================================
@@ -1998,6 +2072,16 @@ _r1_plate_assembly = r1_tilt_plate.translate((
     STAND_H - R1_CRADLE_DEPTH
 ))
 show_object(_r1_plate_assembly, name="r1_tilt_plate",
+            options={"color": (0.6, 0.85, 0.6, 0.9)})
+pass  # keep loop body after show_object is stripped by export script
+
+omi_tilt_plate = build_omi_tilt_plate()
+_omi_plate_assembly = omi_tilt_plate.translate((
+    SLOT_POSITIONS["omi"][0],
+    SLOT_POSITIONS["omi"][1],
+    STAND_H - OMI_CRADLE_DEPTH
+))
+show_object(_omi_plate_assembly, name="omi_tilt_plate",
             options={"color": (0.6, 0.85, 0.6, 0.9)})
 pass  # keep loop body after show_object is stripped by export script
 
