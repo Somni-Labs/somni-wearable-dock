@@ -760,122 +760,37 @@ def build_top_tray():
     )
     base = base.cut(mudra_cable)
 
-    # Build L-pole at ORIGIN, then translate.
-    # Vertical post: POLE_D(X) × POLE_W(Y) × POLE_H(Z)
-    post = (
+    # ── Mudra pole socket — through-hole for snap-in pole insert ─────────
+    # Rectangular through-hole where the standalone pole drops in from above.
+    # The socket is slightly oversized (SNAP_TOL per side) for easy insertion.
+    _socket_w = MUDRA_POLE_D + SNAP_TOL * 2   # 20.6mm in X
+    _socket_d = MUDRA_POLE_W + SNAP_TOL * 2   # 22.6mm in Y
+    mudra_socket = (
         cq.Workplane("XY")
-        .rect(MUDRA_POLE_D, MUDRA_POLE_W)
-        .extrude(MUDRA_POLE_H)
-    )
-
-    # Horizontal shelf: extends right (+X) from top of post
-    # SHELF_L(X) × POLE_W(Y) × SHELF_H(Z)
-    shelf = (
-        cq.Workplane("XY")
-        .workplane(offset=MUDRA_POLE_H - MUDRA_SHELF_H)
-        .center(MUDRA_POLE_D / 2 + MUDRA_SHELF_L / 2, 0)
-        .rect(MUDRA_SHELF_L, MUDRA_POLE_W)
-        .extrude(MUDRA_SHELF_H)
-    )
-
-    pole = post.union(shelf)
-
-    # ── Charger bay — FLUSH in the shelf top, open from above ──
-    # The charger drops into a pocket cut from the TOP of the shelf.
-    # Pogo pins face straight up. The wristband drapes directly onto the
-    # charger surface — no ceiling between them.
-    # The pocket depth = CHARGER_H, leaving a solid floor beneath for
-    # structural support. A chamfered lip around the top edge prevents
-    # hard edges under the silicone band.
-    charger_bay_x = MUDRA_POLE_D / 2 + MUDRA_SHELF_L / 2
-    shelf_top_z = MUDRA_POLE_H
-
-    # Main charger pocket — cut DOWN from shelf top surface
-    charger_bay = (
-        cq.Workplane("XY")
-        .workplane(offset=shelf_top_z - MUDRA_CHARGER_H)
-        .center(charger_bay_x, 0)
-        .rect(MUDRA_CHARGER_D, MUDRA_CHARGER_W)
-        .extrude(MUDRA_CHARGER_H + 1)   # +1 to cleanly break the top face
-    )
-    pole = pole.cut(charger_bay)
-
-    # Chamfered lip — gentle bevel around the pocket opening so the
-    # band's silicone has no sharp edge to catch on
-    chamfer_lip = (
-        cq.Workplane("XY")
-        .workplane(offset=shelf_top_z + 0.1)
-        .center(charger_bay_x, 0)
-        .rect(MUDRA_CHARGER_D + 4, MUDRA_CHARGER_W + 4)
-        .workplane(offset=-2.0)
-        .center(charger_bay_x, 0)
-        .rect(MUDRA_CHARGER_D, MUDRA_CHARGER_W)
-        .loft()
-    )
-    pole = pole.cut(chamfer_lip)
-
-    # ── Cable channel — from charger bay sideways + down through post ──
-    # The cable exits the SIDE of the charger (in -X direction, toward
-    # the post), then bends downward through the vertical post cavity.
-
-    # Horizontal cable slot from charger bay toward the post (-X)
-    # This connects the charger bay's -X wall to the post's internal cavity.
-    # Height sits at the bottom of the charger bay (where the cable exits).
-    cable_slot_z = shelf_top_z - MUDRA_CHARGER_H  # bottom of charger bay
-    slot_length = charger_bay_x - MUDRA_CHARGER_D / 2  # from bay left edge to post center
-    cable_horiz = (
-        cq.Workplane("XY")
-        .workplane(offset=cable_slot_z)
-        .center(slot_length / 2, 0)
-        .rect(slot_length + 2, MUDRA_CABLE_CH_W)
-        .extrude(MUDRA_CABLE_CH_W)
-    )
-    pole = pole.cut(cable_horiz)
-
-    # Vertical cable cavity through the post — from base up to the
-    # horizontal cable slot. Rectangular cross-section.
-    cable_cavity_vert = (
-        cq.Workplane("XY")
-        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
-        .extrude(cable_slot_z + MUDRA_CABLE_CH_W + 1)
-    )
-    pole = pole.cut(cable_cavity_vert)
-
-    # Move into position on the stand
-    pole = pole.translate((mx, my, STAND_H))
-
-    base = base.union(pole)
-
-    # ── Ensure cable channel is continuous through the pole ──────────
-    # The vertical cavity was cut in local pole space before the union.
-    # Re-cut through the assembled geometry to guarantee the channel is
-    # open from the bottom tray (Z=0) all the way up through the pole
-    # to the horizontal cable slot under the charger bay. This prevents
-    # any solid fill at the base–pole junction from blocking the cable.
-    _pole_cable_bottom = 0       # start from floor
-    _pole_cable_top = STAND_H + cable_slot_z + MUDRA_CABLE_CH_W + 1
-    mudra_full_channel = (
-        cq.Workplane("XY")
-        .workplane(offset=_pole_cable_bottom)
+        .workplane(offset=SPLIT_Z - 0.5)
         .center(mx, my)
-        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
-        .extrude(_pole_cable_top - _pole_cable_bottom)
+        .rect(_socket_w, _socket_d)
+        .extrude(TOP_H + 1)
     )
-    base = base.cut(mudra_full_channel)
+    base = base.cut(mudra_socket)
 
-    # Also re-cut the horizontal cable slot (charger bay → post cavity)
-    # in world coordinates to ensure it's open after the union.
-    _horiz_slot_z = STAND_H + cable_slot_z  # world Z of horizontal slot
-    _horiz_slot_x_start = mx                # post center
-    _horiz_slot_x_end = mx + charger_bay_x  # charger bay center
-    mudra_horiz_channel = (
-        cq.Workplane("XY")
-        .workplane(offset=_horiz_slot_z)
-        .center((_horiz_slot_x_start + _horiz_slot_x_end) / 2, my)
-        .rect(abs(_horiz_slot_x_end - _horiz_slot_x_start) + 2, MUDRA_CABLE_CH_W)
-        .extrude(MUDRA_CABLE_CH_W)
-    )
-    base = base.cut(mudra_horiz_channel)
+    # ── Snap hook engagement pockets on the bottom face ──────────────────
+    # Small recesses on the bottom face of the top tray around the socket,
+    # one on each X-axis face. These give the snap hooks room to spring
+    # out and catch after passing through the socket.
+    _pocket_w = SNAP_CLIP_W + SNAP_TOL * 2    # 12.6mm
+    _pocket_depth = SNAP_HOOK                  # 1.2mm into tray bottom face
+    _pocket_h = SNAP_HOOK * 2                  # 2.4mm
+    for side_sign in [-1, 1]:
+        pocket_x = mx + side_sign * (_socket_w / 2 + _pocket_depth / 2)
+        snap_pocket = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - _pocket_h)
+            .center(pocket_x, my)
+            .rect(_pocket_depth, _pocket_w)
+            .extrude(_pocket_h + 0.5)
+        )
+        base = base.cut(snap_pocket)
 
     # =====================================================================
     # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
@@ -1120,12 +1035,130 @@ def build_ipad_cover():
 
 
 # =============================================================================
+# BUILD MUDRA POLE (separate snap-in part)
+# =============================================================================
+
+def build_mudra_pole():
+    """Mudra Link L-pole with flush charger pocket and snap-clip base.
+
+    Standalone part that inserts into a socket on the top tray.
+    Printed upright — no supports needed.
+
+    Geometry (unchanged from original inline design):
+      - Vertical post: MUDRA_POLE_D x MUDRA_POLE_W x MUDRA_POLE_H
+      - Horizontal shelf at top: MUDRA_SHELF_L x MUDRA_POLE_W x MUDRA_SHELF_H
+      - Flush charger pocket in shelf top (open from above, chamfered lip)
+      - Internal cable channel: vertical cavity + horizontal slot to charger bay
+      - Cable exits through the open bottom face of the pole base
+
+    New: snap clip tabs on the base that catch the underside of the top tray.
+    """
+
+    # ── Vertical post at origin ──────────────────────────────────────────
+    post = (
+        cq.Workplane("XY")
+        .rect(MUDRA_POLE_D, MUDRA_POLE_W)
+        .extrude(MUDRA_POLE_H)
+    )
+
+    # ── Horizontal shelf extending right (+X) from top of post ───────────
+    shelf = (
+        cq.Workplane("XY")
+        .workplane(offset=MUDRA_POLE_H - MUDRA_SHELF_H)
+        .center(MUDRA_POLE_D / 2 + MUDRA_SHELF_L / 2, 0)
+        .rect(MUDRA_SHELF_L, MUDRA_POLE_W)
+        .extrude(MUDRA_SHELF_H)
+    )
+
+    pole = post.union(shelf)
+
+    # ── Charger bay — flush pocket cut from shelf top ────────────────────
+    charger_bay_x = MUDRA_POLE_D / 2 + MUDRA_SHELF_L / 2
+    shelf_top_z = MUDRA_POLE_H
+
+    charger_bay = (
+        cq.Workplane("XY")
+        .workplane(offset=shelf_top_z - MUDRA_CHARGER_H)
+        .center(charger_bay_x, 0)
+        .rect(MUDRA_CHARGER_D, MUDRA_CHARGER_W)
+        .extrude(MUDRA_CHARGER_H + 1)
+    )
+    pole = pole.cut(charger_bay)
+
+    # ── Chamfered lip around charger pocket opening ──────────────────────
+    chamfer_lip = (
+        cq.Workplane("XY")
+        .workplane(offset=shelf_top_z + 0.1)
+        .center(charger_bay_x, 0)
+        .rect(MUDRA_CHARGER_D + 4, MUDRA_CHARGER_W + 4)
+        .workplane(offset=-2.0)
+        .center(charger_bay_x, 0)
+        .rect(MUDRA_CHARGER_D, MUDRA_CHARGER_W)
+        .loft()
+    )
+    pole = pole.cut(chamfer_lip)
+
+    # ── Cable channel — horizontal slot from charger bay to post ─────────
+    cable_slot_z = shelf_top_z - MUDRA_CHARGER_H
+    slot_length = charger_bay_x - MUDRA_CHARGER_D / 2
+    cable_horiz = (
+        cq.Workplane("XY")
+        .workplane(offset=cable_slot_z)
+        .center(slot_length / 2, 0)
+        .rect(slot_length + 2, MUDRA_CABLE_CH_W)
+        .extrude(MUDRA_CABLE_CH_W)
+    )
+    pole = pole.cut(cable_horiz)
+
+    # ── Vertical cable cavity through the post ───────────────────────────
+    cable_cavity_vert = (
+        cq.Workplane("XY")
+        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
+        .extrude(cable_slot_z + MUDRA_CABLE_CH_W + 1)
+    )
+    pole = pole.cut(cable_cavity_vert)
+
+    # ── Snap clip tabs on the base ───────────────────────────────────────
+    # Two cantilever hooks, one on each long side (the MUDRA_POLE_D / X-axis
+    # faces). They extend downward from the pole base into negative Z.
+    # When inserting the pole into the socket, the hooks flex inward, pass
+    # through the socket, and snap out to catch the bottom face of the top tray.
+    for side_sign in [-1, 1]:
+        clip_x = side_sign * (MUDRA_POLE_D / 2 + SNAP_HOOK / 2)
+
+        # Cantilever arm extending downward from pole base
+        arm = (
+            cq.Workplane("XY")
+            .workplane(offset=-SNAP_CLIP_H)
+            .center(clip_x, 0)
+            .rect(SNAP_HOOK, SNAP_CLIP_W)
+            .extrude(SNAP_CLIP_H)
+        )
+        pole = pole.union(arm)
+
+        # Hook nub at the bottom of the arm (outward-facing)
+        # Catches the underside of the top tray floor
+        nub_x = clip_x + side_sign * (SNAP_HOOK / 2)
+        nub = (
+            cq.Workplane("XY")
+            .workplane(offset=-SNAP_CLIP_H)
+            .center(nub_x, 0)
+            .rect(SNAP_HOOK, SNAP_CLIP_W)
+            .extrude(SNAP_HOOK)
+        )
+        pole = pole.union(nub)
+
+    return pole
+
+
+# =============================================================================
 # BUILD AND DISPLAY
 # =============================================================================
 
 bottom_tray = build_bottom_tray()
 top_tray = build_top_tray()
 ipad_cover = build_ipad_cover()
+mudra_pole = build_mudra_pole()
 
 show_object(bottom_tray, name="bottom_tray",
             options={"color": (0.15, 0.15, 0.17, 0.9)})
@@ -1133,3 +1166,9 @@ show_object(top_tray, name="top_tray",
             options={"color": (0.2, 0.2, 0.22, 0.95)})
 show_object(ipad_cover, name="ipad_cover",
             options={"color": (0.3, 0.3, 0.32, 0.9)})
+
+# Mudra pole displayed at its assembly position (inserted into the top tray socket)
+mx, my = SLOT_POSITIONS["mudra"]
+show_object(mudra_pole.translate((mx, my, STAND_H)),
+            name="mudra_pole",
+            options={"color": (0.25, 0.25, 0.27, 0.95)})
