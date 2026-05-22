@@ -6,7 +6,7 @@ Devices (front row, left to right):
   1. Ultrahuman Ring Air   — SQUARE charging dock 39×39×13mm
   2. Even Realities R1     — CIRCULAR NFC magnetic charger 30mm dia × 10mm
   3. Omi DevKit 2          — SIX-SIDED DIAMOND pendant ~41×40×13mm (direct charge)
-  4. Mudra Link            — wristband DRAPES over L-pole shelf, cable exits tip
+  4. Mudra Link            — wristband DRAPES over separate snap-in L-pole shelf
 Rear row:
   5. Even Realities G2     — glasses charging case 170×75×30mm
   6. iPad                  — wide slot behind G2 (fits 13" Pro, diagonal if cased)
@@ -546,7 +546,7 @@ def build_bottom_tray():
 # =============================================================================
 
 def build_top_tray():
-    """Top tray: device pockets, Mudra pole, iPad wall. Sits on bottom tray."""
+    """Top tray: device pockets, Mudra pole socket, iPad wall. Sits on bottom tray."""
 
     # ── Top slab — starts at SPLIT_Z ─────────────────────────────────────
     base = (

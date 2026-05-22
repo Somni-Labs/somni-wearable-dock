@@ -4,7 +4,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 
 ## Architecture
 
-- **`designs/v1-charging-stand.py`** — Main CadQuery parametric design (3 parts: bottom tray, top tray, iPad cover plate)
+- **`designs/v1-charging-stand.py`** — Main CadQuery parametric design (4 parts: bottom tray, top tray, mudra pole, iPad cover plate)
 - **`export_charging_stand.py`** — STL/STEP export script (strips cq_server dependency, flips top tray for printing)
 - **`k8s/slice-all-parts.yaml`** — K8s Job template for PrusaSlicer slicing + Moonraker upload
 - **`output/`** — Generated STL/STEP files
@@ -82,6 +82,10 @@ When designing internal cable tunnels (like the iPad cable tunnel), always verif
 ### Multi-part assemblies need separate STL exports
 
 Each printable part needs its own STL at Z=0. The top tray must be flipped 180 degrees (rotate around X axis) so the flat pocket surface prints face-down on the build plate. The export script handles this automatically.
+
+### Separate parts eliminate support material waste
+
+The Mudra L-pole overhang required 48% of the top tray's filament for support material (110m, 20+ extra hours). Separating the pole into its own snap-in part eliminates supports entirely — the pole prints upright and the top tray has a simple through-socket. Assembly: 4 parts (bottom tray, top tray, mudra pole, iPad cover plate).
 
 ## Errors Encountered and Fixed
 
