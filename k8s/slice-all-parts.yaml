@@ -18,14 +18,14 @@ spec:
         args:
         - |
           set -e
-          echo "=== PrusaSlicer — All 3 Parts (with temp post-processing) ==="
+          echo "=== PrusaSlicer — All 3 Parts (with gcode validation) ==="
 
           SLICER=/prusa-slicer/prusa-slicer
           INI=/tmp/pla_plus.ini
           MOONRAKER="http://192.168.1.15:7125"
 
           cat > "$INI" << 'PROFILE'
-          [print:PLA+]
+          # --- Print settings ---
           layer_height = 0.2
           first_layer_height = 0.25
           perimeters = 3
@@ -45,7 +45,7 @@ spec:
           skirt_distance = 5
           brim_width = 0
 
-          [filament:PLA+]
+          # --- Filament settings (PLA+) ---
           temperature = 215
           first_layer_temperature = 220
           bed_temperature = 60
@@ -55,7 +55,7 @@ spec:
           max_fan_speed = 100
           bridge_fan_speed = 100
 
-          [printer:QIDI_Q2]
+          # --- Printer settings (QIDI Q2) ---
           gcode_flavor = klipper
           bed_shape = 0x0,275x0,275x295,0x295
           max_print_height = 265
@@ -69,26 +69,10 @@ spec:
 
           sed -i 's/^[[:space:]]*//' "$INI"
 
-          fix_temps() {
-            local FILE="$1"
-            echo "  Post-processing temps in $FILE"
-            # Replace M104 S200 with bed preheat + extruder at 220 (first layer)
-            sed -i 's/^M104 S200 ; set temperature/M140 S65 ; bed temp (first layer)\nM104 S220 ; extruder temp (first layer)/' "$FILE"
-            # Replace M109 S200 with bed wait + extruder wait
-            sed -i 's/^M109 S200 ; set temperature and wait for it to be reached/M190 S65 ; wait for bed temp\nM109 S220 ; wait for extruder temp (first layer)/' "$FILE"
-            # After first layer, PrusaSlicer may emit M104 S200 for subsequent layers
-            # Change those to 215 (normal print temp after first layer)
-            # But only the ones that appear AFTER line 30 (skip the start block)
-            sed -i '30,$ s/^M104 S200$/M104 S215 ; print temp/' "$FILE"
-            echo "  Temp lines after fix:"
-            head -25 "$FILE" | grep -E "(M104|M109|M140|M190)" || echo "  NONE"
-          }
-
           # ── BOTTOM TRAY ──
           echo "--- Slicing bottom tray ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/bottom.gcode --export-gcode /tmp/input-bottom/bottom-tray.stl
-          fix_temps /tmp/bottom.gcode
           echo "--- Uploading bottom tray ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-bottom-tray.gcode" || true
           sleep 2
@@ -101,7 +85,6 @@ spec:
           echo "--- Slicing top tray ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/top.gcode --export-gcode /tmp/input-top/top-tray.stl
-          fix_temps /tmp/top.gcode
           echo "--- Uploading top tray ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-top-tray.gcode" || true
           sleep 2
@@ -114,7 +97,6 @@ spec:
           echo "--- Slicing iPad cover ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/cover.gcode --export-gcode /tmp/input-cover/ipad-cover.stl
-          fix_temps /tmp/cover.gcode
           echo "--- Uploading iPad cover ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-ipad-cover.gcode" || true
           sleep 2
