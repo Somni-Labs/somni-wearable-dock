@@ -1169,6 +1169,7 @@ show_object(ipad_cover, name="ipad_cover",
 
 # Mudra pole displayed at its assembly position (inserted into the top tray socket)
 mx, my = SLOT_POSITIONS["mudra"]
-show_object(mudra_pole.translate((mx, my, STAND_H)),
+mudra_pole_assembly = mudra_pole.translate((mx, my, STAND_H))
+show_object(mudra_pole_assembly,
             name="mudra_pole",
             options={"color": (0.25, 0.25, 0.27, 0.95)})
