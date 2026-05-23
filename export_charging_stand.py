@@ -41,6 +41,7 @@ def export_stl_files():
         bottom_tray = exec_globals['bottom_tray']
         top_tray = exec_globals['top_tray']
         ipad_cover = exec_globals.get('ipad_cover')
+        ipad_wall = exec_globals.get('ipad_wall')
         mudra_pole = exec_globals.get('mudra_pole')
         uh_tilt_plate = exec_globals.get('uh_tilt_plate')
         r1_tilt_plate = exec_globals.get('r1_tilt_plate')
@@ -75,6 +76,13 @@ def export_stl_files():
     if ipad_cover:
         cover_bb = ipad_cover.val().BoundingBox()
         cover_print = ipad_cover.translate((0, 0, -cover_bb.zmin))
+
+    # iPad wall — prints flat on its back, no rotation needed.
+    # The wide face (245mm x 60mm) sits on the build plate, 4mm tall.
+    if ipad_wall:
+        wall_bb = ipad_wall.val().BoundingBox()
+        wall_print = ipad_wall.translate((0, 0, -wall_bb.zmin))
+        print(f"   iPad wall: translated Z by {-wall_bb.zmin:+.1f}mm (was Z={wall_bb.zmin:.1f})")
 
     # Mudra pole — rotate 90° to print on its side (back face down).
     # Printing upright puts thin snap clips on the build plate where brim
@@ -142,6 +150,16 @@ def export_stl_files():
             cq.exporters.export(ipad_cover, str(cover_step_path))
             print(f"✅ {cover_step_path} - iPad cover STEP (assembly position)")
 
+        # iPad back wall — slide-in piece
+        if ipad_wall:
+            wall_stl_path = output_dir / "v1-charging-stand-ipad-wall.stl"
+            cq.exporters.export(wall_print, str(wall_stl_path))
+            print(f"✅ {wall_stl_path} - iPad back wall (slide-in)")
+
+            wall_step_path = output_dir / "v1-charging-stand-ipad-wall.step"
+            cq.exporters.export(ipad_wall, str(wall_step_path))
+            print(f"✅ {wall_step_path} - iPad wall STEP (assembly position)")
+
         # Mudra pole — snap-in part (no rotation, prints upright)
         if mudra_pole:
             pole_stl_path = output_dir / "v1-charging-stand-mudra-pole.stl"
@@ -185,7 +203,7 @@ def print_print_info():
     print(f"   Material: PETG recommended (good strength + heat resistance)")
     print(f"   Layer height: 0.2mm (0.15mm for finer details)")
     print(f"   Infill: 15-20% (functional print, not decorative)")
-    print(f"   Supports: Top tray and mudra pole need NO supports (pole prints upright)")
+    print(f"   Supports: Top tray, mudra pole, and iPad wall need NO supports")
     print(f"   Build plate: Fits QIDI Q2 (245×255mm) - verify in slicer")
     print(f"   Print orientation: Bottom tray down, top tray upside down, mudra pole on side")
     print(f"")
