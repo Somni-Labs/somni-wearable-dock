@@ -261,6 +261,7 @@ IPAD_SLOT_DEPTH = 20          # how deep iPad sits into the base slot
 IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad)
 IPAD_BACK_THICK = 4           # back wall thickness
 IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
+IPAD_WALL_TOL = 0.4        # tongue-and-groove tolerance (tighter than global TOL for snug slide fit)
 # Diagonal placement: 13" iPad (270mm) can fit diagonally in 235mm slot
 # sin(angle) = 235/270 = 0.87, angle ≈ 60° from horizontal
 
@@ -1086,7 +1087,7 @@ def build_bottom_tray():
 # =============================================================================
 
 def build_top_tray():
-    """Top tray: device pockets, Mudra pole socket, iPad wall. Sits on bottom tray."""
+    """Top tray: device pockets, Mudra pole socket, iPad groove. Sits on bottom tray."""
 
     # ── Top slab — starts at SPLIT_Z ─────────────────────────────────────
     base = (
@@ -1520,15 +1521,22 @@ def build_top_tray():
         )
         base = base.cut(rail_groove)
 
-    # ── Back wall — the iPad leans against this ──────────────────────
-    ipad_back = (
+    # ── iPad back wall groove — wall slides in as separate part ──────
+    # Groove cut into the top surface at the rear edge. The separate
+    # iPad wall's tongue tab slides into this groove from either side.
+    # Cut AFTER the edge fillets so groove edges stay sharp.
+    _groove_depth = 3      # groove depth into surface (Y)
+    _groove_h = 3          # groove height (Z, cut down from top)
+    _groove_w = IPAD_SLOT_W + 10 + 2  # wall width + exits both sides
+    _groove_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # same Y as old wall
+    ipad_wall_groove = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H)
-        .center(0, STAND_D / 2 - IPAD_BACK_THICK / 2)
-        .rect(IPAD_SLOT_W + 10, IPAD_BACK_THICK)
-        .extrude(IPAD_BACK_H)
+        .workplane(offset=STAND_H - _groove_h)
+        .center(0, _groove_y)
+        .rect(_groove_w, _groove_depth)
+        .extrude(_groove_h + 0.5)
     )
-    base = base.union(ipad_back)
+    base = base.cut(ipad_wall_groove)
 
     # ── Front lip — prevents iPad sliding forward ────────────────────
     ipad_lip = (
