@@ -4,7 +4,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 
 ## Architecture
 
-- **`designs/v1-charging-stand.py`** — Main CadQuery parametric design (4 parts: bottom tray, top tray, mudra pole, iPad cover plate)
+- **`designs/v1-charging-stand.py`** — Main CadQuery parametric design (5 parts: bottom tray, top tray, mudra pole, iPad cover plate, iPad back wall)
 - **`export_charging_stand.py`** — STL/STEP export script (strips cq_server dependency, flips top tray for printing)
 - **`k8s/slice-all-parts.yaml`** — K8s Job template for PrusaSlicer slicing + Moonraker upload
 - **`output/`** — Generated STL/STEP files
@@ -92,7 +92,13 @@ Each printable part needs its own STL at Z=0. The top tray must be flipped 180 d
 
 ### Separate parts eliminate support material waste
 
-The Mudra L-pole overhang required 48% of the top tray's filament for support material (110m, 20+ extra hours). Separating the pole into its own snap-in part eliminates supports entirely — the pole prints upright and the top tray has a simple through-socket. Assembly: 4 parts (bottom tray, top tray, mudra pole, iPad cover plate).
+The Mudra L-pole overhang required 48% of the top tray's filament for support material (110m, 20+ extra hours). Separating the pole into its own snap-in part eliminates supports entirely — the pole prints upright and the top tray has a simple through-socket. Assembly: 5 parts (bottom tray, top tray, mudra pole, iPad cover plate, iPad back wall).
+
+### Tall vertical walls should be separate parts printed flat
+
+The iPad back wall (60mm tall, 4mm thick, 245mm wide) was originally unioned onto the top tray. When the top tray is flipped for printing, the wall becomes the tallest feature (~77mm total), adding hours of print time for a simple flat slab. Separating the wall into a slide-in tongue-and-groove piece lets it print flat on its back (4mm tall, ~15 minutes) and cuts the top tray print from ~77mm to ~17mm.
+
+**Rule of thumb:** If a feature adds significant height to a flipped print but is geometrically simple (flat wall, shelf, bracket), make it a separate part that prints in its natural orientation.
 
 ### Mudra pole snap clips need dedicated beefier constants
 
