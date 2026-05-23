@@ -1177,21 +1177,23 @@ def build_top_tray():
     )
     base = base.cut(uh_pocket)
 
-    # Left wall slot — USB-C cable exits left face (-X), same direction as other devices.
-    uh_left_slot = (
+    # Front wall slot — USB-C cable exits front face (-Y), same side as
+    # the tilt plate hinge so the rigid connector head sits right at the
+    # pivot point (near-zero angular movement when plate tilts).
+    uh_front_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
-        .center(ux - UH_SIDE / 2, uy)
-        .rect(WALL + 2, USBC_HEAD_W)
+        .center(ux, uy - UH_SIDE / 2)
+        .rect(USBC_HEAD_W, WALL + 2)
         .extrude(USBC_HEAD_H)
     )
-    base = base.cut(uh_left_slot)
+    base = base.cut(uh_front_slot)
 
-    # Floor pass-through at left edge (cable drops down into bottom tray)
+    # Floor pass-through at front edge (cable drops down into bottom tray)
     uh_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(ux - UH_SIDE / 2, uy)
+        .center(ux, uy - UH_SIDE / 2)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
@@ -1221,7 +1223,8 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 2: Even R1 Ring — CIRCULAR pocket
-    # Fixed cable exits from the LEFT edge (-X) of the disc.
+    # Fixed cable exits from the FRONT edge (-Y) of the disc,
+    # same side as the hinge for minimal cable stress when tilting.
     # Cable is thin (~4mm), not a removable USB-C head.
     # =====================================================================
     rx, ry = SLOT_POSITIONS["r1_ring"]
@@ -1234,24 +1237,25 @@ def build_top_tray():
     )
     base = base.cut(r1_cup)
 
-    # Side groove — notch in the left wall of the circular pocket for
-    # the fixed cable to exit. Sized for USB-C head to feed through
+    # Front groove — notch in the front wall (-Y) of the circular pocket
+    # for the fixed cable to exit. Sized for USB-C head to feed through
     # during assembly (head is 14×9mm), then cable sits in the groove.
+    # On the hinge side so cable sees near-zero angular movement.
     r1_cable_groove = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - R1_CRADLE_DEPTH)
-        .center(rx - R1_DIA / 2, ry)
-        .rect(10, USBC_HEAD_W)  # wide enough for USB-C head to pass through
+        .center(rx, ry - R1_DIA / 2)
+        .rect(USBC_HEAD_W, 10)  # deep enough to cut through front wall
         .extrude(USBC_HEAD_H)
     )
     base = base.cut(r1_cable_groove)
 
-    # Floor pass-through at left edge — must fit USB-C head (the other
+    # Floor pass-through at front edge — must fit USB-C head (the other
     # end of the fixed cable needs to feed through to reach the hub).
     r1_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(rx - R1_DIA / 2, ry)
+        .center(rx, ry - R1_DIA / 2)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
@@ -1277,8 +1281,9 @@ def build_top_tray():
 
     # =====================================================================
     # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
-    # USB-C port is on the LEFT long side (30mm), offset ~8mm from the
-    # left corner (first quarter of the side). Port faces -X direction.
+    # USB-C port exits through the FRONT (-Y) wall, same side as the
+    # hinge so the rigid connector head sits at the pivot point and
+    # sees near-zero angular movement when the tilt plate rises.
     # =====================================================================
     ox, oy = SLOT_POSITIONS["omi"]
     diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
@@ -1296,39 +1301,25 @@ def build_top_tray():
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     base = base.cut(omi_pocket)
 
-    # USB-C port slot — perpendicular to the left long side (Edge 4).
-    # Edge 4 runs at 60° from v4(-22.5, -6.5) to v5(-7.5, 19.5).
-    # The port is ~8mm from v4 (the lower-left corner of that edge).
-    # The connector inserts PERPENDICULAR to the edge (inward normal = -30°).
-    # Slot is rotated to match the angled wall.
-    _edge4_angle = 60.0  # degrees, direction of edge 4
-    _port_offset_along_edge = 8.0  # mm from v4 corner
-    # Position along edge 4, offset 8mm from v4
-    _v4_x, _v4_y = -22.5, -6.5  # vertex 4 (relative to diamond center)
-    _port_local_x = _v4_x + _port_offset_along_edge * math.cos(math.radians(_edge4_angle))
-    _port_local_y = _v4_y + _port_offset_along_edge * math.sin(math.radians(_edge4_angle))
-    # Absolute position on the stand
-    _omi_port_x = ox + _port_local_x
-    _omi_port_y = oy + _port_local_y
-
-    # Slot cut perpendicular to the edge (rotated to match wall angle).
-    # Use a box created at origin, rotated -30°, then translated into position.
-    # This ensures the slot extends outward THROUGH the angled pocket wall.
-    _slot_depth = 12.0  # deep enough to cut through the angled wall
-    _normal_angle = _edge4_angle - 90  # -30° = outward normal direction
+    # USB-C port slot — exits through the front (-Y) wall of the diamond.
+    # The front vertex area has two short edges meeting at the -Y point.
+    # We cut a simple rectangular slot through the front wall, centered
+    # on the pocket X position, at pocket floor level.
+    _omi_front_y_world = oy + min(p[1] for p in diamond_pts)  # front vertex Y
     omi_port_slot = (
         cq.Workplane("XY")
-        .box(USBC_HEAD_W, _slot_depth, USBC_HEAD_H)
-        .rotate((0, 0, 0), (0, 0, 1), _normal_angle)
-        .translate((_omi_port_x, _omi_port_y, STAND_H - OMI_CRADLE_DEPTH + USBC_HEAD_H / 2))
+        .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
+        .center(ox, _omi_front_y_world)
+        .rect(USBC_HEAD_W, 12)  # 12mm deep to cut through angled front walls
+        .extrude(USBC_HEAD_H)
     )
     base = base.cut(omi_port_slot)
 
-    # Floor pass-through below the port position (cable drops into bottom tray)
+    # Floor pass-through at front edge (cable drops into bottom tray)
     omi_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(_omi_port_x, _omi_port_y)
+        .center(ox, _omi_front_y_world)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
