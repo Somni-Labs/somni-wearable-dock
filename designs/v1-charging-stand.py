@@ -1183,8 +1183,8 @@ def build_top_tray():
     uh_front_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
-        .center(ux, uy - UH_SIDE / 2)
-        .rect(USBC_HEAD_W, WALL + 2)
+        .center(ux, uy - UH_SIDE / 2 - 5)
+        .rect(USBC_HEAD_W, WALL + 12)  # cut deep enough to visibly breach front wall
         .extrude(USBC_HEAD_H)
     )
     base = base.cut(uh_front_slot)
@@ -1244,8 +1244,8 @@ def build_top_tray():
     r1_cable_groove = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - R1_CRADLE_DEPTH)
-        .center(rx, ry - R1_DIA / 2)
-        .rect(USBC_HEAD_W, 10)  # deep enough to cut through front wall
+        .center(rx, ry - R1_DIA / 2 - 5)
+        .rect(USBC_HEAD_W, WALL + 12)  # deep enough to visibly breach front wall
         .extrude(USBC_HEAD_H)
     )
     base = base.cut(r1_cable_groove)
@@ -1309,8 +1309,8 @@ def build_top_tray():
     omi_port_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
-        .center(ox, _omi_front_y_world)
-        .rect(USBC_HEAD_W, 12)  # 12mm deep to cut through angled front walls
+        .center(ox, _omi_front_y_world - 5)
+        .rect(USBC_HEAD_W, WALL + 12)  # deep enough to visibly breach front wall
         .extrude(USBC_HEAD_H)
     )
     base = base.cut(omi_port_slot)
