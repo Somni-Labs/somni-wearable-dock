@@ -1743,16 +1743,22 @@ def build_mudra_pole():
     # through the socket, and snap out to catch the bottom face of the top tray.
     #
     # Uses MUDRA_CLIP_* constants (beefier than the tray-to-tray SNAP_* clips).
-    # The arms overlap 1.5mm INTO the pole body so the union creates a
-    # solid structural joint (not just an edge-to-edge seam that cracks).
-    _clip_overlap = 1.5  # mm of arm that overlaps into the pole body
+    #
+    # STRUCTURAL DESIGN: The clip arms are built as thick buttresses that
+    # overlap HALF the pole width (5mm) and extend 6mm up into the pole body.
+    # Triangular gussets on both sides of each arm create a smooth load path
+    # from the clip into the pole wall. This prevents the crack-at-the-seam
+    # failure seen in earlier prints where thin arms broke off the bed plate.
+    _clip_overlap = 5.0   # mm of arm overlapping into the pole body (half of 10mm radius)
+    _arm_root_h = 6       # mm the arm extends UP into the pole body
+    _gusset_h = 5         # mm tall triangular gusset at the arm-to-pole junction
+    _gusset_depth = 4     # mm the gusset extends along the pole wall (Y direction)
+
     for side_sign in [-1, 1]:
-        # Arm center is shifted inward so it overlaps with the pole body
+        # Arm center shifted well into the pole body for a solid union
         clip_x = side_sign * (MUDRA_POLE_D / 2 + MUDRA_CLIP_T / 2 - _clip_overlap)
 
-        # Cantilever arm extending downward from pole base
-        # Also extends 3mm UP into the pole body for a stronger root
-        _arm_root_h = 3  # how far the arm extends up into the pole
+        # Cantilever arm: extends from -CLIP_H (below base) to +_arm_root_h (into pole)
         arm = (
             cq.Workplane("XY")
             .workplane(offset=-MUDRA_CLIP_H)
@@ -1762,10 +1768,32 @@ def build_mudra_pole():
         )
         pole = pole.union(arm)
 
+        # Triangular gussets on both Y-sides of the arm where it meets the pole.
+        # These spread the load from the clip into the pole wall, preventing
+        # the clean fracture line that killed previous prints.
+        for y_sign in [-1, 1]:
+            # Gusset is a wedge: full thickness at Z=0 (pole base), tapering
+            # to zero at Z=_gusset_h. Runs along the pole face in Y.
+            gusset_y = y_sign * (MUDRA_CLIP_W / 2 + _gusset_depth / 2)
+            # Build as a lofted solid from a rectangle at base to a thin line at top
+            gusset = (
+                cq.Workplane("XY")
+                .center(clip_x, gusset_y)
+                .rect(MUDRA_CLIP_T, _gusset_depth)
+                .workplane(offset=_gusset_h)
+                .center(clip_x, gusset_y)
+                .rect(MUDRA_CLIP_T, 0.1)  # taper to near-zero
+                .loft()
+            )
+            pole = pole.union(gusset)
+
         # Hook nub at the bottom of the arm (outward-facing)
-        # Catches the underside of the top tray floor
-        # Nub position accounts for the overlap shift
-        nub_x = clip_x + side_sign * (MUDRA_CLIP_T / 2 + MUDRA_HOOK / 2)
+        # Catches the underside of the top tray floor.
+        # Position the nub so its outer edge protrudes past the pole face
+        # by MUDRA_HOOK mm — this is what catches the socket lip.
+        # The nub is anchored to the arm's outer edge and extends outward.
+        _pole_face_x = side_sign * MUDRA_POLE_D / 2  # pole outer face
+        nub_x = _pole_face_x + side_sign * MUDRA_HOOK / 2  # centered on the overhang
         nub = (
             cq.Workplane("XY")
             .workplane(offset=-MUDRA_CLIP_H)
