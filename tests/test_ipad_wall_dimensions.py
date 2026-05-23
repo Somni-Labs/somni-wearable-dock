@@ -75,11 +75,11 @@ class TestIpadWallGrooveDimensions:
 class TestIpadWallDimensions:
     """Wall body dimensions must match existing constants."""
 
-    def test_wall_width_matches_slot(self):
-        """Wall width should be IPAD_SLOT_W + 10."""
+    def test_wall_width_fits_build_plate(self):
+        """Wall width (IPAD_SLOT_W + 10) must fit the QIDI Q2 build plate (275mm)."""
         expected_width = C["IPAD_SLOT_W"] + 10
-        assert expected_width <= C["STAND_W"], (
-            f"Wall width {expected_width}mm exceeds stand width {C['STAND_W']}mm"
+        assert expected_width <= 275, (
+            f"Wall width {expected_width}mm exceeds QIDI Q2 build plate (275mm)"
         )
 
     def test_wall_height_is_ipad_back_h(self):
