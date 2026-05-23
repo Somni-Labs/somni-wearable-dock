@@ -1654,6 +1654,49 @@ def build_ipad_cover():
 
 
 # =============================================================================
+# BUILD IPAD WALL (separate slide-in part)
+# =============================================================================
+
+def build_ipad_wall():
+    """iPad back wall — separate slide-in piece with tongue tab.
+
+    The iPad leans against this wall. It slides into a groove on the
+    top tray's rear edge from either side. Prints flat on its back
+    (245mm x 60mm face on build plate, only 4mm tall).
+
+    Built at origin: centered on X, Z=0 at the bottom edge.
+    The tongue tab extends in +Y from the wall's back face.
+    """
+    _wall_w = IPAD_SLOT_W + 10     # 245mm — same as the old union wall
+    _wall_h = IPAD_BACK_H          # 60mm
+    _wall_t = IPAD_BACK_THICK      # 4mm
+
+    # ── Wall body ────────────────────────────────────────────────────
+    wall = (
+        cq.Workplane("XY")
+        .rect(_wall_w, _wall_t)
+        .extrude(_wall_h)
+    )
+
+    # ── Tongue tab on the bottom edge ────────────────────────────────
+    # Extends from the back face (+Y) of the wall, runs full width.
+    # Sized to slide into the groove on the top tray with IPAD_WALL_TOL
+    # clearance per side.
+    _tongue_depth = 3 - IPAD_WALL_TOL   # 2.6mm (into groove)
+    _tongue_h = 3 - IPAD_WALL_TOL       # 2.6mm (groove height minus clearance)
+    tongue = (
+        cq.Workplane("XY")
+        .workplane(offset=0)
+        .center(0, _wall_t / 2 + _tongue_depth / 2)
+        .rect(_wall_w - IPAD_WALL_TOL * 2, _tongue_depth)
+        .extrude(_tongue_h)
+    )
+    wall = wall.union(tongue)
+
+    return wall
+
+
+# =============================================================================
 # BUILD MUDRA POLE (separate snap-in part)
 # =============================================================================
 
@@ -2283,6 +2326,7 @@ def build_ghost_components():
 bottom_tray = build_bottom_tray()
 top_tray = build_top_tray()
 ipad_cover = build_ipad_cover()
+ipad_wall = build_ipad_wall()
 mudra_pole = build_mudra_pole()
 
 show_object(bottom_tray, name="bottom_tray",
@@ -2291,6 +2335,13 @@ show_object(top_tray, name="top_tray",
             options={"color": (0.2, 0.2, 0.22, 0.95)})
 show_object(ipad_cover, name="ipad_cover",
             options={"color": (0.3, 0.3, 0.32, 0.9)})
+
+# iPad wall displayed at assembly position (inserted into rear groove)
+_ipad_wall_y = STAND_D / 2 - IPAD_BACK_THICK / 2
+ipad_wall_assembly = ipad_wall.translate((0, _ipad_wall_y, STAND_H))
+show_object(ipad_wall_assembly,
+            name="ipad_wall",
+            options={"color": (0.28, 0.28, 0.30, 0.95)})
 
 # Mudra pole displayed at its assembly position (inserted into the top tray socket)
 mx, my = SLOT_POSITIONS["mudra"]
