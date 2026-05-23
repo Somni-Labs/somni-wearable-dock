@@ -1301,25 +1301,27 @@ def build_top_tray():
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     base = base.cut(omi_pocket)
 
-    # USB-C port slot — exits through the front (-Y) wall of the diamond.
-    # The front vertex area has two short edges meeting at the -Y point.
-    # We cut a simple rectangular slot through the front wall, centered
-    # on the pocket X position, at pocket floor level.
-    _omi_front_y_world = oy + min(p[1] for p in diamond_pts)  # front vertex Y
+    # USB-C port slot — exits through the front-left (-Y, -X) of the diamond.
+    # The Omi pendant's USB-C port is on the left long edge of the device,
+    # so the slot is offset to the left side of the front wall.
+    # The front edge of the diamond runs from v3(-16, -21.2) to v2(+16, -21.2).
+    # Offset the slot to the left half of that edge.
+    _omi_front_y_world = oy + min(p[1] for p in diamond_pts)  # front edge Y
+    _omi_port_x = ox - 8  # offset 8mm left of pocket center (toward left long edge)
     omi_port_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
-        .center(ox, _omi_front_y_world - 5)
+        .center(_omi_port_x, _omi_front_y_world - 5)
         .rect(USBC_HEAD_W, WALL + 12)  # deep enough to visibly breach front wall
         .extrude(USBC_HEAD_H)
     )
     base = base.cut(omi_port_slot)
 
-    # Floor pass-through at front edge (cable drops into bottom tray)
+    # Floor pass-through at front-left edge (cable drops into bottom tray)
     omi_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
-        .center(ox, _omi_front_y_world)
+        .center(_omi_port_x, _omi_front_y_world)
         .rect(USBC_HEAD_W, USBC_HEAD_H)
         .extrude(TOP_H + 1)
     )
