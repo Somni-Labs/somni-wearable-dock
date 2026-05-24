@@ -262,13 +262,10 @@ IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad
 IPAD_BACK_THICK = 4           # back wall thickness
 IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
 IPAD_WALL_TOL = 0.4        # tongue-and-groove tolerance (tighter than global TOL for snug slide fit)
-IPAD_GROOVE_DEPTH = 8      # groove depth into top tray (Z) — deeper = more leverage against wobble
-IPAD_GROOVE_Y_DEPTH = 3    # groove depth in Y direction (tongue slides into this)
+IPAD_SLOT_Z_DEPTH = 10     # how deep the wall slot goes into the tray body (Z)
+IPAD_SLOT_Y_DEPTH = 8      # how deep the slot extends forward into tray body (Y)
 IPAD_DETENT_H = 0.6        # snap detent bump height (clicks past on insertion)
 IPAD_DETENT_W = 15         # snap detent bump width (X)
-IPAD_BUTTRESS_H = 6        # support buttress height on wall tongue (triangular gussets)
-IPAD_BUTTRESS_W = 20       # support buttress width along wall (X)
-IPAD_BUTTRESS_T = 2.5      # support buttress thickness (Y, extends from wall back face)
 # Diagonal placement: 13" iPad (270mm) can fit diagonally in 235mm slot
 # sin(angle) = 235/270 = 0.87, angle ≈ 60° from horizontal
 
@@ -1528,35 +1525,59 @@ def build_top_tray():
         )
         base = base.cut(rail_groove)
 
-    # ── iPad back wall groove — wall slides in as separate part ──────
-    # Deep groove cut into the top tray rear edge. The wall's tongue
-    # slides in from either side. 8mm deep (Z) gives the 60mm wall
-    # a 7.5:1 height-to-engagement ratio instead of 23:1 — much
-    # more leverage against wobble.
-    # Cut AFTER the edge fillets so groove edges stay sharp.
-    _groove_h = IPAD_GROOVE_DEPTH                   # 8mm deep (Z)
-    _groove_yd = IPAD_GROOVE_Y_DEPTH                # 3mm deep (Y)
-    _groove_w = IPAD_SLOT_W + 10 + 2                # wall width + exits both sides
-    _groove_y = STAND_D / 2 - IPAD_BACK_THICK / 2   # same Y as old wall
-    ipad_wall_groove = (
+    # ── iPad back wall captive slot — deep engagement in solid tray body ──
+    # The wall has a blade that drops into a deep slot cut into the solid
+    # material between SPLIT_Z (41mm) and the channel floor (52.5mm).
+    # This gives 10mm Z depth × 8mm Y depth — material on ALL FOUR SIDES
+    # of the blade (front, back, left-end, right-end when fully seated).
+    #
+    # The slot sits below the iPad channel floor, so it's entirely in
+    # solid tray body. The blade slides in from either side (open on X ends).
+    #
+    # Slot center Y: aligned with the wall's front face, extending forward
+    # into the tray body. The back wall of the slot is the tray's rear wall.
+    _slot_z_depth = IPAD_SLOT_Z_DEPTH                   # 10mm deep (Z)
+    _slot_y_depth = IPAD_SLOT_Y_DEPTH                   # 8mm forward (Y)
+    _slot_w = IPAD_SLOT_W + 10 + 2                      # wall width + exits both sides
+    _wall_front_y = STAND_D / 2 - IPAD_BACK_THICK       # Y=83.5 (wall front face)
+    _slot_y_center = _wall_front_y - _slot_y_depth / 2   # slot extends forward from wall
+    # Slot starts just above SPLIT_Z, in solid tray body, below the iPad channel floor
+    _slot_top_z = SPLIT_Z + _slot_z_depth                # Z=51 (below channel floor at 52.5)
+    _slot_bottom_z = SPLIT_Z + 1                         # Z=42 (1mm above the split plane)
+    _slot_actual_z = _slot_top_z - _slot_bottom_z        # actual cut height
+    ipad_wall_slot = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - _groove_h)
-        .center(0, _groove_y)
-        .rect(_groove_w, _groove_yd)
-        .extrude(_groove_h + 0.5)
+        .workplane(offset=_slot_bottom_z)
+        .center(0, _slot_y_center)
+        .rect(_slot_w, _slot_y_depth + IPAD_WALL_TOL)
+        .extrude(_slot_actual_z)
     )
-    base = base.cut(ipad_wall_groove)
+    base = base.cut(ipad_wall_slot)
+
+    # Also cut a narrow slit from the slot top up to the tray surface so the
+    # wall body can pass through. This slit is only as wide as the wall
+    # thickness + tolerance (4.4mm in Y), not the full slot depth.
+    _slit_y = STAND_D / 2 - IPAD_BACK_THICK / 2         # centered on wall thickness
+    _slit_z = _slot_top_z
+    _slit_h = STAND_H - _slot_top_z + 0.5                # from slot top to tray surface
+    ipad_wall_slit = (
+        cq.Workplane("XY")
+        .workplane(offset=_slit_z)
+        .center(0, _slit_y)
+        .rect(_slot_w, IPAD_BACK_THICK + IPAD_WALL_TOL)
+        .extrude(_slit_h)
+    )
+    base = base.cut(ipad_wall_slit)
 
     # ── Snap detent bumps — resist lateral slide-out ────────────────
-    # Two small bumps inside the groove, near each end. The tongue
-    # clicks past them on insertion, then they prevent the wall from
-    # sliding back out. Placed 30mm from each end of the groove.
+    # Two small bumps inside the slot, near each end. The blade
+    # clicks past them when fully seated.
     for detent_sign in [-1, +1]:
         _detent_x = detent_sign * (IPAD_SLOT_W / 2 + 5 - 30)  # 30mm from each end
         detent = (
             cq.Workplane("XY")
-            .workplane(offset=STAND_H - _groove_h)
-            .center(_detent_x, _groove_y)
+            .workplane(offset=_slot_bottom_z)
+            .center(_detent_x, _slot_y_center)
             .rect(IPAD_DETENT_W, IPAD_DETENT_H)
             .extrude(IPAD_DETENT_H)
         )
@@ -1682,92 +1703,59 @@ def build_ipad_cover():
 # =============================================================================
 
 def build_ipad_wall():
-    """iPad back wall — separate slide-in piece with deep tongue and buttresses.
+    """iPad back wall — separate slide-in piece with deep captive blade.
 
-    The iPad leans against this wall. It slides into a deep groove (8mm)
-    on the top tray's rear edge from either side. Two triangular buttress
-    gussets on the tongue provide rotational stiffness against the wall
-    rocking backward under iPad weight.
+    The iPad leans against this wall. A deep blade extends downward from
+    the wall bottom, drops into a captive slot in the solid tray body
+    (between SPLIT_Z and the iPad channel floor). The blade has material
+    gripping it on all four sides — front, back, and both ends when seated.
 
-    Prints flat on its back (245mm x 60mm face on build plate, ~6.5mm tall
-    with buttresses). Built at origin, centered on X, Z=0 at bottom edge.
-    The tongue tab extends in +Y from the wall's back face.
+    Assembly: slide the wall in from either side. The blade rides in the
+    slot, the wall body passes through the narrow slit above the slot.
+    Snap detents click when fully seated.
+
+    The blade extends forward (-Y) from the wall's front face, matching
+    the slot's forward extension into the tray body. This gives 8mm of
+    Y-direction engagement in solid material — the wall cannot rock
+    forward or backward.
+
+    Prints flat on its back (245mm x 60mm face on build plate, ~14mm tall
+    with blade). Built at origin, centered on X, Z=0 at the blade bottom.
     """
     _wall_w = IPAD_SLOT_W + 10     # 245mm — same as the old union wall
     _wall_h = IPAD_BACK_H          # 60mm
     _wall_t = IPAD_BACK_THICK      # 4mm
 
-    # ── Wall body ────────────────────────────────────────────────────
+    # Blade dimensions (matches slot in tray body)
+    _blade_z = IPAD_SLOT_Z_DEPTH - IPAD_WALL_TOL        # 9.6mm (Z)
+    _blade_y = IPAD_SLOT_Y_DEPTH - IPAD_WALL_TOL        # 7.6mm (Y, forward)
+    _blade_w = _wall_w - IPAD_WALL_TOL * 2              # slightly narrower than wall
+
+    # ── Wall body — starts at blade top ──────────────────────────────
+    # The wall body sits above the blade. Z=0 is at the blade bottom.
     wall = (
         cq.Workplane("XY")
+        .workplane(offset=_blade_z)
         .rect(_wall_w, _wall_t)
         .extrude(_wall_h)
     )
 
-    # ── Deep tongue tab on the bottom edge ───────────────────────────
-    # 8mm tall tongue (matches groove depth) gives a 7.5:1 ratio
-    # instead of the old 23:1. The tongue depth in Y stays at 2.6mm
-    # to fit the groove channel.
-    _tongue_yd = IPAD_GROOVE_Y_DEPTH - IPAD_WALL_TOL   # 2.6mm (Y depth into groove)
-    _tongue_h = IPAD_GROOVE_DEPTH - IPAD_WALL_TOL      # 7.6mm (Z height, matches groove)
-    tongue = (
+    # ── Deep blade — extends downward and forward ────────────────────
+    # The blade is an L-shaped cross section: it's as thick as the wall
+    # body (4mm) at the top where it meets the wall, and extends forward
+    # by _blade_y from the wall's front face.
+    # The blade cross-section in Y:
+    #   - Back face aligned with wall back face (Y = +_wall_t/2)
+    #   - Front face extends to Y = -_wall_t/2 - _blade_y (forward)
+    # Total Y extent: _wall_t + _blade_y
+    _blade_total_y = _wall_t + _blade_y
+    blade = (
         cq.Workplane("XY")
-        .workplane(offset=0)
-        .center(0, _wall_t / 2 + _tongue_yd / 2)
-        .rect(_wall_w - IPAD_WALL_TOL * 2, _tongue_yd)
-        .extrude(_tongue_h)
+        .center(0, -_blade_y / 2)
+        .rect(_blade_w, _blade_total_y)
+        .extrude(_blade_z)
     )
-    wall = wall.union(tongue)
-
-    # ── Triangular buttress gussets — anti-wobble ────────────────────
-    # Two right-triangle gussets on the back face of the wall, bridging
-    # from the wall body down to the tongue. They resist the rotational
-    # force from the iPad leaning against the wall.
-    # Placed symmetrically, ~1/4 from each end.
-    import math
-    for butt_sign in [-1, +1]:
-        _butt_x = butt_sign * (_wall_w / 4)
-        # Triangular gusset: right triangle with legs along Z (up the wall)
-        # and Y (out from the back face into the groove cavity).
-        # Height = IPAD_BUTTRESS_H above the tongue top, extending up the wall.
-        # Depth = IPAD_BUTTRESS_T from the wall back face.
-        _butt_base_z = _tongue_h   # starts at tongue top
-        _butt_top_z = _tongue_h + IPAD_BUTTRESS_H
-        # Build as a solid block then trim to triangle with a diagonal cut
-        buttress = (
-            cq.Workplane("XY")
-            .workplane(offset=_butt_base_z)
-            .center(_butt_x, _wall_t / 2 + IPAD_BUTTRESS_T / 2)
-            .rect(IPAD_BUTTRESS_W, IPAD_BUTTRESS_T)
-            .extrude(IPAD_BUTTRESS_H)
-        )
-        # Diagonal cut: remove upper-rear triangle to form a right-triangle gusset.
-        # The cut removes material from (Z=_butt_base_z, Y=back) to (Z=_butt_top_z, Y=wall_face)
-        # This is a wedge that tapers the buttress from full depth at the tongue
-        # to zero depth at the top.
-        _cut_y_center = _wall_t / 2 + IPAD_BUTTRESS_T
-        wedge_cut = (
-            cq.Workplane("XZ")
-            .workplane(offset=_cut_y_center)
-            .center(_butt_x, (_butt_base_z + _butt_top_z) / 2)
-            .rect(IPAD_BUTTRESS_W + 1, IPAD_BUTTRESS_H)
-            .extrude(IPAD_BUTTRESS_T + 1)
-        )
-        # Instead of a complex wedge, approximate with a simple stepped taper:
-        # 3 steps that reduce depth progressively
-        _steps = 3
-        _step_h = IPAD_BUTTRESS_H / _steps
-        for step_i in range(_steps):
-            _cut_depth = IPAD_BUTTRESS_T * (step_i + 1) / (_steps + 1)
-            step_cut = (
-                cq.Workplane("XY")
-                .workplane(offset=_butt_base_z + _step_h * (step_i + 1) - 0.01)
-                .center(_butt_x, _wall_t / 2 + IPAD_BUTTRESS_T - _cut_depth / 2)
-                .rect(IPAD_BUTTRESS_W + 0.1, _cut_depth + 0.01)
-                .extrude(_step_h * (_steps - step_i) + 0.1)
-            )
-            buttress = buttress.cut(step_cut)
-        wall = wall.union(buttress)
+    wall = wall.union(blade)
 
     return wall
 
@@ -2413,8 +2401,11 @@ show_object(ipad_cover, name="ipad_cover",
             options={"color": (0.3, 0.3, 0.32, 0.9)})
 
 # iPad wall displayed at assembly position (inserted into rear groove)
+# Wall blade sits at Z = SPLIT_Z + 1 (42mm), wall body at Z = SPLIT_Z + 1 + blade_z
+# Wall Y: back face at STAND_D/2, blade extends forward from wall front face
 _ipad_wall_y = STAND_D / 2 - IPAD_BACK_THICK / 2
-ipad_wall_assembly = ipad_wall.translate((0, _ipad_wall_y, STAND_H))
+_ipad_wall_z = SPLIT_Z + 1   # blade bottom sits just above the split plane
+ipad_wall_assembly = ipad_wall.translate((0, _ipad_wall_y, _ipad_wall_z))
 show_object(ipad_wall_assembly,
             name="ipad_wall",
             options={"color": (0.28, 0.28, 0.30, 0.95)})

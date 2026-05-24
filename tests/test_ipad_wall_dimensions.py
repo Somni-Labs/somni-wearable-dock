@@ -46,38 +46,44 @@ class TestIpadWallTolerance:
         )
 
 
-class TestIpadWallGrooveDimensions:
-    """Groove in top tray must accommodate the wall tongue with good leverage."""
+class TestIpadWallSlotDimensions:
+    """Captive slot in tray body must hold the wall blade securely."""
 
-    def test_groove_z_depth_provides_leverage(self):
-        """IPAD_GROOVE_DEPTH must give a reasonable height-to-engagement ratio."""
-        groove_z = C["IPAD_GROOVE_DEPTH"]
+    def test_slot_z_depth_provides_leverage(self):
+        """IPAD_SLOT_Z_DEPTH must give a reasonable height-to-engagement ratio."""
+        slot_z = C["IPAD_SLOT_Z_DEPTH"]
         wall_h = C["IPAD_BACK_H"]
-        ratio = wall_h / groove_z
-        assert groove_z >= 6, (
-            f"IPAD_GROOVE_DEPTH={groove_z}mm too shallow — wall will wobble"
+        ratio = wall_h / slot_z
+        assert slot_z >= 8, (
+            f"IPAD_SLOT_Z_DEPTH={slot_z}mm too shallow — wall will wobble"
         )
-        assert ratio <= 12, (
+        assert ratio <= 8, (
             f"Height-to-engagement ratio {ratio:.1f}:1 too high (wobble risk)"
         )
 
-    def test_groove_z_depth_fits_top_tray(self):
-        """Groove must not cut deeper than the top tray thickness."""
-        top_h = C["STAND_H"] - C["SPLIT_Z"]
-        assert C["IPAD_GROOVE_DEPTH"] < top_h, (
-            f"IPAD_GROOVE_DEPTH={C['IPAD_GROOVE_DEPTH']}mm >= TOP_H={top_h}mm"
+    def test_slot_z_fits_below_channel_floor(self):
+        """Slot must fit between SPLIT_Z and the iPad channel floor (Z=52.5)."""
+        split_z = C["SPLIT_Z"]
+        slot_top = split_z + 1 + C["IPAD_SLOT_Z_DEPTH"]
+        # Channel floor is at SPLIT_Z + 1 + 8 + 2.5 = 52.5
+        channel_floor = split_z + 1 + 8 + 2.5
+        assert slot_top <= channel_floor, (
+            f"Slot top Z={slot_top}mm breaches channel floor at Z={channel_floor}mm"
         )
 
-    def test_tongue_fits_in_groove(self):
-        """Tongue (groove - TOL) must be smaller than groove in both Z and Y."""
-        groove_z = C["IPAD_GROOVE_DEPTH"]
-        groove_y = C["IPAD_GROOVE_Y_DEPTH"]
-        tongue_z = groove_z - C["IPAD_WALL_TOL"]
-        tongue_y = groove_y - C["IPAD_WALL_TOL"]
-        assert tongue_z < groove_z, "Tongue Z must be smaller than groove Z"
-        assert tongue_y < groove_y, "Tongue Y must be smaller than groove Y"
-        assert tongue_z > 0, "Tongue Z must be positive"
-        assert tongue_y > 0, "Tongue Y must be positive"
+    def test_slot_y_depth_provides_grip(self):
+        """IPAD_SLOT_Y_DEPTH must be deep enough for front-back grip."""
+        assert C["IPAD_SLOT_Y_DEPTH"] >= 6, (
+            f"IPAD_SLOT_Y_DEPTH={C['IPAD_SLOT_Y_DEPTH']}mm — need >= 6mm for grip"
+        )
+
+    def test_blade_fits_in_slot(self):
+        """Blade (slot - TOL) must be smaller than slot in both Z and Y."""
+        blade_z = C["IPAD_SLOT_Z_DEPTH"] - C["IPAD_WALL_TOL"]
+        blade_y = C["IPAD_SLOT_Y_DEPTH"] - C["IPAD_WALL_TOL"]
+        assert blade_z > 0, "Blade Z must be positive"
+        assert blade_y > 0, "Blade Y must be positive"
+        assert blade_z < C["IPAD_SLOT_Z_DEPTH"], "Blade must be smaller than slot"
 
     def test_clearance_per_side(self):
         """Clearance per side should be IPAD_WALL_TOL / 2 = 0.2mm."""
@@ -91,13 +97,8 @@ class TestIpadWallGrooveDimensions:
         assert "IPAD_DETENT_H" in C, "IPAD_DETENT_H not defined"
         assert C["IPAD_DETENT_H"] > 0, "IPAD_DETENT_H must be positive"
         assert C["IPAD_DETENT_H"] <= 1.0, (
-            f"IPAD_DETENT_H={C['IPAD_DETENT_H']}mm too tall — wall won't slide in"
+            f"IPAD_DETENT_H={C['IPAD_DETENT_H']}mm too tall"
         )
-
-    def test_buttress_exists(self):
-        """Buttress constants must be defined for rotational stiffness."""
-        assert "IPAD_BUTTRESS_H" in C, "IPAD_BUTTRESS_H not defined"
-        assert C["IPAD_BUTTRESS_H"] > 0, "IPAD_BUTTRESS_H must be positive"
 
 
 class TestIpadWallDimensions:
