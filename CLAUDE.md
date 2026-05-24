@@ -104,6 +104,21 @@ The iPad back wall (60mm tall, 4mm thick, 245mm wide) was originally unioned ont
 
 The tray-to-tray SNAP_* constants (SNAP_HOOK=1.2mm, SNAP_CLIP_W=12mm) are too thin for the Mudra pole clips. A 1.2mm cantilever arm snaps on insertion every time. The Mudra pole now uses dedicated MUDRA_CLIP_* constants: MUDRA_CLIP_T=2.5mm arm thickness, MUDRA_CLIP_W=14mm width, MUDRA_HOOK=2.0mm overhang. The top tray socket engagement pockets are sized to match.
 
+### Flipped prints need a continuous floor — through-cuts fragment the build surface
+
+The top tray is printed flipped (Z=58 on build plate, Z=41 on top). Every through-cut in the tray body (cable holes, push rod slots, mudra socket, iPad cable tunnel, LCD window, iPad blade slot) becomes a hole in the first printed layers. When these cuts are numerous and close together, they fragment the bottom face into disconnected islands that print as flimsy, unconnected pieces with no structural floor.
+
+**Fix**: Added a `LID_FLOOR` (2mm) solid slab across the entire interior of the top tray at Z=SPLIT_Z, inset from the outer walls to avoid interfering with snap clips and wall pass-throughs. After the floor is unioned, only essential through-holes are re-cut: push rod slots (4×12mm, servo rods must pass through), mudra pole socket (20.6×22.6mm, pole drops in), mudra cable hole, device cable pass-throughs (14×9mm each), G2 LCD window, iPad cable vertical hole, and iPad blade slot.
+
+**Rule of thumb:** When a part is printed flipped, verify the bottom face (which becomes the first printed layers) is a single connected surface. Add a continuous floor and re-cut only the minimum necessary through-holes.
+
+### Always enable supports when printing the top tray flipped
+
+The flipped top tray has device pockets (UH, R1, Omi, G2) facing down on the build plate, creating massive unsupported overhangs. PrusaSlicer will even warn about "floating bridge anchors" and "loose extrusions." Without supports, the print spaghettifies immediately.
+
+**Fix**: Set `support_material = 1`, `support_material_auto = 1` in the slicer profile. Add `brim_width = 5` for bed adhesion. The `validate_gcode()` function should check for `;TYPE:Support` presence when slicing the top tray.
+
+
 ## Errors Encountered and Fixed
 
 ### Mudra pole snap clips broke on insertion
@@ -181,3 +196,19 @@ The tray-to-tray SNAP_* constants (SNAP_HOOK=1.2mm, SNAP_CLIP_W=12mm) are too th
 **Cause**: Race condition when deleting and immediately re-uploading the same filename. Moonraker's temp file was cleaned up before the move completed.
 
 **Fix**: Added `sleep 2` between the delete and upload operations in the slicer job to avoid the race condition.
+
+### Spaghetti print from missing support material
+
+**Error**: Top tray print spaghettified — filament extruded into air with no support structure beneath the pocket overhangs.
+
+**Cause**: The slicer K8s Job (`k8s/slice-top-tray.yaml`) was created with `support_material = 0`, incorrectly assuming the flipped orientation wouldn't need supports. The flipped top tray has all pocket openings facing down.
+
+**Fix**: Changed to `support_material = 1` with `support_material_auto = 1`, added `brim_width = 5`, and added support material validation in the gcode validator to catch this before printing.
+
+### Top tray printed as disconnected islands (no floor)
+
+**Error**: After fixing the spaghetti issue with supports, the top tray printed with many disconnected sections — no continuous floor connecting the device pocket areas. The print was structurally unsound and flimsy.
+
+**Cause**: The top tray had 15+ through-cuts (cable holes, push rod slots, mudra socket, iPad cable tunnel spanning full width, LCD window, iPad blade slot) that fragmented the bottom face (Z=41) into thin strips and isolated patches. When printed flipped, these holes appear in the first layers, preventing the formation of a connected base.
+
+**Fix**: Added a `LID_FLOOR` (2mm) solid floor slab across the interior at Z=SPLIT_Z using `base.union()`. Essential through-holes (push rods, mudra socket, cable pass-throughs) are re-cut at minimum size through the new floor. The iPad cable tunnel, which previously spanned the full 240mm width at Z=42, is now blocked by the floor — the cable routes through the smaller vertical cable hole instead.

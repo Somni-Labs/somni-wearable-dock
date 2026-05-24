@@ -44,6 +44,7 @@ TOL = 1.0              # print tolerance per side (1mm clearance each side for s
 # Bottom tray height = 41mm to house VanBon charger (33mm + 3mm floor + 2.5mm ceiling + margin).
 SPLIT_Z = 41           # Z where the two parts meet (bottom tray height)
 TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
+LID_FLOOR = 2          # solid floor thickness on top tray bottom face (lid surface)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
 SNAP_LIP = 1.5         # ledge depth for snap engagement
 SNAP_CLIP_W = 12       # width of each snap clip
@@ -1628,6 +1629,174 @@ def build_top_tray():
              centered=[True, True, False])
     )
     base = base.cut(spare_usb_top)
+
+
+    # =====================================================================
+    # CONTINUOUS LID FLOOR — connects all sections for printability
+    # =====================================================================
+    # When the top tray is printed flipped (Z=58 on build plate), the
+    # bottom face (Z=41) becomes the topmost printed surface. Without a
+    # continuous floor, the many through-cuts (cable holes, push rod slots,
+    # mudra socket, iPad tunnel, LCD window) fragment this surface into
+    # disconnected islands that print as flimsy, unconnected pieces.
+    #
+    # Fix: union a solid floor slab across the interior, then re-cut ONLY
+    # the features that physically must pass through (push rods, mudra
+    # pole socket, mudra cable hole). Cable pass-throughs become blind
+    # pockets — cables route through the pocket walls instead.
+    # The floor is inset from the outer walls so snap clips, AC cable
+    # pass-throughs, and spare USB exits in the walls are unaffected.
+    # =====================================================================
+    _floor_inset = WALL  # inset from outer walls (2.5mm) to avoid interfering with wall features
+    _lid_floor_w = STAND_W - _floor_inset * 2   # 235mm
+    _lid_floor_d = STAND_D - _floor_inset * 2   # 170mm
+
+    lid_floor = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .box(_lid_floor_w, _lid_floor_d, LID_FLOOR,
+             centered=[True, True, False])
+    )
+    base = base.union(lid_floor)
+
+    # ── Re-cut essential through-holes in the new floor ──────────────────
+    # These features MUST pass through the floor because physical objects
+    # move through them (servo push rods, mudra pole, cables).
+
+    # 1. Push rod slots (4x) — servo actuators push through these
+    for name in ["uh_ring", "r1_ring", "omi", "mudra"]:
+        _pr_x, _pr_y = SLOT_POSITIONS[name]
+        _pr_slot = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - 0.5)
+            .center(_pr_x, SERVO_Y)
+            .rect(PUSH_ROD_SLOT_W, PUSH_ROD_SLOT_L)
+            .extrude(LID_FLOOR + 1)
+        )
+        base = base.cut(_pr_slot)
+
+    # 2. Mudra pole socket — pole drops in from above
+    _floor_socket_w = MUDRA_POLE_D + SNAP_TOL * 2   # 20.6mm
+    _floor_socket_d = MUDRA_POLE_W + SNAP_TOL * 2   # 22.6mm
+    _floor_mudra_socket = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(mx, my)
+        .rect(_floor_socket_w, _floor_socket_d)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_mudra_socket)
+
+    # 3. Mudra cable hole — cable from pole to bottom tray
+    _floor_mudra_cable = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(mx, my)
+        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_mudra_cable)
+
+    # 4. Mudra snap hook engagement pockets — re-cut so hooks can engage
+    _floor_pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2   # 14.6mm
+    _floor_pocket_depth = MUDRA_HOOK                 # 2.0mm
+    _floor_pocket_h = MUDRA_HOOK_H + 1              # 3.0mm
+    for _fs_sign in [-1, 1]:
+        _fs_x = mx + _fs_sign * (_floor_socket_w / 2 + _floor_pocket_depth / 2)
+        _fs_pocket = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - _floor_pocket_h)
+            .center(_fs_x, my)
+            .rect(_floor_pocket_depth, _floor_pocket_w)
+            .extrude(_floor_pocket_h + 0.5)
+        )
+        base = base.cut(_fs_pocket)
+
+    # 5. Device cable pass-throughs — small holes for USB-C cables to
+    #    drop from pockets into bottom tray. These are small enough
+    #    (14×9mm) to bridge easily with supports when printed flipped.
+
+    # UH cable hole
+    _uh_cx, _uh_cy = SLOT_POSITIONS["uh_ring"]
+    _floor_uh_cable = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_uh_cx, _uh_cy - UH_SIDE / 2)
+        .rect(USBC_HEAD_W, USBC_HEAD_H)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_uh_cable)
+
+    # R1 cable hole
+    _r1_cx, _r1_cy = SLOT_POSITIONS["r1_ring"]
+    _floor_r1_cable = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_r1_cx, _r1_cy - R1_DIA / 2)
+        .rect(USBC_HEAD_W, USBC_HEAD_H)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_r1_cable)
+
+    # Omi cable hole
+    _omi_cx, _omi_cy = SLOT_POSITIONS["omi"]
+    _omi_diamond = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
+    _omi_front_y_floor = _omi_cy + min(p[1] for p in _omi_diamond)
+    _omi_port_x_floor = _omi_cx - 8
+    _floor_omi_cable = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_omi_port_x_floor, _omi_front_y_floor)
+        .rect(USBC_HEAD_W, USBC_HEAD_H)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_omi_cable)
+
+    # G2 cable hole (generic, at device center)
+    _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
+    _floor_g2_cable = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_g2_cx, _g2_cy)
+        .rect(USBC_HEAD_W + 2, USBC_HEAD_H + 2)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_g2_cable)
+
+    # G2 LCD viewing window — re-cut through floor
+    _floor_lcd_window = 48
+    _floor_g2_lcd = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_g2_cx, _g2_cy)
+        .rect(_floor_lcd_window, _floor_lcd_window)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_g2_lcd)
+
+    # iPad cable vertical hole — cable from tunnel up to iPad channel
+    _ipad_y_floor = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
+    _floor_ipad_cable = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(0, _ipad_y_floor)
+        .rect(14, 14)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_ipad_cable)
+
+    # iPad blade slot — re-cut through floor for wall slide-in
+    _floor_blade_w = IPAD_SLOT_W + 10 + 2
+    _floor_blade_yd = IPAD_BACK_THICK + IPAD_WALL_TOL
+    _floor_blade_y = STAND_D / 2 - IPAD_BACK_THICK / 2
+    _floor_blade_slot = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .center(0, _floor_blade_y)
+        .rect(_floor_blade_w, _floor_blade_yd)
+        .extrude(LID_FLOOR + 0.5)
+    )
+    base = base.cut(_floor_blade_slot)
 
     return base
 
