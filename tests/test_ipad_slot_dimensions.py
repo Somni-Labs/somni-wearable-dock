@@ -49,12 +49,17 @@ class TestIpadSlotPortraitOrientation:
         )
 
     def test_slot_width_sized_for_portrait_not_landscape(self):
-        """IPAD_SLOT_W should be in portrait range (~214-220mm), not landscape (~268-280mm)."""
-        assert C["IPAD_SLOT_W"] < 240, (
-            f"IPAD_SLOT_W={C['IPAD_SLOT_W']} looks like landscape orientation (>= 240mm)"
+        """IPAD_SLOT_W must be less than STAND_W (portrait backdrop, not landscape pocket).
+
+        The slot is a wide backdrop — intentionally wider than the bare iPad
+        (213mm) to fill the stand width. The real guard is that it stays under
+        STAND_W so it's clearly portrait orientation, not landscape (268mm+).
+        """
+        assert C["IPAD_SLOT_W"] < STAND_W, (
+            f"IPAD_SLOT_W={C['IPAD_SLOT_W']} >= STAND_W={STAND_W} — looks like landscape"
         )
-        assert C["IPAD_SLOT_W"] < 230, (
-            f"IPAD_SLOT_W={C['IPAD_SLOT_W']} is too wide for portrait 213mm iPad"
+        assert C["IPAD_SLOT_W"] >= IPAD_WIDTH_BARE, (
+            f"IPAD_SLOT_W={C['IPAD_SLOT_W']} narrower than bare iPad ({IPAD_WIDTH_BARE}mm)"
         )
 
     def test_slot_gap_accommodates_device_thickness(self):
