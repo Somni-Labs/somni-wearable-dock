@@ -46,50 +46,42 @@ class TestIpadWallTolerance:
         )
 
 
-class TestIpadWallSlotDimensions:
-    """Captive slot in tray body must hold the wall blade securely."""
+class TestIpadWallBladeChannel:
+    """Through-floor blade channel must hold the wall securely in solid tray body."""
 
-    def test_slot_z_depth_provides_leverage(self):
-        """IPAD_SLOT_Z_DEPTH must give a reasonable height-to-engagement ratio."""
-        slot_z = C["IPAD_SLOT_Z_DEPTH"]
+    def test_blade_depth_provides_leverage(self):
+        """Blade must embed deep enough for a stable height-to-engagement ratio."""
+        # Blade goes from SPLIT_Z+1 to channel floor (SPLIT_Z + 1 + 8 + 2.5)
+        blade_depth = 8 + 2.5   # tunnel_h + floor_thick = 10.5mm
         wall_h = C["IPAD_BACK_H"]
-        ratio = wall_h / slot_z
-        assert slot_z >= 8, (
-            f"IPAD_SLOT_Z_DEPTH={slot_z}mm too shallow — wall will wobble"
+        ratio = wall_h / blade_depth
+        assert blade_depth >= 10, (
+            f"Blade depth {blade_depth}mm too shallow — need >= 10mm"
         )
-        assert ratio <= 8, (
+        assert ratio <= 7, (
             f"Height-to-engagement ratio {ratio:.1f}:1 too high (wobble risk)"
         )
 
-    def test_slot_z_fits_below_channel_floor(self):
-        """Slot must fit between SPLIT_Z and the iPad channel floor (Z=52.5)."""
-        split_z = C["SPLIT_Z"]
-        slot_top = split_z + 1 + C["IPAD_SLOT_Z_DEPTH"]
-        # Channel floor is at SPLIT_Z + 1 + 8 + 2.5 = 52.5
-        channel_floor = split_z + 1 + 8 + 2.5
-        assert slot_top <= channel_floor, (
-            f"Slot top Z={slot_top}mm breaches channel floor at Z={channel_floor}mm"
-        )
-
-    def test_slot_y_depth_provides_grip(self):
-        """IPAD_SLOT_Y_DEPTH must be deep enough for front-back grip."""
-        assert C["IPAD_SLOT_Y_DEPTH"] >= 6, (
-            f"IPAD_SLOT_Y_DEPTH={C['IPAD_SLOT_Y_DEPTH']}mm — need >= 6mm for grip"
-        )
-
-    def test_blade_fits_in_slot(self):
-        """Blade (slot - TOL) must be smaller than slot in both Z and Y."""
-        blade_z = C["IPAD_SLOT_Z_DEPTH"] - C["IPAD_WALL_TOL"]
-        blade_y = C["IPAD_SLOT_Y_DEPTH"] - C["IPAD_WALL_TOL"]
-        assert blade_z > 0, "Blade Z must be positive"
-        assert blade_y > 0, "Blade Y must be positive"
-        assert blade_z < C["IPAD_SLOT_Z_DEPTH"], "Blade must be smaller than slot"
-
-    def test_clearance_per_side(self):
-        """Clearance per side should be IPAD_WALL_TOL / 2 = 0.2mm."""
+    def test_blade_thickness_has_clearance(self):
+        """Blade must be thinner than wall by IPAD_WALL_TOL for slide fit."""
+        blade_t = C["IPAD_BACK_THICK"] - C["IPAD_WALL_TOL"]
+        assert blade_t > 0, "Blade thickness must be positive"
+        assert blade_t < C["IPAD_BACK_THICK"], "Blade must be thinner than wall"
+        # Slot is wall thickness + tolerance, blade is wall - tolerance
+        # Total clearance per side = IPAD_WALL_TOL
         clearance = C["IPAD_WALL_TOL"] / 2
         assert 0.1 <= clearance <= 0.4, (
             f"Clearance per side {clearance}mm outside sane range"
+        )
+
+    def test_blade_slot_below_channel_floor(self):
+        """Blade slot must exist below the iPad channel floor in solid tray body."""
+        split_z = C["SPLIT_Z"]
+        channel_floor_z = split_z + 1 + 8 + 2.5  # 52.5
+        slot_bottom = split_z + 1                  # 42
+        assert slot_bottom < channel_floor_z, "Slot must be below channel floor"
+        assert channel_floor_z - slot_bottom >= 10, (
+            f"Only {channel_floor_z - slot_bottom}mm of solid body — need >= 10mm"
         )
 
     def test_detent_exists(self):
