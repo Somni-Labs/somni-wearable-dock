@@ -1541,7 +1541,7 @@ def build_top_tray():
     #
     _blade_slot_w = IPAD_SLOT_W + 10 + 2  # wall width + exits both sides for slide-in
     _blade_slot_yd = IPAD_BACK_THICK + IPAD_WALL_TOL  # 4.4mm — tight fit around blade
-    _blade_slot_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # centered on wall Y position
+    _blade_slot_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # centered on wall Y — 0.2mm overcut at rear is tolerance
     # The slot cuts through the channel floor and into the solid body below.
     # Floor is at Z=52.5 (= _floor_z + _floor_thick from the tunnel code).
     # Solid tray body starts at SPLIT_Z (41). We cut from Z=42 (1mm above
