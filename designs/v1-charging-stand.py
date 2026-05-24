@@ -262,6 +262,13 @@ IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad
 IPAD_BACK_THICK = 4           # back wall thickness
 IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
 IPAD_WALL_TOL = 0.4        # tongue-and-groove tolerance (tighter than global TOL for snug slide fit)
+IPAD_GROOVE_DEPTH = 8      # groove depth into top tray (Z) — deeper = more leverage against wobble
+IPAD_GROOVE_Y_DEPTH = 3    # groove depth in Y direction (tongue slides into this)
+IPAD_DETENT_H = 0.6        # snap detent bump height (clicks past on insertion)
+IPAD_DETENT_W = 15         # snap detent bump width (X)
+IPAD_BUTTRESS_H = 6        # support buttress height on wall tongue (triangular gussets)
+IPAD_BUTTRESS_W = 20       # support buttress width along wall (X)
+IPAD_BUTTRESS_T = 2.5      # support buttress thickness (Y, extends from wall back face)
 # Diagonal placement: 13" iPad (270mm) can fit diagonally in 235mm slot
 # sin(angle) = 235/270 = 0.87, angle ≈ 60° from horizontal
 
@@ -1522,21 +1529,38 @@ def build_top_tray():
         base = base.cut(rail_groove)
 
     # ── iPad back wall groove — wall slides in as separate part ──────
-    # Groove cut into the top surface at the rear edge. The separate
-    # iPad wall's tongue tab slides into this groove from either side.
+    # Deep groove cut into the top tray rear edge. The wall's tongue
+    # slides in from either side. 8mm deep (Z) gives the 60mm wall
+    # a 7.5:1 height-to-engagement ratio instead of 23:1 — much
+    # more leverage against wobble.
     # Cut AFTER the edge fillets so groove edges stay sharp.
-    _groove_depth = 3      # groove depth into surface (Y)
-    _groove_h = 3          # groove height (Z, cut down from top)
-    _groove_w = IPAD_SLOT_W + 10 + 2  # wall width + exits both sides
-    _groove_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # same Y as old wall
+    _groove_h = IPAD_GROOVE_DEPTH                   # 8mm deep (Z)
+    _groove_yd = IPAD_GROOVE_Y_DEPTH                # 3mm deep (Y)
+    _groove_w = IPAD_SLOT_W + 10 + 2                # wall width + exits both sides
+    _groove_y = STAND_D / 2 - IPAD_BACK_THICK / 2   # same Y as old wall
     ipad_wall_groove = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - _groove_h)
         .center(0, _groove_y)
-        .rect(_groove_w, _groove_depth)
+        .rect(_groove_w, _groove_yd)
         .extrude(_groove_h + 0.5)
     )
     base = base.cut(ipad_wall_groove)
+
+    # ── Snap detent bumps — resist lateral slide-out ────────────────
+    # Two small bumps inside the groove, near each end. The tongue
+    # clicks past them on insertion, then they prevent the wall from
+    # sliding back out. Placed 30mm from each end of the groove.
+    for detent_sign in [-1, +1]:
+        _detent_x = detent_sign * (IPAD_SLOT_W / 2 + 5 - 30)  # 30mm from each end
+        detent = (
+            cq.Workplane("XY")
+            .workplane(offset=STAND_H - _groove_h)
+            .center(_detent_x, _groove_y)
+            .rect(IPAD_DETENT_W, IPAD_DETENT_H)
+            .extrude(IPAD_DETENT_H)
+        )
+        base = base.union(detent)
 
     # ── Front lip — prevents iPad sliding forward ────────────────────
     ipad_lip = (
@@ -1658,13 +1682,15 @@ def build_ipad_cover():
 # =============================================================================
 
 def build_ipad_wall():
-    """iPad back wall — separate slide-in piece with tongue tab.
+    """iPad back wall — separate slide-in piece with deep tongue and buttresses.
 
-    The iPad leans against this wall. It slides into a groove on the
-    top tray's rear edge from either side. Prints flat on its back
-    (245mm x 60mm face on build plate, only 4mm tall).
+    The iPad leans against this wall. It slides into a deep groove (8mm)
+    on the top tray's rear edge from either side. Two triangular buttress
+    gussets on the tongue provide rotational stiffness against the wall
+    rocking backward under iPad weight.
 
-    Built at origin: centered on X, Z=0 at the bottom edge.
+    Prints flat on its back (245mm x 60mm face on build plate, ~6.5mm tall
+    with buttresses). Built at origin, centered on X, Z=0 at bottom edge.
     The tongue tab extends in +Y from the wall's back face.
     """
     _wall_w = IPAD_SLOT_W + 10     # 245mm — same as the old union wall
@@ -1678,20 +1704,70 @@ def build_ipad_wall():
         .extrude(_wall_h)
     )
 
-    # ── Tongue tab on the bottom edge ────────────────────────────────
-    # Extends from the back face (+Y) of the wall, runs full width.
-    # Sized to slide into the groove on the top tray with IPAD_WALL_TOL
-    # clearance per side.
-    _tongue_depth = 3 - IPAD_WALL_TOL   # 2.6mm (into groove)
-    _tongue_h = 3 - IPAD_WALL_TOL       # 2.6mm (groove height minus clearance)
+    # ── Deep tongue tab on the bottom edge ───────────────────────────
+    # 8mm tall tongue (matches groove depth) gives a 7.5:1 ratio
+    # instead of the old 23:1. The tongue depth in Y stays at 2.6mm
+    # to fit the groove channel.
+    _tongue_yd = IPAD_GROOVE_Y_DEPTH - IPAD_WALL_TOL   # 2.6mm (Y depth into groove)
+    _tongue_h = IPAD_GROOVE_DEPTH - IPAD_WALL_TOL      # 7.6mm (Z height, matches groove)
     tongue = (
         cq.Workplane("XY")
         .workplane(offset=0)
-        .center(0, _wall_t / 2 + _tongue_depth / 2)
-        .rect(_wall_w - IPAD_WALL_TOL * 2, _tongue_depth)
+        .center(0, _wall_t / 2 + _tongue_yd / 2)
+        .rect(_wall_w - IPAD_WALL_TOL * 2, _tongue_yd)
         .extrude(_tongue_h)
     )
     wall = wall.union(tongue)
+
+    # ── Triangular buttress gussets — anti-wobble ────────────────────
+    # Two right-triangle gussets on the back face of the wall, bridging
+    # from the wall body down to the tongue. They resist the rotational
+    # force from the iPad leaning against the wall.
+    # Placed symmetrically, ~1/4 from each end.
+    import math
+    for butt_sign in [-1, +1]:
+        _butt_x = butt_sign * (_wall_w / 4)
+        # Triangular gusset: right triangle with legs along Z (up the wall)
+        # and Y (out from the back face into the groove cavity).
+        # Height = IPAD_BUTTRESS_H above the tongue top, extending up the wall.
+        # Depth = IPAD_BUTTRESS_T from the wall back face.
+        _butt_base_z = _tongue_h   # starts at tongue top
+        _butt_top_z = _tongue_h + IPAD_BUTTRESS_H
+        # Build as a solid block then trim to triangle with a diagonal cut
+        buttress = (
+            cq.Workplane("XY")
+            .workplane(offset=_butt_base_z)
+            .center(_butt_x, _wall_t / 2 + IPAD_BUTTRESS_T / 2)
+            .rect(IPAD_BUTTRESS_W, IPAD_BUTTRESS_T)
+            .extrude(IPAD_BUTTRESS_H)
+        )
+        # Diagonal cut: remove upper-rear triangle to form a right-triangle gusset.
+        # The cut removes material from (Z=_butt_base_z, Y=back) to (Z=_butt_top_z, Y=wall_face)
+        # This is a wedge that tapers the buttress from full depth at the tongue
+        # to zero depth at the top.
+        _cut_y_center = _wall_t / 2 + IPAD_BUTTRESS_T
+        wedge_cut = (
+            cq.Workplane("XZ")
+            .workplane(offset=_cut_y_center)
+            .center(_butt_x, (_butt_base_z + _butt_top_z) / 2)
+            .rect(IPAD_BUTTRESS_W + 1, IPAD_BUTTRESS_H)
+            .extrude(IPAD_BUTTRESS_T + 1)
+        )
+        # Instead of a complex wedge, approximate with a simple stepped taper:
+        # 3 steps that reduce depth progressively
+        _steps = 3
+        _step_h = IPAD_BUTTRESS_H / _steps
+        for step_i in range(_steps):
+            _cut_depth = IPAD_BUTTRESS_T * (step_i + 1) / (_steps + 1)
+            step_cut = (
+                cq.Workplane("XY")
+                .workplane(offset=_butt_base_z + _step_h * (step_i + 1) - 0.01)
+                .center(_butt_x, _wall_t / 2 + IPAD_BUTTRESS_T - _cut_depth / 2)
+                .rect(IPAD_BUTTRESS_W + 0.1, _cut_depth + 0.01)
+                .extrude(_step_h * (_steps - step_i) + 0.1)
+            )
+            buttress = buttress.cut(step_cut)
+        wall = wall.union(buttress)
 
     return wall
 
