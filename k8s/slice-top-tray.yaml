@@ -60,9 +60,10 @@ spec:
           bed_temperature = 70
           first_layer_bed_temperature = 70
           fan_always_on = 0
-          min_fan_speed = 30
+          min_fan_speed = 0
           max_fan_speed = 80
-          bridge_fan_speed = 100
+          bridge_fan_speed = 80
+          overhangs_fan_speed = 80
           disable_fan_first_layers = 3
           gcode_flavor = klipper
           bed_shape = 0x0,275x0,275x295,0x295
@@ -83,6 +84,11 @@ spec:
           echo "--- Slicing top tray (WITH supports + brim, flipped, ~17mm tall) ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/top.gcode --export-gcode /shared/top-tray.stl
+
+          echo "--- Capping fan speed to 80% (S204) ---"
+          sed -i 's/M106 S255/M106 S204/g' /tmp/top.gcode
+          FULL_FAN=$(grep -c 'M106 S255' /tmp/top.gcode || true)
+          echo "  M106 S255 remaining after cap: $FULL_FAN (should be 0)"
 
           echo "--- Validating gcode ---"
           BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' /tmp/top.gcode | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
