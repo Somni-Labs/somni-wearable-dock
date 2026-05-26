@@ -1,6 +1,6 @@
 # Motorized Wearable Reveal System Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add 4x SG90 servo mounts, QuinLED-Dig-Uno controller, updated ESP32 slot-cradle mount, proximity sensor, servo wiring channels, push rod slots, and ghost visualization objects to the charging stand CAD model.
 
@@ -26,7 +26,7 @@
 
 This task replaces the old ESP32 standoff + driver pocket constants with new servo, QuinLED, slot-cradle ESP32, proximity sensor, and wiring channel constants. The old constants (`DRIVER_L`, `DRIVER_W`, `DRIVER_H`, `DRIVER_STANDOFF_H`, `DRIVER_STANDOFF_D`, `ESP32_STANDOFF_H`, `ESP32_STANDOFF_D`) are deleted. `ESP32_L`, `ESP32_W`, and `ESP32_H` are updated to new values for the pin-header board.
 
-- [ ] **Step 1: Replace the ESP32 constants block**
+- [x] **Step 1: Replace the ESP32 constants block**
 
 In `designs/v1-charging-stand.py`, find the block at lines 134-143:
 
@@ -62,7 +62,7 @@ ESP32_USB_SLOT_W = 12     # USB port slot width through front wall
 ESP32_USB_SLOT_H = 8      # USB port slot height through front wall
 ```
 
-- [ ] **Step 2: Replace the driver pocket constants with QuinLED + new feature constants**
+- [x] **Step 2: Replace the driver pocket constants with QuinLED + new feature constants**
 
 Find the block at lines 157-162:
 
@@ -124,7 +124,7 @@ SERVO_WIRE_W = 8          # servo wire channel width
 SERVO_WIRE_D = 4          # servo wire channel depth
 ```
 
-- [ ] **Step 3: Verify the design still builds**
+- [x] **Step 3: Verify the design still builds**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
@@ -132,7 +132,7 @@ Expected: Build will FAIL because `build_bottom_tray()` still references `ESP32_
 
 Note the specific error (e.g. `NameError: name 'ESP32_STANDOFF_H' is not defined`) to confirm the constants removal was clean.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -155,7 +155,7 @@ updated in subsequent commits to use the new constants."
 
 The old ESP32 mount uses 4 screw standoff posts that reference the now-deleted `ESP32_STANDOFF_H` and `ESP32_STANDOFF_D` constants. Replace with a slot-cradle design: two parallel raised rails with grooves for pin headers. Also update the USB port slot Z position for the taller board.
 
-- [ ] **Step 1: Replace the ESP32 mount code**
+- [x] **Step 1: Replace the ESP32 mount code**
 
 In `designs/v1-charging-stand.py`, find the ESP32 mount section (lines 513-566). Replace the entire block from the comment `# ── ESP32 DevKitC V4 mount` through the USB port slot code (ending at `tray = tray.cut(esp_usb_slot)` on line 566) with:
 
@@ -236,13 +236,13 @@ In `designs/v1-charging-stand.py`, find the ESP32 mount section (lines 513-566).
     tray = tray.cut(esp_usb_slot)
 ```
 
-- [ ] **Step 2: Verify syntax is valid**
+- [x] **Step 2: Verify syntax is valid**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 -c "import ast; ast.parse(open('designs/v1-charging-stand.py').read()); print('Syntax OK')"`
 
 Expected: `Syntax OK` (syntax check only — runtime will still fail because driver pocket code references deleted constants)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -264,7 +264,7 @@ USB port slot repositioned higher for raised board position."
 
 The old driver pocket (22x16mm behind the ESP32) is removed entirely. A new QuinLED-Dig-Uno mount (50x50mm) goes in the front-right corner (mirroring ESP32 on front-left). The cable winding post loop on the right side must skip posts where Y < -35 (they overlap the QuinLED footprint).
 
-- [ ] **Step 1: Replace the driver pocket code with QuinLED mount code**
+- [x] **Step 1: Replace the driver pocket code with QuinLED mount code**
 
 Find the driver pocket section (lines 568-593 — from comment `# ── LED driver / level shifter pocket` through the second `tray = tray.union(drv_standoff)`). Replace with:
 
@@ -310,7 +310,7 @@ Find the driver pocket section (lines 568-593 — from comment `# ── LED dri
     tray = tray.union(qled_cradle_front)
 ```
 
-- [ ] **Step 2: Update the cable post loop to skip posts overlapping QuinLED**
+- [x] **Step 2: Update the cable post loop to skip posts overlapping QuinLED**
 
 Find the cable post loop at lines 418-456. The loop iterates `for side_sign in [-1, 1]` and inside creates column 1 and column 2 posts. The right side (side_sign == +1) has posts at X=99 and X=113, running from Y=-73 to Y=73.
 
@@ -381,7 +381,7 @@ Apply the same skip condition to the Column 2 loop (lines 443-456):
             _y += _post_spacing_y
 ```
 
-- [ ] **Step 3: Update the wiring groove that connected ESP32 → old driver pocket**
+- [x] **Step 3: Update the wiring groove that connected ESP32 → old driver pocket**
 
 Find the wiring grooves section (lines 671-708). The first groove (`wire_esp_to_drv`, lines 678-686) connected the ESP32 to the old driver pocket at `_drv_y`. Replace the ESP32→driver groove with an ESP32→QuinLED floor groove instead. The wire routes from ESP32 (X=-105.5, Y=-57) rightward along X to the charger bay edge, then continues to QuinLED (X=92.5, Y=-60).
 
@@ -441,13 +441,13 @@ Note: `_prox_x` is defined in Task 6 (proximity sensor mount). If building tasks
 
 Add these two lines right after the `_esp_y` definition.
 
-- [ ] **Step 4: Verify the design builds**
+- [x] **Step 4: Verify the design builds**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
 Expected: Build succeeds, 4 STL files + 4 STEP files exported. The bottom tray now has the QuinLED mount in the front-right corner and updated wiring grooves.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -468,7 +468,7 @@ ESP32→left LED channel, QuinLED→right LED channel, sensor→ESP32."
 
 Each servo gets a rectangular pocket in the floor (ears rest on rim) and 2x M2 screw posts. All 4 servos sit at Y=-37, at the X positions of their corresponding front-row devices.
 
-- [ ] **Step 1: Add the servo mount code**
+- [x] **Step 1: Add the servo mount code**
 
 In `build_bottom_tray()`, find the logo section (comment `# ── "Somni Labs" backlit logo`). Insert the following code BEFORE that comment:
 
@@ -518,13 +518,13 @@ In `build_bottom_tray()`, find the logo section (comment `# ── "Somni Labs" 
             tray = tray.cut(pilot)
 ```
 
-- [ ] **Step 2: Verify the design builds**
+- [x] **Step 2: Verify the design builds**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
 Expected: Build succeeds. Bottom tray now has 4 servo pockets with screw posts.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -544,7 +544,7 @@ body + ears, with 2x M2 screw posts for mounting ears."
 
 The servo wire trunk runs along X at Y=-37 connecting all 4 servos. L-shaped spurs connect to the ESP32 and QuinLED. Arch clips every ~40mm hold wires in place.
 
-- [ ] **Step 1: Add the servo wiring channel code**
+- [x] **Step 1: Add the servo wiring channel code**
 
 Insert after the servo mount code (after the last `tray = tray.cut(pilot)`), before the logo section:
 
@@ -642,13 +642,13 @@ Insert after the servo mount code (after the last `tray = tray.cut(pilot)`), bef
         tray = tray.cut(arch_inner)
 ```
 
-- [ ] **Step 2: Verify the design builds**
+- [x] **Step 2: Verify the design builds**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
 Expected: Build succeeds. Bottom tray now has servo wire channels and arch clips along the trunk.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -669,7 +669,7 @@ front-row cable clips already exist)."
 
 The sensor sits to the right of the ESP32 mount, against the front wall. A small window through the front wall allows the ToF laser to detect approaching hands.
 
-- [ ] **Step 1: Add the proximity sensor mount code**
+- [x] **Step 1: Add the proximity sensor mount code**
 
 Insert after the servo wire arch clips, before the logo section:
 
@@ -702,7 +702,7 @@ Insert after the servo wire arch clips, before the logo section:
     tray = tray.cut(prox_window)
 ```
 
-- [ ] **Step 2: Verify that `_prox_x` and `_prox_y` are defined**
+- [x] **Step 2: Verify that `_prox_x` and `_prox_y` are defined**
 
 Check that the two lines from Task 3 Step 3 are present right after `_esp_y`:
 
@@ -713,13 +713,13 @@ Check that the two lines from Task 3 Step 3 are present right after `_esp_y`:
 
 If not present, add them now.
 
-- [ ] **Step 3: Verify the design builds**
+- [x] **Step 3: Verify the design builds**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
 Expected: Build succeeds. Bottom tray now has sensor bracket clips and front wall window.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -739,7 +739,7 @@ right of ESP32 mount at X=-74.5, Y=-76."
 
 4 rectangular slots through the top tray floor allow push rods from the servos below to reach the device cradles above.
 
-- [ ] **Step 1: Add the push rod slot code**
+- [x] **Step 1: Add the push rod slot code**
 
 In `build_top_tray()`, find the cable pass-through holes section (line 832, comment `# ── Cable pass-through holes`). Insert the following code BEFORE that comment, after the snap-fit lip pocket loop ends:
 
@@ -760,13 +760,13 @@ In `build_top_tray()`, find the cable pass-through holes section (line 832, comm
         base = base.cut(push_slot)
 ```
 
-- [ ] **Step 2: Verify the design builds**
+- [x] **Step 2: Verify the design builds**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
 Expected: Build succeeds. Top tray now has 4 push rod slots at the servo positions.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -785,7 +785,7 @@ allow push rods to actuate wearable cradles from servos below."
 
 The ghost function creates translucent colored boxes at each component's world-coordinate position. These overlay objects are displayed in cadquery-server for visual verification of component fit — they are NOT boolean-operated with the tray geometry.
 
-- [ ] **Step 1: Add the `build_ghost_components()` function**
+- [x] **Step 1: Add the `build_ghost_components()` function**
 
 Insert the following function BEFORE the `# BUILD AND DISPLAY` section (before line `bottom_tray = build_bottom_tray()`):
 
@@ -918,7 +918,7 @@ def build_ghost_components():
     return parts
 ```
 
-- [ ] **Step 2: Update the BUILD AND DISPLAY section to show ghost objects**
+- [x] **Step 2: Update the BUILD AND DISPLAY section to show ghost objects**
 
 Find the current display section (starting at `bottom_tray = build_bottom_tray()`). Add the ghost display loop after the mudra pole display:
 
@@ -963,13 +963,13 @@ for comp_name, (comp_solid, comp_color) in ghosts.items():
                 options={"color": comp_color})
 ```
 
-- [ ] **Step 3: Verify the design builds and ghosts appear**
+- [x] **Step 3: Verify the design builds and ghosts appear**
 
 Run: `cd /home/curiosity/mounted_drives/obsidian/obsidian/Somni/SomniApps/somni-wearable-dock && python3 export_charging_stand.py`
 
 Expected: Build succeeds. The export script strips `show_object` calls, so ghost objects don't affect STL export. The ghost objects will be visible in cadquery-server preview after pushing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add designs/v1-charging-stand.py
@@ -991,7 +991,7 @@ for visual verification of component fit."
 
 Update the Architecture section to document the motorized reveal system, QuinLED controller, updated ESP32 mount, proximity sensor, and ghost visualization.
 
-- [ ] **Step 1: Update the Architecture section**
+- [x] **Step 1: Update the Architecture section**
 
 In `CLAUDE.md`, find the Architecture section. Replace the existing lines about ESP32 mount, LED driver pocket:
 
@@ -1020,7 +1020,7 @@ with:
 - **Ghost visualization** — Translucent colored component overlays in cadquery-server preview (ESP32, QuinLED, servos, sensor, charger, LED strip)
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add CLAUDE.md
