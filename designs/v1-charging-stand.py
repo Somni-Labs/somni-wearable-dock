@@ -386,8 +386,8 @@ def build_bottom_tray():
     # ── Zone 1: Front cable channel — completely open ──────────────────
     # No ribs. The entire front channel is one open cavity from the
     # front wall to the charger bay. Cables route freely in any
-    # direction. The cable winding posts on the side looms, Velcro
-    # strap slots, and arch clips handle all the organization.
+    # direction. The Velcro tie-down slots and arch clips handle
+    # all the cable organization.
 
     # ── Zone 2: VanBon charger bay (completely open) ─────────────────────
     # The charger sits on the floor and is accessed from ABOVE when the
