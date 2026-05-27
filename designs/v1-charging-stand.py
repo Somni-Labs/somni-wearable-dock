@@ -469,16 +469,17 @@ def build_bottom_tray():
     # ── Side cable channels: two rows of Velcro tie-down slots ─────────
     # Each side of the charger bay has two parallel rows of Velcro
     # strap slots running front-to-back (along Y). Each pair of slots
-    # is spaced 8mm apart — thread a Velcro strap down through one
-    # slot, under the floor, and up through the other to cinch cables
-    # flat against the floor.
+    # is spaced 10mm apart along X — thread a Velcro strap down through
+    # one slot, under the floor, and up through the other to cinch
+    # cables flat against the floor. Slots are oriented along Y
+    # (perpendicular to the cable run direction).
     #
     # Row 1 (inner, closer to charger) — holds routed cables in place.
     # Row 2 (outer, toward wall) — holds excess cable loops.
     #
-    _velcro_slot_l = 15    # slot length along X (wide enough for strap)
-    _velcro_slot_w = 3     # slot width along Y
-    _velcro_pair_gap = 8   # gap between paired slots (cable passes over)
+    _velcro_slot_l = 15    # slot length along Y (wide enough for strap)
+    _velcro_slot_w = 3     # slot width along X
+    _velcro_pair_gap = 10  # gap between paired slots along X (cable passes over)
     _velcro_spacing_y = 30 # spacing between pairs along Y
     _velcro_row1_offset = 20  # inner row offset from charger bay edge
     _velcro_row2_offset = 38  # outer row offset from charger bay edge
@@ -495,8 +496,6 @@ def build_bottom_tray():
         for row_offset in [_velcro_row1_offset, _velcro_row2_offset]:
             row_x = edge_x + side_sign * row_offset
 
-            # Skip outer row on right side where it overlaps QuinLED
-            # QuinLED footprint: X=67.5..117.5, Y=-85..-35
             _y = _pocket_y_start
             while _y < _pocket_y_end:
                 # Skip slots that overlap the QuinLED footprint (right side, Y < -35)
@@ -508,22 +507,22 @@ def build_bottom_tray():
                     _y += _velcro_spacing_y
                     continue
 
-                # Slot A (front slot of pair)
+                # Slot A (inner slot of pair, closer to charger)
                 slot_a = (
                     cq.Workplane("XY")
                     .workplane(offset=-0.5)
-                    .center(row_x, _y - _velcro_pair_gap / 2)
-                    .rect(_velcro_slot_l, _velcro_slot_w)
+                    .center(row_x - side_sign * _velcro_pair_gap / 2, _y)
+                    .rect(_velcro_slot_w, _velcro_slot_l)
                     .extrude(BASE_H + 2)
                 )
                 tray = tray.cut(slot_a)
 
-                # Slot B (rear slot of pair, 8mm behind slot A)
+                # Slot B (outer slot of pair, 10mm toward wall from slot A)
                 slot_b = (
                     cq.Workplane("XY")
                     .workplane(offset=-0.5)
-                    .center(row_x, _y + _velcro_pair_gap / 2)
-                    .rect(_velcro_slot_l, _velcro_slot_w)
+                    .center(row_x + side_sign * _velcro_pair_gap / 2, _y)
+                    .rect(_velcro_slot_w, _velcro_slot_l)
                     .extrude(BASE_H + 2)
                 )
                 tray = tray.cut(slot_b)
