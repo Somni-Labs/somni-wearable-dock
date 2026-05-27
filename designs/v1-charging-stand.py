@@ -466,114 +466,69 @@ def build_bottom_tray():
     )
     tray = tray.cut(spare_usb_slot)
 
-    # ── Side pockets: cable corridor + loom + Velcro slots ──────────────
-    # Each side pocket (48mm wide × 170mm long) serves TWO purposes:
+    # ── Side cable channels: two rows of Velcro tie-down slots ─────────
+    # Each side of the charger bay has two parallel rows of Velcro
+    # strap slots running front-to-back (along Y). Each pair of slots
+    # is spaced 8mm apart — thread a Velcro strap down through one
+    # slot, under the floor, and up through the other to cinch cables
+    # flat against the floor.
     #
-    #   INNER CORRIDOR (charger side, ~20mm wide) — CLEAR PATH for
-    #   cables routing from the charger's USB-A ports (rear) through
-    #   to the front channel and up to each device. No posts here.
+    # Row 1 (inner, closer to charger) — holds routed cables in place.
+    # Row 2 (outer, toward wall) — holds excess cable loops.
     #
-    #   OUTER LOOM (wall side, ~25mm wide) — Cable winding posts
-    #   where excess cable length gets wrapped up. Velcro strap slots
-    #   between posts for cinching bundles.
-    #
-    # This way cables route naturally: plug into charger rear → run
-    # forward along the inner corridor → pass through the front spine
-    # gaps → up to each device. Excess cable wraps on the outer loom.
-    #
-    _post_dia = 5       # slim posts, cable-friendly
-    _post_h = 25        # tall enough for several wraps
-    _post_spacing_y = 22  # spacing between posts along Y
+    _velcro_slot_l = 15    # slot length along X (wide enough for strap)
+    _velcro_slot_w = 3     # slot width along Y
+    _velcro_pair_gap = 8   # gap between paired slots (cable passes over)
+    _velcro_spacing_y = 30 # spacing between pairs along Y
+    _velcro_row1_offset = 20  # inner row offset from charger bay edge
+    _velcro_row2_offset = 38  # outer row offset from charger bay edge
 
-    # Outer loom: posts pushed toward the outer wall
-    # Inner corridor: clear 20mm path next to charger bay
-    _corridor_w = 20    # clear cable routing corridor (no posts)
-    _col1_offset = 26   # first post column offset from charger wall
-    _col2_offset = 40   # second post column offset from charger wall
+    _pocket_y_start = -STAND_D / 2 + WALL + 15
+    _pocket_y_end = STAND_D / 2 - WALL - 15
 
-    # Velcro strap slots: 15mm × 3mm through the floor
-    _velcro_slot_l = 15
-    _velcro_slot_w = 3
-
-    # Posts run the full length of the pocket
-    _pocket_y_start = -STAND_D / 2 + WALL + 12
-    _pocket_y_end = STAND_D / 2 - WALL - 12
-
-    for side_sign in [-1, 1]:  # -1 = left pocket, +1 = right pocket
+    for side_sign in [-1, 1]:  # -1 = left, +1 = right
         if side_sign == -1:
             edge_x = _charger_left
-            col1_x = edge_x - _col1_offset
-            col2_x = edge_x - _col2_offset
         else:
             edge_x = _charger_right
-            col1_x = edge_x + _col1_offset
-            col2_x = edge_x + _col2_offset
 
-        # ── Column 1 posts (inner loom column) ──
-        _y = _pocket_y_start
-        _col1_ys = []
-        while _y < _pocket_y_end:
-            # Skip posts that overlap the QuinLED footprint (right side, Y < -35)
-            if side_sign == 1 and _y < -35:
-                _y += _post_spacing_y
-                continue
-            _col1_ys.append(_y)
-            post = (
-                cq.Workplane("XY")
-                .workplane(offset=BASE_H)
-                .center(col1_x, _y)
-                .circle(_post_dia / 2)
-                .extrude(_post_h)
-            )
-            tray = tray.union(post)
-            _y += _post_spacing_y
+        for row_offset in [_velcro_row1_offset, _velcro_row2_offset]:
+            row_x = edge_x + side_sign * row_offset
 
-        # ── Column 2 posts (outer loom column, staggered) ──
-        _y = _pocket_y_start + _post_spacing_y / 2
-        _col2_ys = []
-        while _y < _pocket_y_end:
-            # Skip posts that overlap the QuinLED footprint (right side, Y < -35)
-            if side_sign == 1 and _y < -35:
-                _y += _post_spacing_y
-                continue
-            _col2_ys.append(_y)
-            post = (
-                cq.Workplane("XY")
-                .workplane(offset=BASE_H)
-                .center(col2_x, _y)
-                .circle(_post_dia / 2)
-                .extrude(_post_h)
-            )
-            tray = tray.union(post)
-            _y += _post_spacing_y
+            # Skip outer row on right side where it overlaps QuinLED
+            # QuinLED footprint: X=67.5..117.5, Y=-85..-35
+            _y = _pocket_y_start
+            while _y < _pocket_y_end:
+                # Skip slots that overlap the QuinLED footprint (right side, Y < -35)
+                if side_sign == 1 and row_offset == _velcro_row2_offset and _y < -35:
+                    _y += _velcro_spacing_y
+                    continue
+                # Skip slots that overlap the ESP32 footprint (left side, Y < -35)
+                if side_sign == -1 and row_offset == _velcro_row2_offset and _y < -35:
+                    _y += _velcro_spacing_y
+                    continue
 
-        # ── Velcro strap slots between the loom columns ──
-        # Thread Velcro down through one slot, under floor, up next slot.
-        _velcro_x = (col1_x + col2_x) / 2
-        for i in range(0, len(_col1_ys) - 1, 2):
-            slot_y = (_col1_ys[i] + _col1_ys[i + 1]) / 2
-            velcro = (
-                cq.Workplane("XY")
-                .workplane(offset=-0.5)
-                .center(_velcro_x, slot_y)
-                .rect(_velcro_slot_l, _velcro_slot_w)
-                .extrude(BASE_H + 2)
-            )
-            tray = tray.cut(velcro)
-
-        # ── Velcro slot in the inner corridor too ──
-        # For cinching the routed cables (not the wrapped ones).
-        _corridor_velcro_x = edge_x + side_sign * (_corridor_w / 2)
-        for vy in [_charger_front - 10, charger_y, _charger_back + 10]:
-            if -STAND_D / 2 + WALL + 10 < vy < STAND_D / 2 - WALL - 10:
-                velcro = (
+                # Slot A (front slot of pair)
+                slot_a = (
                     cq.Workplane("XY")
                     .workplane(offset=-0.5)
-                    .center(_corridor_velcro_x, vy)
+                    .center(row_x, _y - _velcro_pair_gap / 2)
                     .rect(_velcro_slot_l, _velcro_slot_w)
                     .extrude(BASE_H + 2)
                 )
-                tray = tray.cut(velcro)
+                tray = tray.cut(slot_a)
+
+                # Slot B (rear slot of pair, 8mm behind slot A)
+                slot_b = (
+                    cq.Workplane("XY")
+                    .workplane(offset=-0.5)
+                    .center(row_x, _y + _velcro_pair_gap / 2)
+                    .rect(_velcro_slot_l, _velcro_slot_w)
+                    .extrude(BASE_H + 2)
+                )
+                tray = tray.cut(slot_b)
+
+                _y += _velcro_spacing_y
 
     # ── Cable routing clips in the front channel ─────────────────────────
     # Small arch bridges near each device's cable pass-through.
