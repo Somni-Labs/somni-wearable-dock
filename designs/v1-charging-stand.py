@@ -479,7 +479,7 @@ def build_bottom_tray():
     #
     _velcro_slot_l = 15    # slot length along Y (wide enough for strap)
     _velcro_slot_w = 3     # slot width along X
-    _velcro_pair_gap = 10  # gap between paired slots along X (cable passes over)
+    _velcro_pair_gap = 20  # gap between paired slots along X (cable passes over)
     _velcro_spacing_y = 30 # spacing between pairs along Y
     _velcro_row1_offset = 20  # inner row offset from charger bay edge
     _velcro_row2_offset = 38  # outer row offset from charger bay edge
