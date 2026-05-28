@@ -1052,7 +1052,12 @@ def build_bottom_tray():
 # =============================================================================
 
 def build_top_tray():
-    """Top tray: device pockets, Mudra pole socket, iPad groove. Sits on bottom tray."""
+    """Top tray: G2 shelf, iPad groove, device tray cutout. Sits on bottom tray.
+
+    Front-row device pockets (UH, R1, Omi, Mudra) have moved to the
+    removable device tray (build_device_tray()).  This function now cuts
+    a rectangular opening with a 3-sided ledge for the drop-in tray.
+    """
 
     # ── Top slab — starts at SPLIT_Z ─────────────────────────────────────
     base = (
@@ -1094,280 +1099,105 @@ def build_top_tray():
         )
         base = base.cut(lip_pocket)
 
-    # ── Push rod slots (servo actuator pass-through) ─────────────────────
-    # Rectangular slots through the top tray floor for servo push rods.
-    # One slot per servo, positioned at the servo shaft X and SERVO_Y.
-    _push_rod_devices = ["uh_ring", "r1_ring", "omi", "mudra"]
-    for name in _push_rod_devices:
-        px, py = SLOT_POSITIONS[name]
-        push_slot = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z - 0.5)
-            .center(px, SERVO_Y)
-            .rect(PUSH_ROD_SLOT_W, PUSH_ROD_SLOT_L)
-            .extrude(TOP_H + 1)
-        )
-        base = base.cut(push_slot)
-
-    # ── Cable pass-through holes (matching bottom tray positions) ────────
-    # UH, R1, and Omi have custom cable cuts in their cradle sections below.
-    # Only cut generic holes for devices that don't have custom routing.
-    for name, (px, py) in SLOT_POSITIONS.items():
-        if name in ("uh_ring", "r1_ring", "omi"):
-            continue  # handled in individual cradle sections
-
-        hw = USBC_HEAD_W + 2 if name == "g2_case" else USBC_HEAD_W
-        hh = USBC_HEAD_H + 2 if name == "g2_case" else USBC_HEAD_H
-
-        hole = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z - 0.5)
-            .center(px, py)
-            .rect(hw, hh)
-            .extrude(TOP_H + 1)
-        )
-        base = base.cut(hole)
+    # ── Cable pass-through for G2 (only rear-row device remains) ────────
+    gx_cable, gy_cable = SLOT_POSITIONS["g2_case"]
+    g2_cable_hole = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(gx_cable, gy_cable)
+        .rect(USBC_HEAD_W + 2, USBC_HEAD_H + 2)
+        .extrude(TOP_H + 1)
+    )
+    base = base.cut(g2_cable_hole)
 
     # =====================================================================
-    # CRADLE 1: Ultrahuman Ring Air — SQUARE pocket, rounded corners
-    # Cable exits LEFT (-X), consistent with R1, Omi, and Mudra.
-    # All front-row cables route in the same direction for clean management.
+    # DEVICE TRAY CUTOUT — rectangular opening for drop-in device tray
     # =====================================================================
-    ux, uy = SLOT_POSITIONS["uh_ring"]
-    uh_pocket = (
+    # Compute the same footprint as build_device_tray() for a matching cutout.
+    _uh_x = SLOT_POSITIONS["uh_ring"][0]
+    _mudra_x = SLOT_POSITIONS["mudra"][0]
+    _dtray_x_min = _uh_x - UH_SIDE / 2 - WALL
+    _dtray_x_max = _mudra_x + MUDRA_SHELF_L + WALL
+    _dtray_w = _dtray_x_max - _dtray_x_min
+    _dtray_cx = (_dtray_x_min + _dtray_x_max) / 2
+
+    _dtray_y_min = -STAND_D / 2 + WALL
+    _dtray_y_max = FRONT_ROW_Y + max(UH_SIDE, R1_DIA, 25) / 2 + WALL
+    _dtray_d = _dtray_y_max - _dtray_y_min
+    _dtray_cy = (_dtray_y_min + _dtray_y_max) / 2
+
+    # Cut the opening — full height from DTRAY_FLOOR_Z to top, with clearance
+    _cutout_w = _dtray_w + DTRAY_TOL * 2   # tray width + clearance
+    _cutout_d = _dtray_d + DTRAY_TOL * 2   # tray depth + clearance
+    dtray_cutout = (
+        cq.Workplane("XY")
+        .workplane(offset=DTRAY_FLOOR_Z)
+        .center(_dtray_cx, _dtray_cy)
+        .rect(_cutout_w, _cutout_d)
+        .extrude(STAND_H - DTRAY_FLOOR_Z + 1)
+    )
+    base = base.cut(dtray_cutout)
+
+    # Extend cutout forward to inner face of front wall (no front ledge)
+    _front_extension = (
+        cq.Workplane("XY")
+        .workplane(offset=DTRAY_FLOOR_Z)
+        .center(_dtray_cx, (_dtray_y_min - DTRAY_TOL + (-STAND_D / 2 + WALL)) / 2)
+        .rect(_cutout_w, abs(_dtray_y_min - DTRAY_TOL - (-STAND_D / 2 + WALL)) + 1)
+        .extrude(STAND_H - DTRAY_FLOOR_Z + 1)
+    )
+    base = base.cut(_front_extension)
+
+    # Clearance notches for Mudra snap hook engagement pockets
+    _ms_socket_w = MUDRA_POLE_D + SNAP_TOL * 2
+    _ms_pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2
+    _ms_pocket_depth = MUDRA_HOOK
+    _ms_pocket_h = MUDRA_HOOK_H + 1
+    mx_cutout, my_cutout = SLOT_POSITIONS["mudra"]
+    for _ms_sign in [-1, 1]:
+        _ms_x = mx_cutout + _ms_sign * (_ms_socket_w / 2 + _ms_pocket_depth / 2)
+        _ms_clearance = (
+            cq.Workplane("XY")
+            .workplane(offset=DTRAY_FLOOR_Z - _ms_pocket_h - 0.5)
+            .center(_ms_x, my_cutout)
+            .rect(_ms_pocket_depth + DTRAY_TOL * 2, _ms_pocket_w + DTRAY_TOL * 2)
+            .extrude(_ms_pocket_h + 1)
+        )
+        base = base.cut(_ms_clearance)
+
+    # ── Front wall cable slots (matching device tray front-edge notches) ──
+    # UH cable slot
+    _uh_wall_x = SLOT_POSITIONS["uh_ring"][0]
+    uh_wall_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
-        .center(ux, uy)
-        .rect(UH_SIDE, UH_SIDE)
-        .extrude(UH_CRADLE_DEPTH + 1)
-    )
-    base = base.cut(uh_pocket)
-
-    # Front wall slot — USB-C cable exits front face (-Y), same side as
-    # the tilt plate hinge so the rigid connector head sits right at the
-    # pivot point (near-zero angular movement when plate tilts).
-    uh_front_slot = (
-        cq.Workplane("XY")
-        .workplane(offset=STAND_H - UH_CRADLE_DEPTH)
-        .center(ux, uy - UH_SIDE / 2 - 5)
-        .rect(USBC_HEAD_W, WALL + 12)  # cut deep enough to visibly breach front wall
+        .center(_uh_wall_x, -STAND_D / 2)
+        .rect(USBC_HEAD_W, WALL * 2 + 2)
         .extrude(USBC_HEAD_H)
     )
-    base = base.cut(uh_front_slot)
+    base = base.cut(uh_wall_slot)
 
-    # Floor pass-through at front edge (cable drops down into bottom tray)
-    uh_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(ux, uy - UH_SIDE / 2)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(TOP_H + 1)
-    )
-    base = base.cut(uh_cable)
-
-    # ── Hinge barrel sockets in FRONT (-Y) wall ─────────────────────────
-    # Two semicircular channels in the pocket's front wall for tilt plate
-    # hinge barrels. Filament pin threads through barrels + sockets.
-    # Front hinge → rear edge tilts UP toward the user.
-    _uh_plate_side = UH_SIDE - TILT_CLEARANCE * 2  # 40mm
-    _uh_barrel_spacing = _uh_plate_side - 2 * 10  # 20mm
-    _uh_front_y = uy - UH_SIDE / 2  # front wall Y position (-70.0)
-    _uh_socket_z = STAND_H - UH_CRADLE_DEPTH  # pocket floor Z (48.0)
-    _socket_od = HINGE_BARREL_OD + HINGE_SOCKET_TOL * 2  # 3.6mm
-    _socket_len = HINGE_BARREL_L + HINGE_SOCKET_TOL * 2  # 8.6mm
-
-    for x_sign in [-1, 1]:
-        _bx = ux + x_sign * _uh_barrel_spacing / 2
-        barrel_socket = (
-            cq.Workplane("YZ")
-            .workplane(offset=_bx - _socket_len / 2)
-            .center(_uh_front_y, _uh_socket_z + TILT_PLATE_T / 2)
-            .circle(_socket_od / 2)
-            .extrude(_socket_len)
-        )
-        base = base.cut(barrel_socket)
-
-    # =====================================================================
-    # CRADLE 2: Even R1 Ring — CIRCULAR pocket
-    # Fixed cable exits from the FRONT edge (-Y) of the disc,
-    # same side as the hinge for minimal cable stress when tilting.
-    # Cable is thin (~4mm), not a removable USB-C head.
-    # =====================================================================
-    rx, ry = SLOT_POSITIONS["r1_ring"]
-    r1_cup = (
+    # R1 cable slot
+    _r1_wall_x = SLOT_POSITIONS["r1_ring"][0]
+    r1_wall_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - R1_CRADLE_DEPTH)
-        .center(rx, ry)
-        .circle(R1_DIA / 2)
-        .extrude(R1_CRADLE_DEPTH + 1)
-    )
-    base = base.cut(r1_cup)
-
-    # Front groove — notch in the front wall (-Y) of the circular pocket
-    # for the fixed cable to exit. Sized for USB-C head to feed through
-    # during assembly (head is 14×9mm), then cable sits in the groove.
-    # On the hinge side so cable sees near-zero angular movement.
-    r1_cable_groove = (
-        cq.Workplane("XY")
-        .workplane(offset=STAND_H - R1_CRADLE_DEPTH)
-        .center(rx, ry - R1_DIA / 2 - 5)
-        .rect(USBC_HEAD_W, WALL + 12)  # deep enough to visibly breach front wall
+        .center(_r1_wall_x, -STAND_D / 2)
+        .rect(USBC_HEAD_W, WALL * 2 + 2)
         .extrude(USBC_HEAD_H)
     )
-    base = base.cut(r1_cable_groove)
+    base = base.cut(r1_wall_slot)
 
-    # Floor pass-through at front edge — must fit USB-C head (the other
-    # end of the fixed cable needs to feed through to reach the hub).
-    r1_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(rx, ry - R1_DIA / 2)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(TOP_H + 1)
-    )
-    base = base.cut(r1_cable)
-
-    # ── Hinge barrel sockets in FRONT (-Y) wall ─────────────────────────
-    _r1_plate_dia = R1_DIA - TILT_CLEARANCE * 2  # 31mm
-    _r1_chord_cut_y = _r1_plate_dia / 2 - 2  # 13.5mm from plate center
-    _r1_front_y = ry - _r1_chord_cut_y  # world Y of barrel center (front)
-    _r1_socket_z = STAND_H - R1_CRADLE_DEPTH  # pocket floor Z (48.0)
-    _r1_barrel_spacing = 8  # matches plate barrel spacing
-
-    for x_sign in [-1, 1]:
-        _bx = rx + x_sign * _r1_barrel_spacing / 2
-        barrel_socket = (
-            cq.Workplane("YZ")
-            .workplane(offset=_bx - _socket_len / 2)
-            .center(_r1_front_y, _r1_socket_z + TILT_PLATE_T / 2)
-            .circle(_socket_od / 2)
-            .extrude(_socket_len)
-        )
-        base = base.cut(barrel_socket)
-
-    # =====================================================================
-    # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
-    # USB-C port exits through the FRONT (-Y) wall, same side as the
-    # hinge so the rigid connector head sits at the pivot point and
-    # sees near-zero angular movement when the tilt plate rises.
-    # =====================================================================
-    ox, oy = SLOT_POSITIONS["omi"]
-    diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
-    diamond_closed = diamond_pts + [diamond_pts[0]]
-
-    omi_pocket = (
+    # Omi cable slot
+    _omi_wall_x = SLOT_POSITIONS["omi"][0] - 8
+    omi_wall_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
-        .center(ox, oy)
-        .polyline(diamond_closed)
-        .close()
-        .extrude(OMI_CRADLE_DEPTH + 1)
-    )
-    # Small fillet on vertices to prevent sharp edges
-    omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
-    base = base.cut(omi_pocket)
-
-    # USB-C port slot — exits through the front-left (-Y, -X) of the diamond.
-    # The Omi pendant's USB-C port is on the left long edge of the device,
-    # so the slot is offset to the left side of the front wall.
-    # The front edge of the diamond runs from v3(-16, -21.2) to v2(+16, -21.2).
-    # Offset the slot to the left half of that edge.
-    _omi_front_y_world = oy + min(p[1] for p in diamond_pts)  # front edge Y
-    _omi_port_x = ox - 8  # offset 8mm left of pocket center (toward left long edge)
-    omi_port_slot = (
-        cq.Workplane("XY")
-        .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
-        .center(_omi_port_x, _omi_front_y_world - 5)
-        .rect(USBC_HEAD_W, WALL + 12)  # deep enough to visibly breach front wall
+        .center(_omi_wall_x, -STAND_D / 2)
+        .rect(USBC_HEAD_W, WALL * 2 + 2)
         .extrude(USBC_HEAD_H)
     )
-    base = base.cut(omi_port_slot)
-
-    # Floor pass-through at front-left edge (cable drops into bottom tray)
-    omi_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(_omi_port_x, _omi_front_y_world)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(TOP_H + 1)
-    )
-    base = base.cut(omi_cable)
-
-    # ── Hinge barrel sockets in FRONT (-Y) wall ─────────────────────────
-    _omi_pts = six_sided_diamond_points(
-        OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2,
-        OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2
-    )
-    _omi_front_y_local = min(p[1] for p in _omi_pts)  # frontmost vertex (negative)
-    _omi_chord_cut_y = _omi_front_y_local + 2  # front chord position
-    _omi_front_y = oy + _omi_chord_cut_y  # world Y of barrel center (front)
-    _omi_socket_z = STAND_H - OMI_CRADLE_DEPTH  # pocket floor Z (43.0)
-    _omi_barrel_spacing = 8  # matches plate barrel spacing
-
-    for x_sign in [-1, 1]:
-        _bx = ox + x_sign * _omi_barrel_spacing / 2
-        barrel_socket = (
-            cq.Workplane("YZ")
-            .workplane(offset=_bx - _socket_len / 2)
-            .center(_omi_front_y, _omi_socket_z + TILT_PLATE_T / 2)
-            .circle(_socket_od / 2)
-            .extrude(_socket_len)
-        )
-        base = base.cut(barrel_socket)
-
-    # =====================================================================
-    # CRADLE 4: Mudra Link — L-pole with flush top-open charger pocket
-    # The magnetic charger is WIDER than the 22mm band and the cable exits
-    # from the SIDE of the charger. The charger drops into a pocket cut
-    # from the shelf top — pogo pins face UP, wristband lays directly on
-    # the charger surface. Cable exits charger sideways into a horizontal
-    # slot, then bends down through the post's vertical cavity to the base.
-    #
-    # Clearance below shelf: POLE_H - SHELF_H = 90 - 16 = 74mm ✓
-    # =====================================================================
-    mx, my = SLOT_POSITIONS["mudra"]
-
-    # Cable pass-through in the base (rectangular, matching cavity)
-    mudra_cable = (
-        cq.Workplane("XY")
-        .center(mx, my)
-        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
-        .extrude(STAND_H)
-    )
-    base = base.cut(mudra_cable)
-
-    # ── Mudra pole socket — through-hole for snap-in pole insert ─────────
-    # Rectangular through-hole where the standalone pole drops in from above.
-    # The socket is slightly oversized (SNAP_TOL per side) for easy insertion.
-    _socket_w = MUDRA_POLE_D + SNAP_TOL * 2   # 20.6mm in X
-    _socket_d = MUDRA_POLE_W + SNAP_TOL * 2   # 22.6mm in Y
-    mudra_socket = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(mx, my)
-        .rect(_socket_w, _socket_d)
-        .extrude(TOP_H + 1)
-    )
-    base = base.cut(mudra_socket)
-
-    # ── Snap hook engagement pockets on the bottom face ──────────────────
-    # Recesses on the bottom face of the top tray around the socket,
-    # one on each X-axis face. These give the snap hooks room to spring
-    # out and catch after passing through the socket.
-    # Uses MUDRA_CLIP_* constants (beefier clips than tray-to-tray).
-    _pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2   # 14.6mm
-    _pocket_depth = MUDRA_HOOK                 # 2.0mm into tray bottom face
-    _pocket_h = MUDRA_HOOK_H + 1              # 3.0mm (hook height + clearance)
-    for side_sign in [-1, 1]:
-        pocket_x = mx + side_sign * (_socket_w / 2 + _pocket_depth / 2)
-        snap_pocket = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z - _pocket_h)
-            .center(pocket_x, my)
-            .rect(_pocket_depth, _pocket_w)
-            .extrude(_pocket_h + 0.5)
-        )
-        base = base.cut(snap_pocket)
+    base = base.cut(omi_wall_slot)
 
     # =====================================================================
     # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
@@ -1598,14 +1428,12 @@ def build_top_tray():
     # =====================================================================
     # When the top tray is printed flipped (Z=58 on build plate), the
     # bottom face (Z=41) becomes the topmost printed surface. Without a
-    # continuous floor, the many through-cuts (cable holes, push rod slots,
-    # mudra socket, iPad tunnel, LCD window) fragment this surface into
+    # continuous floor, through-cuts fragment this surface into
     # disconnected islands that print as flimsy, unconnected pieces.
     #
     # Fix: union a solid floor slab across the interior, then re-cut ONLY
-    # the features that physically must pass through (push rods, mudra
-    # pole socket, mudra cable hole). Cable pass-throughs become blind
-    # pockets — cables route through the pocket walls instead.
+    # the features that physically must pass through: device tray cutout,
+    # G2 cable hole, G2 LCD window, iPad cable hole, iPad blade slot.
     # The floor is inset from the outer walls so snap clips, AC cable
     # pass-throughs, and spare USB exits in the walls are unaffected.
     # =====================================================================
@@ -1622,97 +1450,19 @@ def build_top_tray():
     base = base.union(lid_floor)
 
     # ── Re-cut essential through-holes in the new floor ──────────────────
-    # These features MUST pass through the floor because physical objects
-    # move through them (servo push rods, mudra pole, cables).
+    # Front-row device holes (push rods, mudra socket, UH/R1/Omi cables)
+    # are handled by the device tray cutout below. Only rear-row features
+    # need individual re-cuts.
 
-    # 1. Push rod slots (4x) — servo actuators push through these
-    for name in ["uh_ring", "r1_ring", "omi", "mudra"]:
-        _pr_x, _pr_y = SLOT_POSITIONS[name]
-        _pr_slot = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z - 0.5)
-            .center(_pr_x, SERVO_Y)
-            .rect(PUSH_ROD_SLOT_W, PUSH_ROD_SLOT_L)
-            .extrude(LID_FLOOR + 1)
-        )
-        base = base.cut(_pr_slot)
-
-    # 2. Mudra pole socket — pole drops in from above
-    _floor_socket_w = MUDRA_POLE_D + SNAP_TOL * 2   # 20.6mm
-    _floor_socket_d = MUDRA_POLE_W + SNAP_TOL * 2   # 22.6mm
-    _floor_mudra_socket = (
+    # Device tray cutout — re-cut through LID_FLOOR
+    _floor_dtray_cutout = (
         cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(mx, my)
-        .rect(_floor_socket_w, _floor_socket_d)
-        .extrude(LID_FLOOR + 1)
+        .workplane(offset=SPLIT_Z)
+        .center(_dtray_cx, _dtray_cy)
+        .rect(_cutout_w, _cutout_d)
+        .extrude(LID_FLOOR + 0.5)
     )
-    base = base.cut(_floor_mudra_socket)
-
-    # 3. Mudra cable hole — cable from pole to bottom tray
-    _floor_mudra_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(mx, my)
-        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
-        .extrude(LID_FLOOR + 1)
-    )
-    base = base.cut(_floor_mudra_cable)
-
-    # 4. Mudra snap hook engagement pockets — re-cut so hooks can engage
-    _floor_pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2   # 14.6mm
-    _floor_pocket_depth = MUDRA_HOOK                 # 2.0mm
-    _floor_pocket_h = MUDRA_HOOK_H + 1              # 3.0mm
-    for _fs_sign in [-1, 1]:
-        _fs_x = mx + _fs_sign * (_floor_socket_w / 2 + _floor_pocket_depth / 2)
-        _fs_pocket = (
-            cq.Workplane("XY")
-            .workplane(offset=SPLIT_Z - _floor_pocket_h)
-            .center(_fs_x, my)
-            .rect(_floor_pocket_depth, _floor_pocket_w)
-            .extrude(_floor_pocket_h + 0.5)
-        )
-        base = base.cut(_fs_pocket)
-
-    # 5. Device cable pass-throughs — small holes for USB-C cables to
-    #    drop from pockets into bottom tray. These are small enough
-    #    (14×9mm) to bridge easily with supports when printed flipped.
-
-    # UH cable hole
-    _uh_cx, _uh_cy = SLOT_POSITIONS["uh_ring"]
-    _floor_uh_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(_uh_cx, _uh_cy - UH_SIDE / 2)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(LID_FLOOR + 1)
-    )
-    base = base.cut(_floor_uh_cable)
-
-    # R1 cable hole
-    _r1_cx, _r1_cy = SLOT_POSITIONS["r1_ring"]
-    _floor_r1_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(_r1_cx, _r1_cy - R1_DIA / 2)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(LID_FLOOR + 1)
-    )
-    base = base.cut(_floor_r1_cable)
-
-    # Omi cable hole
-    _omi_cx, _omi_cy = SLOT_POSITIONS["omi"]
-    _omi_diamond = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
-    _omi_front_y_floor = _omi_cy + min(p[1] for p in _omi_diamond)
-    _omi_port_x_floor = _omi_cx - 8
-    _floor_omi_cable = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(_omi_port_x_floor, _omi_front_y_floor)
-        .rect(USBC_HEAD_W, USBC_HEAD_H)
-        .extrude(LID_FLOOR + 1)
-    )
-    base = base.cut(_floor_omi_cable)
+    base = base.cut(_floor_dtray_cutout)
 
     # G2 cable hole (generic, at device center)
     _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
