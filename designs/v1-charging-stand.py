@@ -1200,46 +1200,29 @@ def build_top_tray():
     base = base.cut(omi_wall_slot)
 
     # =====================================================================
-    # CRADLE 5: Even G2 glasses case — rectangular shelf (rear)
-    # The pocket has a SOLID FLOOR so the case sits on a surface, but
-    # with a rectangular window cut through it so the VanBon charger's
-    # LCD screen (45×45mm, centered on its top face) is visible from
-    # above. The charger sits directly below at the same X,Y position.
+    # CRADLE 5: Even G2 glasses case — open-bottom raised platform (rear)
+    # Shallow walls keep the case in place. No floor — completely open
+    # bottom so the VanBon charger's LCD screen is visible from above.
     # =====================================================================
     gx, gy = SLOT_POSITIONS["g2_case"]
 
-    # Pocket cuts down from the top surface but stops at the floor
-    # (SPLIT_Z + WALL) — leaving a solid floor of WALL thickness.
-    _g2_floor_z = SPLIT_Z + WALL  # floor of G2 pocket (43.5mm)
-    _g2_pocket_depth = STAND_H - _g2_floor_z  # depth from top surface to floor
+    # Open-bottom pocket — shallow walls from top surface, no floor
+    _g2_wall_h = 10    # raised wall height (shallow retainer)
     g2_pocket = (
         cq.Workplane("XY")
-        .workplane(offset=_g2_floor_z)
+        .workplane(offset=STAND_H - _g2_wall_h)
         .center(gx, gy)
         .rect(G2_W, G2_D)
-        .extrude(_g2_pocket_depth + 1)
+        .extrude(_g2_wall_h + 1)
     )
     base = base.cut(g2_pocket)
-
-    # LCD viewing window — cut through the G2 pocket floor so the
-    # VanBon charger's 45×45mm LCD screen is visible from above.
-    # Slightly oversized (48×48mm) for easy viewing at an angle.
-    _lcd_window = 48  # slightly larger than 45mm LCD for visibility
-    g2_lcd_window = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(gx, gy)
-        .rect(_lcd_window, _lcd_window)
-        .extrude(WALL + 1.5)
-    )
-    base = base.cut(g2_lcd_window)
 
     # USB-C cable slot at rear
     g2_cable = (
         cq.Workplane("XY")
-        .workplane(offset=_g2_floor_z)
+        .workplane(offset=STAND_H - _g2_wall_h)
         .center(gx, STAND_D / 2)
-        .box(G2_CABLE_W, WALL * 4, _g2_pocket_depth,
+        .box(G2_CABLE_W, WALL * 4, _g2_wall_h,
              centered=[True, True, False])
     )
     base = base.cut(g2_cable)
@@ -1464,27 +1447,18 @@ def build_top_tray():
     )
     base = base.cut(_floor_dtray_cutout)
 
-    # G2 cable hole (generic, at device center)
+    # G2 open-bottom cutout — the entire G2 pocket is open, so cut
+    # through the LID_FLOOR for the full pocket footprint. This lets
+    # you see straight down to the charger LCD in the bottom tray.
     _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
-    _floor_g2_cable = (
+    _floor_g2_open = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
         .center(_g2_cx, _g2_cy)
-        .rect(USBC_HEAD_W + 2, USBC_HEAD_H + 2)
+        .rect(G2_W, G2_D)
         .extrude(LID_FLOOR + 1)
     )
-    base = base.cut(_floor_g2_cable)
-
-    # G2 LCD viewing window — re-cut through floor
-    _floor_lcd_window = 48
-    _floor_g2_lcd = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(_g2_cx, _g2_cy)
-        .rect(_floor_lcd_window, _floor_lcd_window)
-        .extrude(LID_FLOOR + 1)
-    )
-    base = base.cut(_floor_g2_lcd)
+    base = base.cut(_floor_g2_open)
 
     # iPad cable vertical hole — cable from tunnel up to iPad channel
     _ipad_y_floor = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
