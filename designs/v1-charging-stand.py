@@ -2519,6 +2519,7 @@ def build_ghost_components():
 
 bottom_tray = build_bottom_tray()
 top_tray = build_top_tray()
+device_tray = build_device_tray()
 ipad_cover = build_ipad_cover()
 ipad_wall = build_ipad_wall()
 mudra_pole = build_mudra_pole()
@@ -2527,6 +2528,8 @@ show_object(bottom_tray, name="bottom_tray",
             options={"color": (0.15, 0.15, 0.17, 0.9)})
 show_object(top_tray, name="top_tray",
             options={"color": (0.2, 0.2, 0.22, 0.95)})
+show_object(device_tray, name="device_tray",
+            options={"color": (0.25, 0.25, 0.27, 0.95)})
 show_object(ipad_cover, name="ipad_cover",
             options={"color": (0.3, 0.3, 0.32, 0.9)})
 

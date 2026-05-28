@@ -43,6 +43,7 @@ def export_stl_files():
         ipad_cover = exec_globals.get('ipad_cover')
         ipad_wall = exec_globals.get('ipad_wall')
         mudra_pole = exec_globals.get('mudra_pole')
+        device_tray = exec_globals.get('device_tray')
         uh_tilt_plate = exec_globals.get('uh_tilt_plate')
         r1_tilt_plate = exec_globals.get('r1_tilt_plate')
         omi_tilt_plate = exec_globals.get('omi_tilt_plate')
@@ -92,6 +93,12 @@ def export_stl_files():
         pole_rotated = mudra_pole.rotate((0, 0, 0), (1, 0, 0), -90)
         pole_rot_bb = pole_rotated.val().BoundingBox()
         pole_print = pole_rotated.translate((0, 0, -pole_rot_bb.zmin))
+
+    # Device tray — translate to Z=0 for printing (no flip needed)
+    if device_tray:
+        dtray_bb = device_tray.val().BoundingBox()
+        dtray_print = device_tray.translate((0, 0, -dtray_bb.zmin))
+        print(f"   Device tray: translated Z by {-dtray_bb.zmin:+.1f}mm (was Z={dtray_bb.zmin:.1f})")
 
     # Tilt plates — already at origin, just ensure Z_min = 0
     tilt_plates_print = {}
@@ -169,6 +176,16 @@ def export_stl_files():
             pole_step_path = output_dir / "v1-charging-stand-mudra-pole.step"
             cq.exporters.export(mudra_pole, str(pole_step_path))
             print(f"✅ {pole_step_path} - Mudra pole STEP (origin position)")
+
+        # Device tray — drop-in wearable pocket tray
+        if device_tray:
+            dtray_stl_path = output_dir / "v1-charging-stand-device-tray.stl"
+            cq.exporters.export(dtray_print, str(dtray_stl_path))
+            print(f"✅ {dtray_stl_path} - Device tray (drop-in, prints right-side up)")
+
+            dtray_step_path = output_dir / "v1-charging-stand-device-tray.step"
+            cq.exporters.export(device_tray, str(dtray_step_path))
+            print(f"✅ {dtray_step_path} - Device tray STEP (assembly position)")
 
         # Tilt plates
         for name, plate_print in tilt_plates_print.items():
