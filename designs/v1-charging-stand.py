@@ -51,6 +51,14 @@ SNAP_CLIP_W = 12       # width of each snap clip
 SNAP_CLIP_H = 8        # clip cantilever height
 SNAP_HOOK = 1.2        # hook overhang that catches the lip
 
+# --- Removable device tray (front-row wearable pockets) ---
+# Drop-in friction-fit tray holding UH, R1, Omi pockets + Mudra socket.
+# Rests on a 3-sided ledge inside a rectangular cutout in the top tray.
+DTRAY_TOL = SNAP_TOL           # 0.3mm clearance per side
+DTRAY_LEDGE = WALL             # 2.5mm ledge width for tray to rest on
+DTRAY_FLOOR_Z = SPLIT_Z + LID_FLOOR  # 43mm — bottom of device tray
+# Width and depth computed dynamically from SLOT_POSITIONS + device sizes
+
 # --- Base platform (bottom tray internals) ---
 BASE_H = 3             # solid floor at very bottom of bottom tray
 CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height (~8.5mm)
