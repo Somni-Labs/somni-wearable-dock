@@ -1,0 +1,145 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slice-device-tray
+  namespace: utilities
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      initContainers:
+      - name: fetch-stl
+        image: alpine/git:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          git clone --depth 1 https://github.com/somni-labs/somni-wearable-dock.git /tmp/repo
+          cp /tmp/repo/output/v1-charging-stand-device-tray.stl /shared/device-tray.stl
+          ls -la /shared/
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      containers:
+      - name: slicer
+        image: cznewt/prusa-slicer:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "=== PrusaSlicer — Device Tray ==="
+
+          SLICER=/prusa-slicer/prusa-slicer
+          INI=/tmp/pla_plus.ini
+          MOONRAKER="http://192.168.1.15:7125"
+
+          cat > "$INI" << 'PROFILE'
+          layer_height = 0.3
+          first_layer_height = 0.35
+          perimeters = 3
+          top_solid_layers = 5
+          bottom_solid_layers = 4
+          fill_density = 20%
+          fill_pattern = gyroid
+          external_perimeter_speed = 40
+          infill_speed = 60
+          travel_speed = 150
+          bridge_speed = 25
+          support_material = 0
+          support_material_auto = 0
+          skirts = 2
+          skirt_distance = 5
+          brim_width = 0
+          temperature = 215
+          first_layer_temperature = 220
+          bed_temperature = 70
+          first_layer_bed_temperature = 70
+          fan_always_on = 0
+          min_fan_speed = 0
+          max_fan_speed = 80
+          bridge_fan_speed = 80
+          overhangs_fan_speed = 80
+          disable_fan_first_layers = 3
+          gcode_flavor = klipper
+          bed_shape = 0x0,275x0,275x295,0x295
+          max_print_height = 265
+          nozzle_diameter = 0.4
+          retract_length = 0.8
+          retract_speed = 40
+          retract_lift = 0.2
+          start_gcode = G28\nG1 Z5 F5000
+          end_gcode = END_PRINT
+          PROFILE
+
+          sed -i 's/^[[:space:]]*//' "$INI"
+
+          echo "--- Checking STL ---"
+          ls -la /shared/device-tray.stl
+
+          echo "--- Slicing device tray (NO supports, NO brim, prints right-side up) ---"
+          $SLICER --load "$INI" --center 137,147 \
+            --output /tmp/device-tray.gcode --export-gcode /shared/device-tray.stl
+
+          echo "--- Capping fan speed to 80% (S204) ---"
+          sed -i 's/M106 S255/M106 S204/g' /tmp/device-tray.gcode
+          FULL_FAN=$(grep -c 'M106 S255' /tmp/device-tray.gcode || true)
+          echo "  M106 S255 remaining after cap: $FULL_FAN (should be 0)"
+
+          echo "--- Validating gcode ---"
+          BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' /tmp/device-tray.gcode | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
+          EXT_TEMP=$(grep -E '^M10[49] S[0-9]+' /tmp/device-tray.gcode | sed 's/.*S\([0-9]*\).*/\1/' | sort -n | tail -1)
+          LAYER_COUNT=$(grep -c ';LAYER_CHANGE' /tmp/device-tray.gcode || true)
+          echo "  Bed temp: ${BED_TEMP}C, Extruder temp: ${EXT_TEMP}C, Layers: ${LAYER_COUNT}"
+
+          ERRORS=0
+          if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 65 ]; then
+            echo "  FAIL: Bed temp too low (got: ${BED_TEMP:-none}, need >= 65)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: Bed temperature = ${BED_TEMP}C"
+          fi
+          if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 210 ]; then
+            echo "  FAIL: Extruder temp too low (got: ${EXT_TEMP:-none}, need >= 210)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: Extruder temperature = ${EXT_TEMP}C"
+          fi
+          if [ "$LAYER_COUNT" -lt 3 ]; then
+            echo "  FAIL: Only $LAYER_COUNT layers — file may be corrupt"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: $LAYER_COUNT layers"
+          fi
+
+          X_MAX=$(awk -F'X' '/^G1 .*X[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/device-tray.gcode)
+          Y_MAX=$(awk -F'Y' '/^G1 .*Y[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/device-tray.gcode)
+          echo "  Coordinate bounds: X max = ${X_MAX}, Y max = ${Y_MAX}"
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "  ABORT: $ERRORS validation error(s)"
+            exit 1
+          fi
+          echo "  PASS: All gcode checks passed"
+
+          echo "--- Uploading to Moonraker ---"
+          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-device-tray.gcode" || true
+          sleep 2
+          UPLOAD_RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
+            -F "file=@/tmp/device-tray.gcode;filename=v1-charging-stand-device-tray.gcode" \
+            -F "root=gcodes")
+          echo "  Upload result: $UPLOAD_RESULT"
+
+          echo ""
+          echo "=== Device tray sliced and uploaded ==="
+          echo "  File size: $(wc -c < /tmp/device-tray.gcode) bytes"
+          echo "  Layers: $LAYER_COUNT"
+          echo "  Ready to print: v1-charging-stand-device-tray.gcode"
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      volumes:
+      - name: shared
+        emptyDir: {}
