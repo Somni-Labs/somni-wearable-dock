@@ -1431,18 +1431,32 @@ def build_top_tray():
         )
         base = base.cut(_ms_floor_clearance)
 
-    # G2 open-bottom cutout — the entire G2 pocket is open, so cut
-    # through the LID_FLOOR for the full pocket footprint. This lets
-    # you see straight down to the charger LCD in the bottom tray.
+    # G2 open-bottom cutout — cut through LID_FLOOR in strips with
+    # bridge ribs between them. The ribs (2mm wide, ~44mm spacing)
+    # prevent long unsupported bridge spans when printed flipped,
+    # while keeping the charger LCD visible through the gaps.
+    # 3 ribs divide the 176mm G2_W span into 4 strips of ~42mm each.
     _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
-    _floor_g2_open = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(_g2_cx, _g2_cy)
-        .rect(G2_W, G2_D)
-        .extrude(LID_FLOOR + 1)
-    )
-    base = base.cut(_floor_g2_open)
+    _g2_rib_w = 2        # rib width (X direction)
+    _g2_rib_count = 3    # number of ribs across the opening
+    _g2_strip_count = _g2_rib_count + 1  # 4 open strips
+    _g2_total_rib = _g2_rib_w * _g2_rib_count  # 6mm total rib material
+    _g2_open_span = G2_W - _g2_total_rib  # 170mm available for openings
+    _g2_strip_w = _g2_open_span / _g2_strip_count  # ~42.5mm per strip
+
+    # Cut each strip (spaces between ribs)
+    for _strip_i in range(_g2_strip_count):
+        # Strip center X = left edge of G2 + half strip + (strip + rib) * i
+        _strip_cx = (_g2_cx - G2_W / 2 + _g2_strip_w / 2
+                     + _strip_i * (_g2_strip_w + _g2_rib_w))
+        _floor_g2_strip = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - 0.5)
+            .center(_strip_cx, _g2_cy)
+            .rect(_g2_strip_w, G2_D)
+            .extrude(LID_FLOOR + 1)
+        )
+        base = base.cut(_floor_g2_strip)
 
     # iPad cable vertical hole — cable from bottom tray up to iPad channel
     _ipad_y_floor = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
