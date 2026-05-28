@@ -1243,44 +1243,40 @@ def build_top_tray():
     # =====================================================================
     ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
 
-    # ── iPad channel — cut as strips with bridge ribs ──────────────
-    # The channel (235mm × 24mm) creates a massive unsupported ceiling
-    # when printed flipped. Cut it as strips separated by thin ribs
-    # (2mm wide, ~40mm spacing in X) so the printer can bridge each
-    # strip independently. The iPad sits across the ribs — they're
-    # thin enough not to interfere with placement.
-    _channel_floor_z = SPLIT_Z + LID_FLOOR  # Z=43
-    _channel_depth = STAND_H - _channel_floor_z  # 15mm
-
-    _ipad_rib_w = 2      # rib width (X direction)
-    _ipad_rib_count = 5  # 5 ribs → 6 strips of ~38mm each
-    _ipad_total_rib = _ipad_rib_w * _ipad_rib_count  # 10mm total rib
-    _ipad_open_span = IPAD_SLOT_W - _ipad_total_rib  # 225mm open
-    _ipad_strip_w = _ipad_open_span / (_ipad_rib_count + 1)  # ~37.5mm per strip
-
-    for _ipad_strip_i in range(_ipad_rib_count + 1):
-        _strip_cx = (-IPAD_SLOT_W / 2 + _ipad_strip_w / 2
-                     + _ipad_strip_i * (_ipad_strip_w + _ipad_rib_w))
-        ipad_channel_strip = (
-            cq.Workplane("XY")
-            .workplane(offset=_channel_floor_z)
-            .center(_strip_cx, ipad_y)
-            .rect(_ipad_strip_w, IPAD_SLOT_GAP)
-            .extrude(_channel_depth + 1)
-        )
-        base = base.cut(ipad_channel_strip)
+    # ── iPad channel — shallow cut from top surface only ────────────
+    # Instead of cutting all the way down to LID_FLOOR (Z=43), the
+    # channel only needs to be deep enough to hold the iPad bottom
+    # edge (~20mm). A shallower channel means the ceiling when printed
+    # flipped is closer to the bed (less bridging height) and has
+    # thick solid material underneath supporting it.
+    #
+    # Channel floor at Z=48 (10mm deep from top, 10mm above bed when
+    # flipped). The solid material from Z=43–48 acts as a structural
+    # bridge support, well within PLA+ bridging range at just 10mm
+    # from the bed plate.
+    _channel_floor_z = STAND_H - IPAD_SLOT_DEPTH  # Z=58-20=38, but clamped above LID_FLOOR
+    _channel_floor_z = max(_channel_floor_z, SPLIT_Z + LID_FLOOR + 5)  # Z=48 minimum
+    _channel_depth = STAND_H - _channel_floor_z  # 10mm
+    ipad_channel = (
+        cq.Workplane("XY")
+        .workplane(offset=_channel_floor_z)
+        .center(0, ipad_y)
+        .rect(IPAD_SLOT_W, IPAD_SLOT_GAP)
+        .extrude(_channel_depth + 1)
+    )
+    base = base.cut(ipad_channel)
 
     # ── Vertical cable hole — straight up through channel floor ──────
-    # Small hole for USB-C cable to come up from the bottom tray.
-    # No horizontal tunnel needed — bottom tray is open-top.
+    # Small hole for USB-C cable to come up from the bottom tray
+    # through the LID_FLOOR and channel floor to reach the iPad.
     _cable_hole_w = 18   # wide enough for USB-C head
     _cable_hole_d = 14   # deep enough for cable + bend
     ipad_cable_hole = (
         cq.Workplane("XY")
-        .workplane(offset=_channel_floor_z - 0.5)
+        .workplane(offset=SPLIT_Z - 0.5)
         .center(0, ipad_y)
         .rect(_cable_hole_w, _cable_hole_d)
-        .extrude(4)  # just through the channel floor
+        .extrude(_channel_floor_z - SPLIT_Z + 1)  # through LID_FLOOR + solid body to channel
     )
     base = base.cut(ipad_cable_hole)
 
@@ -1291,8 +1287,8 @@ def build_top_tray():
     _blade_slot_yd = IPAD_BACK_THICK + IPAD_WALL_TOL  # 4.4mm — tight fit around blade
     _blade_slot_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # centered on wall Y
     _blade_slot_bottom = SPLIT_Z + 1       # Z=42 (1mm above split for integrity)
-    _blade_slot_top = _channel_floor_z + 0.5  # Z=43.5 (just through channel floor)
-    _blade_slot_h = _blade_slot_top - _blade_slot_bottom  # ~1.5mm engagement
+    _blade_slot_top = _channel_floor_z + 0.5  # through channel floor
+    _blade_slot_h = _blade_slot_top - _blade_slot_bottom  # engagement depth
     blade_floor_slot = (
         cq.Workplane("XY")
         .workplane(offset=_blade_slot_bottom)
