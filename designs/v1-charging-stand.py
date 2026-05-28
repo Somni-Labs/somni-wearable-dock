@@ -269,7 +269,7 @@ IPAD_SLOT_GAP = 24            # slot gap (Y) — iPad + case thickness (~22mm + 
 IPAD_SLOT_DEPTH = 20          # how deep iPad sits into the base slot
 IPAD_BACK_H = 60              # back wall height above base (taller for 13" iPad)
 IPAD_BACK_THICK = 4           # back wall thickness
-IPAD_LIP_H = 5                # front lip to stop iPad sliding forward
+IPAD_LIP_H = 5                # front groove depth (iPad bottom edge sits in recessed channel)
 IPAD_WALL_TOL = 0.4        # tongue-and-groove tolerance (tighter than global TOL for snug slide fit)
 IPAD_DETENT_H = 0.6        # snap detent bump height (clicks past on insertion)
 IPAD_DETENT_W = 15         # snap detent bump width (X)
@@ -1231,32 +1231,24 @@ def build_top_tray():
     # SLOT 6: iPad — channel at the very rear with back support wall.
     #
     # STRUCTURE (bottom to top):
-    #   1. Hidden cable tunnel inside the tray body (Z=42–50)
-    #   2. Solid floor with cable opening (Z=50, part of top tray)
-    #   3. iPad channel above the floor (Z=50 to STAND_H)
-    #   4. Removable cover plate slides in on rails, hides the cable
-    #      opening and provides a clean surface
-    #   5. Back wall + front lip hold the iPad in place
+    #   1. Vertical cable hole through LID_FLOOR (cable from bottom tray)
+    #   2. iPad channel cut into top surface (Z=SPLIT_Z+LID_FLOOR to STAND_H)
+    #   3. Front groove — iPad bottom edge sits in a recessed channel
+    #      (two-point retention: front groove + back wall)
+    #   4. Back wall blade slot for slide-in wall
     #
-    # Cable path: bottom tray → floor hole → tunnel (exits both sides)
-    #             → up through floor opening → iPad connector
+    # Cable path: bottom tray (open top) → vertical hole through
+    #             LID_FLOOR → iPad channel → iPad connector
+    # No horizontal tunnel — cable routes straight up.
     # =====================================================================
     ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
 
-    # ── Tunnel dimensions ────────────────────────────────────────────
-    _tunnel_w = 14      # tunnel width (Y) — USB-C cable + clearance
-    _tunnel_h = 8       # tunnel height (Z) — cable body ~5mm + margin
-    _tunnel_z = SPLIT_Z + 1  # tunnel bottom (Z=42)
-    _floor_z = _tunnel_z + _tunnel_h  # solid floor at top of tunnel (Z=50)
-    _floor_thick = 2.5  # floor thickness
-    _cover_thick = 2    # removable cover thickness
-    _rail_h = _cover_thick + 1  # rail groove height (cover + clearance)
-    _rail_depth = 3     # how far rail extends inward from channel wall
-
-    # ── iPad channel — cut from floor surface up (NOT all the way through)
-    # The channel has a solid floor at _floor_z + _floor_thick = Z=52.5
-    _channel_floor_z = _floor_z + _floor_thick
-    _channel_depth = STAND_H - _channel_floor_z  # ~5.5mm
+    # ── iPad channel — cut from LID_FLOOR top surface up ─────────────
+    # The channel floor sits on top of the LID_FLOOR (Z=43).
+    # No internal tunnel — the LID_FLOOR is solid here except for
+    # a small vertical cable hole.
+    _channel_floor_z = SPLIT_Z + LID_FLOOR  # Z=43
+    _channel_depth = STAND_H - _channel_floor_z  # 15mm
     ipad_channel = (
         cq.Workplane("XY")
         .workplane(offset=_channel_floor_z)
@@ -1266,65 +1258,29 @@ def build_top_tray():
     )
     base = base.cut(ipad_channel)
 
-    # ── Cable opening in the floor ───────────────────────────────────
-    # A rectangular hole through the solid floor so the USB-C cable
-    # can come up from the tunnel to reach the iPad. Centered.
+    # ── Vertical cable hole — straight up through channel floor ──────
+    # Small hole for USB-C cable to come up from the bottom tray.
+    # No horizontal tunnel needed — bottom tray is open-top.
     _cable_hole_w = 18   # wide enough for USB-C head
     _cable_hole_d = 14   # deep enough for cable + bend
-    ipad_floor_hole = (
+    ipad_cable_hole = (
         cq.Workplane("XY")
-        .workplane(offset=_floor_z - 0.5)
+        .workplane(offset=_channel_floor_z - 0.5)
         .center(0, ipad_y)
         .rect(_cable_hole_w, _cable_hole_d)
-        .extrude(_floor_thick + 1)
+        .extrude(4)  # just through the channel floor
     )
-    base = base.cut(ipad_floor_hole)
+    base = base.cut(ipad_cable_hole)
 
-    # ── Slide-in rails for the cover plate ───────────────────────────
-    # Two continuous L-shaped rails run the FULL WIDTH of the iPad
-    # channel along the front and back walls. The cover plate slides
-    # in from either side on these rails.
-    #
-    # The rail is a groove cut into the channel wall: a horizontal
-    # slot _rail_depth deep and _rail_h tall, starting at the floor.
-    # The cover slides into these grooves from left or right.
-    for rail_sign in [-1, 1]:  # -1 = front wall, +1 = back wall
-        rail_y = ipad_y + rail_sign * (IPAD_SLOT_GAP / 2 - _rail_depth / 2)
-        rail_groove = (
-            cq.Workplane("XY")
-            .workplane(offset=_channel_floor_z)
-            .center(0, rail_y)
-            .rect(IPAD_SLOT_W + 2, _rail_depth)  # full width + exits both sides
-            .extrude(_rail_h)
-        )
-        base = base.cut(rail_groove)
-
-    # ── iPad back wall through-floor blade channel ────────────────────
-    # The wall drops straight down from above. A blade on the wall
-    # passes through a slot in the iPad channel floor and embeds 10.5mm
-    # into the solid tray body below (Z=42 to Z=52.5).
-    #
-    # The slot is cut through the channel floor at the back edge of the
-    # iPad channel, centered on the wall's Y position. It's only as
-    # wide as the wall blade (4mm + tolerance) in Y, so there's solid
-    # material gripping the blade on ALL FOUR sides:
-    #   - Front: solid tray body (extends 24mm+ forward)
-    #   - Back:  solid tray body + rear wall (4mm behind channel)
-    #   - Left/right ends: closed when wall is fully seated
-    #
-    # Blade depth: 10.5mm (channel floor Z=52.5 to Z=42)
-    # Height-to-engagement ratio: 60mm / 10.5mm = 5.7:1
-    #
+    # ── iPad back wall through-floor blade slot ──────────────────────
+    # The wall blade slides in from the side and embeds into the tray
+    # body below the channel floor. Cut from Z=42 up to channel floor.
     _blade_slot_w = IPAD_SLOT_W + 10 + 2  # wall width + exits both sides for slide-in
     _blade_slot_yd = IPAD_BACK_THICK + IPAD_WALL_TOL  # 4.4mm — tight fit around blade
-    _blade_slot_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # centered on wall Y — 0.2mm overcut at rear is tolerance
-    # The slot cuts through the channel floor and into the solid body below.
-    # Floor is at Z=52.5 (= _floor_z + _floor_thick from the tunnel code).
-    # Solid tray body starts at SPLIT_Z (41). We cut from Z=42 (1mm above
-    # split for structural integrity) up through the floor to Z=52.5+0.5.
-    _blade_slot_bottom = SPLIT_Z + 1       # Z=42
-    _blade_slot_top = SPLIT_Z + 1 + 8 + 2.5 + 0.5   # Z=53 (through floor)
-    _blade_slot_h = _blade_slot_top - _blade_slot_bottom
+    _blade_slot_y = STAND_D / 2 - IPAD_BACK_THICK / 2  # centered on wall Y
+    _blade_slot_bottom = SPLIT_Z + 1       # Z=42 (1mm above split for integrity)
+    _blade_slot_top = _channel_floor_z + 0.5  # Z=43.5 (just through channel floor)
+    _blade_slot_h = _blade_slot_top - _blade_slot_bottom  # ~1.5mm engagement
     blade_floor_slot = (
         cq.Workplane("XY")
         .workplane(offset=_blade_slot_bottom)
@@ -1348,36 +1304,25 @@ def build_top_tray():
         )
         base = base.union(detent)
 
-    # ── Front lip — prevents iPad sliding forward ────────────────────
-    ipad_lip = (
+    # ── Front groove — iPad bottom edge sits in a recessed channel ───
+    # Instead of a raised lip (which creates a 225mm cantilever overhang
+    # when printed flipped), the iPad's front leverage point is a groove
+    # cut INTO the tray surface. The iPad bottom edge drops into this
+    # channel, and gravity + the back wall hold it in place.
+    # Same two-point physics: back wall pushes iPad forward, groove
+    # catches the bottom edge so it can't slide forward off the stand.
+    _groove_depth = IPAD_LIP_H     # 5mm deep (same retention as old lip height)
+    _groove_w = IPAD_SLOT_W - 10   # 225mm — same span as old lip
+    _groove_yd = IPAD_BACK_THICK   # 4mm wide — matches iPad/case thickness
+    _groove_y = ipad_y - IPAD_SLOT_GAP / 2 - _groove_yd / 2  # front edge of channel
+    ipad_groove = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H)
-        .center(0, ipad_y - IPAD_SLOT_GAP / 2 - IPAD_BACK_THICK / 2)
-        .rect(IPAD_SLOT_W - 10, IPAD_BACK_THICK)
-        .extrude(IPAD_LIP_H)
+        .workplane(offset=STAND_H - _groove_depth)
+        .center(0, _groove_y)
+        .rect(_groove_w, _groove_yd)
+        .extrude(_groove_depth + 1)  # cut through top surface
     )
-    base = base.union(ipad_lip)
-
-    # ── Hidden cable tunnel (full width, exits both sides) ───────────
-    # Floor hole: bottom tray cavity → tunnel
-    ipad_cable_up = (
-        cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z - 0.5)
-        .center(0, ipad_y)
-        .rect(_tunnel_w, _tunnel_w)
-        .extrude(_tunnel_h + 2)
-    )
-    base = base.cut(ipad_cable_up)
-
-    # Horizontal tunnel: spans full width, exits both side walls
-    ipad_cable_tunnel = (
-        cq.Workplane("XY")
-        .workplane(offset=_tunnel_z)
-        .center(0, ipad_y)
-        .rect(STAND_W + 2, _tunnel_w)
-        .extrude(_tunnel_h)
-    )
-    base = base.cut(ipad_cable_tunnel)
+    base = base.cut(ipad_groove)
 
     # ── AC cable pass-through (left wall, matching bottom tray) ──────────
     # The VanBon's AC cable exits the short side (-X). Route it through
@@ -1414,11 +1359,16 @@ def build_top_tray():
     # continuous floor, through-cuts fragment this surface into
     # disconnected islands that print as flimsy, unconnected pieces.
     #
-    # Fix: union a solid floor slab across the interior, then re-cut ONLY
-    # the features that physically must pass through: device tray cutout,
-    # G2 cable hole, G2 LCD window, iPad cable hole, iPad blade slot.
-    # The floor is inset from the outer walls so snap clips, AC cable
-    # pass-throughs, and spare USB exits in the walls are unaffected.
+    # Strategy: union a solid floor slab across the ENTIRE interior, then
+    # re-cut ONLY minimal through-holes. The device tray area keeps its
+    # floor intact (the tray sits ON TOP of it). Only the G2 viewing
+    # window, iPad cable hole, and blade slot tongue need re-cuts.
+    #
+    # This eliminates all large unsupported spans when printed flipped:
+    #   - No 242mm cable tunnel (removed — cable routes vertically)
+    #   - No 170×95mm device tray cutout through floor (tray rests on floor)
+    #   - No 225mm cantilever lip (replaced with recessed groove)
+    #   - Blade slot re-cut is narrow (4.4mm Y) — trivial bridge
     # =====================================================================
     _floor_inset = WALL  # inset from outer walls (2.5mm) to avoid interfering with wall features
     _lid_floor_w = STAND_W - _floor_inset * 2   # 235mm
@@ -1433,19 +1383,53 @@ def build_top_tray():
     base = base.union(lid_floor)
 
     # ── Re-cut essential through-holes in the new floor ──────────────────
-    # Front-row device holes (push rods, mudra socket, UH/R1/Omi cables)
-    # are handled by the device tray cutout below. Only rear-row features
-    # need individual re-cuts.
+    # Minimal cuts only — keep the floor as continuous as possible.
 
-    # Device tray cutout — re-cut through LID_FLOOR
-    _floor_dtray_cutout = (
+    # Device tray cable pass-throughs — 3 small holes for UH, R1, Omi
+    # USB-C cables to route from bottom tray up through the floor into
+    # the device tray area. Each hole is just USBC_HEAD_W × USBC_HEAD_H.
+    for _cable_name, _cable_x_pos in [
+        ("uh", SLOT_POSITIONS["uh_ring"][0]),
+        ("r1", SLOT_POSITIONS["r1_ring"][0]),
+        ("omi", SLOT_POSITIONS["omi"][0] - 8),  # offset to match front wall slot
+    ]:
+        _floor_cable = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - 0.5)
+            .center(_cable_x_pos, -STAND_D / 2 + WALL + 4)  # just inside front wall
+            .rect(USBC_HEAD_W + 2, USBC_HEAD_H + 2)
+            .extrude(LID_FLOOR + 1)
+        )
+        base = base.cut(_floor_cable)
+
+    # Mudra cable hole — through floor under mudra pole position
+    _mudra_floor_x, _mudra_floor_y = SLOT_POSITIONS["mudra"]
+    _floor_mudra_cable = (
         cq.Workplane("XY")
-        .workplane(offset=SPLIT_Z)
-        .center(_dtray_cx, _dtray_cy)
-        .rect(_cutout_w, _cutout_d)
-        .extrude(LID_FLOOR + 0.5)
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_mudra_floor_x, _mudra_floor_y)
+        .rect(MUDRA_CABLE_CH_W, MUDRA_CABLE_CH_D)
+        .extrude(LID_FLOOR + 1)
     )
-    base = base.cut(_floor_dtray_cutout)
+    base = base.cut(_floor_mudra_cable)
+
+    # Mudra snap clip clearance notches — re-cut through LID_FLOOR
+    # These pockets were cut before LID_FLOOR union and need to be
+    # re-opened so the snap hooks on the device tray can engage.
+    _ms_socket_w_f = MUDRA_POLE_D + SNAP_TOL * 2
+    _ms_pocket_depth_f = MUDRA_HOOK
+    _ms_pocket_w_f = MUDRA_CLIP_W + SNAP_TOL * 2
+    _ms_pocket_h_f = MUDRA_HOOK_H + 1
+    for _ms_sign_f in [-1, 1]:
+        _ms_x_f = _mudra_floor_x + _ms_sign_f * (_ms_socket_w_f / 2 + _ms_pocket_depth_f / 2)
+        _ms_floor_clearance = (
+            cq.Workplane("XY")
+            .workplane(offset=DTRAY_FLOOR_Z - _ms_pocket_h_f - 0.5)
+            .center(_ms_x_f, _mudra_floor_y)
+            .rect(_ms_pocket_depth_f + DTRAY_TOL * 2, _ms_pocket_w_f + DTRAY_TOL * 2)
+            .extrude(_ms_pocket_h_f + 1)
+        )
+        base = base.cut(_ms_floor_clearance)
 
     # G2 open-bottom cutout — the entire G2 pocket is open, so cut
     # through the LID_FLOOR for the full pocket footprint. This lets
@@ -1460,20 +1444,20 @@ def build_top_tray():
     )
     base = base.cut(_floor_g2_open)
 
-    # iPad cable vertical hole — cable from tunnel up to iPad channel
+    # iPad cable vertical hole — cable from bottom tray up to iPad channel
     _ipad_y_floor = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
     _floor_ipad_cable = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
         .center(0, _ipad_y_floor)
-        .rect(14, 14)
+        .rect(18, 14)  # matches cable hole in channel floor above
         .extrude(LID_FLOOR + 1)
     )
     base = base.cut(_floor_ipad_cable)
 
-    # iPad blade slot — re-cut through floor for wall slide-in
-    _floor_blade_w = IPAD_SLOT_W + 10 + 2
-    _floor_blade_yd = IPAD_BACK_THICK + IPAD_WALL_TOL
+    # iPad blade slot — narrow re-cut (4.4mm Y) for wall tongue only
+    _floor_blade_w = IPAD_SLOT_W + 10 + 2  # full width for slide-in
+    _floor_blade_yd = IPAD_BACK_THICK + IPAD_WALL_TOL  # 4.4mm — narrow
     _floor_blade_y = STAND_D / 2 - IPAD_BACK_THICK / 2
     _floor_blade_slot = (
         cq.Workplane("XY")
