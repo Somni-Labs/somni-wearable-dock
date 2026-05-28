@@ -1243,20 +1243,32 @@ def build_top_tray():
     # =====================================================================
     ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
 
-    # ── iPad channel — cut from LID_FLOOR top surface up ─────────────
-    # The channel floor sits on top of the LID_FLOOR (Z=43).
-    # No internal tunnel — the LID_FLOOR is solid here except for
-    # a small vertical cable hole.
+    # ── iPad channel — cut as strips with bridge ribs ──────────────
+    # The channel (235mm × 24mm) creates a massive unsupported ceiling
+    # when printed flipped. Cut it as strips separated by thin ribs
+    # (2mm wide, ~40mm spacing in X) so the printer can bridge each
+    # strip independently. The iPad sits across the ribs — they're
+    # thin enough not to interfere with placement.
     _channel_floor_z = SPLIT_Z + LID_FLOOR  # Z=43
     _channel_depth = STAND_H - _channel_floor_z  # 15mm
-    ipad_channel = (
-        cq.Workplane("XY")
-        .workplane(offset=_channel_floor_z)
-        .center(0, ipad_y)
-        .rect(IPAD_SLOT_W, IPAD_SLOT_GAP)
-        .extrude(_channel_depth + 1)
-    )
-    base = base.cut(ipad_channel)
+
+    _ipad_rib_w = 2      # rib width (X direction)
+    _ipad_rib_count = 5  # 5 ribs → 6 strips of ~38mm each
+    _ipad_total_rib = _ipad_rib_w * _ipad_rib_count  # 10mm total rib
+    _ipad_open_span = IPAD_SLOT_W - _ipad_total_rib  # 225mm open
+    _ipad_strip_w = _ipad_open_span / (_ipad_rib_count + 1)  # ~37.5mm per strip
+
+    for _ipad_strip_i in range(_ipad_rib_count + 1):
+        _strip_cx = (-IPAD_SLOT_W / 2 + _ipad_strip_w / 2
+                     + _ipad_strip_i * (_ipad_strip_w + _ipad_rib_w))
+        ipad_channel_strip = (
+            cq.Workplane("XY")
+            .workplane(offset=_channel_floor_z)
+            .center(_strip_cx, ipad_y)
+            .rect(_ipad_strip_w, IPAD_SLOT_GAP)
+            .extrude(_channel_depth + 1)
+        )
+        base = base.cut(ipad_channel_strip)
 
     # ── Vertical cable hole — straight up through channel floor ──────
     # Small hole for USB-C cable to come up from the bottom tray.
