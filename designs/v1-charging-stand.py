@@ -1148,6 +1148,49 @@ def build_top_tray():
     )
     base = base.cut(_front_extension)
 
+    # ── Retention lip tabs — prevent device tray from lifting out ────
+    # Tiny inward-protruding nubs near the top of the cutout walls.
+    # Only 0.5mm protrusion — within the 0.3mm tolerance gap, so only
+    # 0.2mm of actual interference. The tray presses past with light
+    # force and lifts out just as easily with one hand.
+    # 4 tabs: left wall, right wall, rear wall ×2.
+    _ret_protrude = 0.5   # how far the tab sticks inward (mm)
+    _ret_h = 1.5          # tab height (Z)
+    _ret_w = 8.0          # tab width along the wall
+    _ret_z = STAND_H - _ret_h - 0.5  # sits just below top surface
+
+    # Left wall tab
+    _ret_left_tab = (
+        cq.Workplane("XY")
+        .workplane(offset=_ret_z)
+        .center(_dtray_cx - _cutout_w / 2 + _ret_protrude / 2, _dtray_cy)
+        .rect(_ret_protrude, _ret_w)
+        .extrude(_ret_h)
+    )
+    base = base.union(_ret_left_tab)
+
+    # Right wall tab
+    _ret_right_tab = (
+        cq.Workplane("XY")
+        .workplane(offset=_ret_z)
+        .center(_dtray_cx + _cutout_w / 2 - _ret_protrude / 2, _dtray_cy)
+        .rect(_ret_protrude, _ret_w)
+        .extrude(_ret_h)
+    )
+    base = base.union(_ret_right_tab)
+
+    # Rear wall tabs (two, spaced apart)
+    for _ret_sign in [-1, 1]:
+        _ret_rear_tab = (
+            cq.Workplane("XY")
+            .workplane(offset=_ret_z)
+            .center(_dtray_cx + _ret_sign * (_cutout_w / 4),
+                    _dtray_cy + _cutout_d / 2 - _ret_protrude / 2)
+            .rect(_ret_w, _ret_protrude)
+            .extrude(_ret_h)
+        )
+        base = base.union(_ret_rear_tab)
+
     # Clearance notches for Mudra snap hook engagement pockets
     _ms_socket_w = MUDRA_POLE_D + SNAP_TOL * 2
     _ms_pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2
