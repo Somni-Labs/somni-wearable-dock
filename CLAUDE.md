@@ -6,7 +6,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 
 - **`designs/v1-charging-stand.py`** — Main CadQuery parametric design (5 parts: bottom tray, top tray, mudra pole, iPad cover plate, iPad back wall)
 - **`export_charging_stand.py`** — STL/STEP export script (strips cq_server dependency, flips top tray for printing)
-- **`k8s/slice-all-parts.yaml`** — K8s Job template for PrusaSlicer slicing + Moonraker upload
+- **`k8s/slice-*.yaml`** — K8s Job templates for PrusaSlicer slicing + Moonraker upload (per-part)
 - **`output/`** — Generated STL/STEP files
 - **`scripts/pre-print-check.sh`** — Pre-print validation (Moonraker API checks: printer state, filament, gcode metadata)
 - **ESP32 mount** — DevKitC V4 pin-header slot-cradle in bottom tray front-left corner, USB port through front wall
@@ -14,6 +14,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 - **Backlit logo** — "Somni Labs" recessed into front wall exterior with 0.6mm thin-wall diffuser, backlit by RGB strip
 - **QuinLED-Dig-Uno mount** — WLED controller (50x50mm) in bottom tray front-right corner, onboard level shifting, drives WS2812B LED strip
 - **Motorized reveal** — 4x SG90 servo mounts in bottom tray (Y=-37), push rod slots in top tray, servo wiring channels with arch clips
+- **Removable device tray** — Drop-in friction-fit tray (front row) holding UH, R1, Omi pockets + Mudra pole socket. Prints right-side up, no supports. Top tray has rectangular cutout with 3-sided perimeter ledge.
 - **Proximity sensor** — VL53L0X ToF laser mount (front wall, right of ESP32) with front wall window for hands-free reveal activation
 - **Ghost visualization** — Translucent colored component overlays in cadquery-server preview (ESP32, QuinLED, servos, sensor, charger, LED strip)
 - Live preview via `cadquery-server` deployment in K8s (`utilities` namespace), synced from GitHub via git-sync init container
@@ -92,7 +93,7 @@ Each printable part needs its own STL at Z=0. The top tray must be flipped 180 d
 
 ### Separate parts eliminate support material waste
 
-The Mudra L-pole overhang required 48% of the top tray's filament for support material (110m, 20+ extra hours). Separating the pole into its own snap-in part eliminates supports entirely — the pole prints upright and the top tray has a simple through-socket. Assembly: 5 parts (bottom tray, top tray, mudra pole, iPad cover plate, iPad back wall).
+The Mudra L-pole overhang required 48% of the top tray's filament for support material (110m, 20+ extra hours). Separating the pole into its own snap-in part eliminates supports entirely — the pole prints upright and the top tray has a simple through-socket. Assembly: 6 parts (bottom tray, top tray, device tray, mudra pole, iPad cover plate, iPad back wall).
 
 ### Tall vertical walls should be separate parts printed flat
 
@@ -117,6 +118,16 @@ The top tray is printed flipped (Z=58 on build plate, Z=41 on top). Every throug
 The flipped top tray has device pockets (UH, R1, Omi, G2) facing down on the build plate, creating massive unsupported overhangs. PrusaSlicer will even warn about "floating bridge anchors" and "loose extrusions." Without supports, the print spaghettifies immediately.
 
 **Fix**: Set `support_material = 1`, `support_material_auto = 1` in the slicer profile. Add `brim_width = 5` for bed adhesion. The `validate_gcode()` function should check for `;TYPE:Support` presence when slicing the top tray.
+
+### Front-row device pockets should be a removable tray
+
+The top tray's four front-row device pockets (UH, R1, Omi, Mudra) created deep overhangs when printed flipped, requiring heavy supports and causing spaghetti failures. Separating them into a removable drop-in tray solves multiple problems:
+1. Device tray prints right-side up — zero supports needed
+2. Top tray flipped print becomes dramatically simpler
+3. Device tray can be reprinted independently when devices change
+4. Assembly: 6 parts (bottom tray, top tray, device tray, mudra pole, iPad cover plate, iPad back wall)
+
+**Rule of thumb:** When a group of features creates significant overhang complexity in a flipped print, consider making them a separate drop-in tray that prints in its natural orientation.
 
 
 ## Errors Encountered and Fixed
