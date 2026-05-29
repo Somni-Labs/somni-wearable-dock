@@ -61,8 +61,8 @@ DTRAY_FLOOR_Z = SPLIT_Z + LID_FLOOR  # 43mm — bottom of device tray
 # Width and depth computed dynamically from SLOT_POSITIONS + device sizes
 
 # --- Base platform (bottom tray internals) ---
-BASE_H = 3             # solid floor at very bottom of bottom tray
-CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height (~8.5mm)
+BASE_H = 5             # solid floor at very bottom of bottom tray (5mm for structural integrity)
+CHANNEL_H = SPLIT_Z - BASE_H - WALL  # cable channel height
 CHANNEL_W = 12         # cable channel width (wider for better cable mgmt)
 
 # --- VanBon Smart USB Charger recess (under G2 shelf) ---
@@ -519,32 +519,9 @@ def build_bottom_tray():
         )
         tray = tray.cut(slot_b)
 
-    # ── Cable routing clips in the front channel ─────────────────────────
-    # Small arch bridges near each device's cable pass-through.
-    # Cable threads under the arch, stays organized on its way up.
-    _clip_w = 14       # slightly wider than USB cable
-    _clip_h = 8        # arch height (cable passes under)
-    _clip_t = 2.5      # arch wall thickness
-    _clip_y = FRONT_ROW_Y + 12  # just behind device row, in the channel
-
-    for name in ("uh_ring", "r1_ring", "omi", "mudra"):
-        px, py = SLOT_POSITIONS[name]
-        arch_outer = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(px, _clip_y)
-            .box(_clip_w + _clip_t * 2, _clip_t, _clip_h,
-                 centered=[True, True, False])
-        )
-        arch_inner = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(px, _clip_y)
-            .box(_clip_w, _clip_t + 2, _clip_h - _clip_t,
-                 centered=[True, True, False])
-        )
-        tray = tray.union(arch_outer)
-        tray = tray.cut(arch_inner)
+    # ── Cable routing clips REMOVED ─────────────────────────────────────
+    # The arch bridges (14mm span, 2.5mm walls) spaghettified during printing
+    # at aggressive speeds. Cable management uses Velcro straps instead.
 
     # ── ESP32 DevKitC V4 mount (front-left corner, slot-cradle) ──────────
     # Board with pre-soldered pin headers rides in grooved rails.
@@ -673,7 +650,8 @@ def build_bottom_tray():
     _inner_front  = -STAND_D / 2 + WALL             # Y = -85
     _inner_back   =  STAND_D / 2 - WALL             # Y =  85
     _ch_inset = 1   # inset from inner wall face
-    _ch_z = BASE_H - LED_CHANNEL_D  # channel bottom (may cut into floor)
+    _led_actual_d = min(LED_CHANNEL_D, BASE_H - 1)  # never cut deeper than floor minus 1mm
+    _ch_z = BASE_H - _led_actual_d  # channel bottom (always leaves 1mm floor)
 
     # Left wall segment (runs along Y)
     led_ch_left = (
@@ -682,7 +660,7 @@ def build_bottom_tray():
         .center(_inner_left + _ch_inset + LED_CHANNEL_W / 2,
                 (_inner_front + _inner_back) / 2)
         .rect(LED_CHANNEL_W, _inner_back - _inner_front)
-        .extrude(LED_CHANNEL_D + 0.5)
+        .extrude(_led_actual_d + 0.5)
     )
     tray = tray.cut(led_ch_left)
 
@@ -692,7 +670,7 @@ def build_bottom_tray():
         .workplane(offset=_ch_z)
         .center(0, _inner_front + _ch_inset + LED_CHANNEL_W / 2)
         .rect(_inner_right - _inner_left, LED_CHANNEL_W)
-        .extrude(LED_CHANNEL_D + 0.5)
+        .extrude(_led_actual_d + 0.5)
     )
     tray = tray.cut(led_ch_front)
 
@@ -703,7 +681,7 @@ def build_bottom_tray():
         .center(_inner_right - _ch_inset - LED_CHANNEL_W / 2,
                 (_inner_front + _inner_back) / 2)
         .rect(LED_CHANNEL_W, _inner_back - _inner_front)
-        .extrude(LED_CHANNEL_D + 0.5)
+        .extrude(_led_actual_d + 0.5)
     )
     tray = tray.cut(led_ch_right)
 
@@ -745,7 +723,7 @@ def build_bottom_tray():
     # Shallow channels in the floor for routing wires between the ESP32,
     # QuinLED, LED channels, charger bay, and proximity sensor.
     _wire_w = 6    # groove width
-    _wire_d = 3    # groove depth
+    _wire_d = min(3, BASE_H - 1)  # groove depth (never cut through floor, leave 1mm)
     _wire_z = BASE_H - _wire_d
 
     # Groove 1: ESP32 → charger bay (USB power cable from VanBon)
@@ -838,7 +816,8 @@ def build_bottom_tray():
     # ── Servo wiring channels ────────────────────────────────────────────
     # Main trunk along X at the servo row, connecting all 4 positions.
     # Spurs connect to ESP32 (front-left) and QuinLED (front-right).
-    _sw_z = BASE_H - SERVO_WIRE_D  # channel bottom
+    _sw_actual_d = min(SERVO_WIRE_D, BASE_H - 1)  # never cut through floor
+    _sw_z = BASE_H - _sw_actual_d  # channel bottom (always leaves 1mm floor)
 
     # Main trunk: X=-81 to X=+73 at Y=-37
     _trunk_x_start = _servo_x_positions[0]   # -81
@@ -849,7 +828,7 @@ def build_bottom_tray():
         .workplane(offset=_sw_z)
         .center((_trunk_x_start + _trunk_x_end) / 2, SERVO_Y)
         .rect(_trunk_length + SERVO_WIRE_W, SERVO_WIRE_W)
-        .extrude(SERVO_WIRE_D + 0.5)
+        .extrude(_sw_actual_d + 0.5)
     )
     tray = tray.cut(servo_trunk)
 
@@ -861,7 +840,7 @@ def build_bottom_tray():
         .workplane(offset=_sw_z)
         .center(_spur_esp_x_mid, SERVO_Y)
         .rect(abs(_esp_x - _trunk_x_start) + SERVO_WIRE_W, SERVO_WIRE_W)
-        .extrude(SERVO_WIRE_D + 0.5)
+        .extrude(_sw_actual_d + 0.5)
     )
     tray = tray.cut(spur_esp_horiz)
 
@@ -870,7 +849,7 @@ def build_bottom_tray():
         .workplane(offset=_sw_z)
         .center(_esp_x, (_esp_y + SERVO_Y) / 2)
         .rect(SERVO_WIRE_W, abs(SERVO_Y - _esp_y) + SERVO_WIRE_W)
-        .extrude(SERVO_WIRE_D + 0.5)
+        .extrude(_sw_actual_d + 0.5)
     )
     tray = tray.cut(spur_esp_vert)
 
@@ -880,7 +859,7 @@ def build_bottom_tray():
         .workplane(offset=_sw_z)
         .center((_trunk_x_end + _qled_x) / 2, SERVO_Y)
         .rect(abs(_qled_x - _trunk_x_end) + SERVO_WIRE_W, SERVO_WIRE_W)
-        .extrude(SERVO_WIRE_D + 0.5)
+        .extrude(_sw_actual_d + 0.5)
     )
     tray = tray.cut(spur_qled_horiz)
 
@@ -889,43 +868,14 @@ def build_bottom_tray():
         .workplane(offset=_sw_z)
         .center(_qled_x, (_qled_y + SERVO_Y) / 2)
         .rect(SERVO_WIRE_W, abs(SERVO_Y - _qled_y) + SERVO_WIRE_W)
-        .extrude(SERVO_WIRE_D + 0.5)
+        .extrude(_sw_actual_d + 0.5)
     )
     tray = tray.cut(spur_qled_vert)
 
-    # ── Servo wire arch clips along the main trunk ───────────────────────
-    _sw_clip_w = 14       # arch width (same as cable clips)
-    _sw_clip_h = 8        # arch height
-    _sw_clip_t = 2.5      # arch wall thickness
-    _sw_clip_positions_x = [-81, -54, -27, 0, 27, 50, 73]
-
-    for clip_x in _sw_clip_positions_x:
-        # Skip if too close to an existing front-row cable clip
-        # (front-row clips are at _clip_y = FRONT_ROW_Y + 12 = -37.5, nearly same Y)
-        # Since servo clips are at SERVO_Y = -37 and cable clips at -37.5,
-        # they overlap in Y. Only add servo clip if no front-row device is
-        # at this X position (front-row clips are at -81, -27, 27, 73).
-        _is_device_x = any(abs(clip_x - SLOT_POSITIONS[n][0]) < 5
-                           for n in ("uh_ring", "r1_ring", "omi", "mudra"))
-        if _is_device_x:
-            continue  # front-row cable clip already exists at this X
-
-        arch_outer = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(clip_x, SERVO_Y)
-            .box(_sw_clip_w + _sw_clip_t * 2, _sw_clip_t, _sw_clip_h,
-                 centered=[True, True, False])
-        )
-        arch_inner = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H)
-            .center(clip_x, SERVO_Y)
-            .box(_sw_clip_w, _sw_clip_t + 2, _sw_clip_h - _sw_clip_t,
-                 centered=[True, True, False])
-        )
-        tray = tray.union(arch_outer)
-        tray = tray.cut(arch_inner)
+    # ── Servo wire arch clips REMOVED ──────────────────────────────────
+    # Same spaghetti issue as cable routing clips — 14mm bridge spans
+    # failed at aggressive print speeds. Wires stay in channels by gravity;
+    # Velcro straps handle any that need securing.
 
     # ── VL53L0X proximity sensor mount (front wall, right of ESP32) ──────
     # ToF laser sensor for hands-free reveal activation.
