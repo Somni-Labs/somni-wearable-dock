@@ -33,7 +33,7 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 58           # TOTAL assembled height (bottom + top)
+STAND_H = 67           # TOTAL assembled height (bottom + top)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 1.0              # print tolerance per side (1mm clearance each side for snug drop-in fit)
@@ -41,8 +41,9 @@ TOL = 1.0              # print tolerance per side (1mm clearance each side for s
 # --- Two-part split ---
 # Bottom tray: cable management, VanBon charger, rubber feet
 # Top tray: device pockets, Mudra pole, iPad wall — sits on top of bottom
-# Bottom tray height = 41mm to house VanBon charger (33mm + 3mm floor + 2.5mm ceiling + margin).
-SPLIT_Z = 41           # Z where the two parts meet (bottom tray height)
+# Bottom tray height = 50mm (~2 inches) to house VanBon charger (33mm)
+# with 12mm headroom above for USB cables to bend out of ports.
+SPLIT_Z = 50           # Z where the two parts meet (bottom tray height)
 TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
 LID_FLOOR = 2          # solid floor thickness on top tray bottom face (lid surface)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
