@@ -1651,13 +1651,16 @@ def build_device_tray():
     tray = tray.cut(omi_pocket)
 
     # USB-C port notch — front-left of diamond
+    # Widened past the midpoint of the long edge so the necklace cord
+    # (attached at the pendant's center) can pass through.
     _omi_front_y_world = oy + min(p[1] for p in diamond_pts)
     _omi_port_x = ox - 8
+    _omi_slot_w = 20     # wider than USBC_HEAD_W (14mm) — past half of 30mm edge for cord
     omi_port_slot = (
         cq.Workplane("XY")
         .workplane(offset=STAND_H - _omi_actual_depth)
         .center(_omi_port_x, _omi_front_y_world - 5)
-        .rect(USBC_HEAD_W, WALL + 12)
+        .rect(_omi_slot_w, WALL + 12)
         .extrude(USBC_HEAD_H)
     )
     tray = tray.cut(omi_port_slot)
