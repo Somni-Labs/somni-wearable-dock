@@ -1702,12 +1702,15 @@ def build_device_tray():
     # =====================================================================
     mx, my = SLOT_POSITIONS["mudra"]
 
-    # Cable pass-through (full height)
+    # Cable pass-through — only below the socket floor, not through it.
+    # The cable exits the pole base and drops down through the tray floor
+    # into the bottom tray. The socket floor remains solid for pole support.
     mudra_cable = (
         cq.Workplane("XY")
+        .workplane(offset=DTRAY_FLOOR_Z - 0.5)
         .center(mx, my)
         .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
-        .extrude(STAND_H)
+        .extrude(LID_FLOOR + 1)  # cut through tray floor only
     )
     tray = tray.cut(mudra_cable)
 
@@ -1730,6 +1733,16 @@ def build_device_tray():
         .extrude(_socket_depth + 1)  # +1 to break through top surface
     )
     tray = tray.cut(mudra_socket)
+
+    # Cable hole through socket floor — USB cable exits pole base center
+    _mudra_cable_hole = (
+        cq.Workplane("XY")
+        .workplane(offset=_socket_floor_z - 0.5)
+        .center(mx, my)
+        .rect(USBC_HEAD_W + 2, USBC_HEAD_H + 2)  # 16×11mm
+        .extrude(_socket_floor_t + 1)
+    )
+    tray = tray.cut(_mudra_cable_hole)
 
     # Slits in the socket floor for snap clip arms to pass through.
     # Each arm is MUDRA_CLIP_T (2.5mm) thick × MUDRA_CLIP_W (14mm) wide,
