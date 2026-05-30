@@ -1711,20 +1711,42 @@ def build_device_tray():
     )
     tray = tray.cut(mudra_cable)
 
-    # Pole socket — through-hole for snap-in pole
+    # Pole socket — sunken pocket with floor + slits for snap clip arms.
     # Extra tolerance (1mm/side) to account for support material divots
     # and stringing on the pole surface after support removal.
     _mudra_socket_tol = 1.0  # mm per side (was SNAP_TOL=0.3)
     _socket_w = MUDRA_POLE_D + _mudra_socket_tol * 2   # 22mm in X
     _socket_d = MUDRA_POLE_W + _mudra_socket_tol * 2   # 24mm in Y
+    _socket_floor_t = 2.0    # floor thickness at the bottom of the socket
+    _socket_depth = DTRAY_H - _socket_floor_t  # pocket depth (leaves 2mm floor)
+    _socket_floor_z = STAND_H - _socket_depth  # Z of the sunken floor
+
+    # Cut the pocket (NOT a through-hole — stops at the floor)
     mudra_socket = (
         cq.Workplane("XY")
-        .workplane(offset=DTRAY_FLOOR_Z - 0.5)
+        .workplane(offset=_socket_floor_z)
         .center(mx, my)
         .rect(_socket_w, _socket_d)
-        .extrude(DTRAY_H + 1)
+        .extrude(_socket_depth + 1)  # +1 to break through top surface
     )
     tray = tray.cut(mudra_socket)
+
+    # Slits in the socket floor for snap clip arms to pass through.
+    # Each arm is MUDRA_CLIP_T (2.5mm) thick × MUDRA_CLIP_W (14mm) wide,
+    # positioned on the ±X faces of the pole.
+    _slit_tol = 0.5  # extra clearance per side for the arm
+    _slit_w = MUDRA_CLIP_T + _slit_tol * 2   # 3.5mm in X
+    _slit_d = MUDRA_CLIP_W + _slit_tol * 2   # 15mm in Y
+    for side_sign in [-1, 1]:
+        slit_x = mx + side_sign * (MUDRA_POLE_D / 2)  # at each pole face
+        clip_slit = (
+            cq.Workplane("XY")
+            .workplane(offset=DTRAY_FLOOR_Z - 0.5)
+            .center(slit_x, my)
+            .rect(_slit_w, _slit_d)
+            .extrude(_socket_floor_t + 1)  # cut through the floor
+        )
+        tray = tray.cut(clip_slit)
 
     # Snap hook engagement pockets on the underside of the tray
     _pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2   # 14.6mm
