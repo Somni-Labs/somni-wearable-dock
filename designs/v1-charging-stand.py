@@ -1946,12 +1946,28 @@ def build_mudra_pole():
     pole = pole.cut(cable_horiz)
 
     # ── Vertical cable cavity through the post ───────────────────────────
+    # Extends from base (Z=0) up through the shelf junction to guarantee
+    # a continuous path. The +1 ensures it breaks into the horizontal slot.
     cable_cavity_vert = (
         cq.Workplane("XY")
         .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
         .extrude(cable_slot_z + MUDRA_CABLE_CH_W + 1)
     )
     pole = pole.cut(cable_cavity_vert)
+
+    # ── Junction re-cut — guarantee no wall between horiz and vert channels ─
+    # CadQuery boolean unions can fill internal cavities at the post/shelf
+    # junction. This explicit box cut spans both channels at the junction.
+    _junct_z = cable_slot_z - 2
+    _junct_h = MUDRA_CABLE_CH_W + 4
+    junction_cut = (
+        cq.Workplane("XY")
+        .workplane(offset=_junct_z)
+        .center(0, 0)
+        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)
+        .extrude(_junct_h)
+    )
+    pole = pole.cut(junction_cut)
 
     # ── Snap clip tabs on the base ───────────────────────────────────────
     # Two cantilever hooks, one on each X-axis face of the pole base.
