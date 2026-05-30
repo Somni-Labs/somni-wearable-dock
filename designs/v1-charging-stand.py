@@ -1414,18 +1414,10 @@ def build_top_tray():
         )
         base = base.cut(_ms_floor_clearance)
 
-    # G2 open-bottom cutout — grid with a dedicated LCD window.
-    # The VanBon charger has a 45×45mm LCD centered on its top face,
-    # which sits directly below the G2 case. We cut:
-    #   1. A clean 47×47mm center window (LCD + 1mm margin per side)
-    #   2. Grid cells around it for ventilation / cable access,
-    #      with ribs keeping bridge spans under 40mm when printed flipped.
+    # G2 LCD window — single clean 47×47mm through-hole in the center.
+    # The VanBon charger's 45×45mm LCD sits directly below the G2 case.
+    # No ribs or grid — just the pocket above and this window below.
     _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
-    _g2_rib = 2          # rib width
-
-    # --- Center LCD window (47×47mm) — full through-cut ---
-    # Must cut from SPLIT_Z all the way up to the G2 pocket floor (STAND_H - 10)
-    # so there's a clean see-through hole to the charger LCD below.
     _lcd_window_size = 47  # 45mm LCD + 2mm margin
     _g2_wall_h_ref = 10    # matches G2 pocket wall height above
     _lcd_cut_height = (STAND_H - _g2_wall_h_ref) - SPLIT_Z + 1  # full depth + overlap
@@ -1437,26 +1429,6 @@ def build_top_tray():
         .extrude(_lcd_cut_height)
     )
     base = base.cut(_floor_lcd)
-
-    # --- Side cells (left and right of LCD window) ---
-    # Each side cell spans from the G2 edge to the LCD window edge,
-    # split into 2 rows by a Y rib for manageable bridge spans.
-    # Cut full depth (same as LCD window) so the entire G2 area is open.
-    _side_cell_w = (G2_W - _lcd_window_size) / 2 - _g2_rib  # width of each side cell
-    _side_cell_d = (G2_D - _g2_rib) / 2                      # height of each row
-
-    for x_sign in [-1, 1]:
-        _side_cx = _g2_cx + x_sign * (_lcd_window_size / 2 + _g2_rib + _side_cell_w / 2)
-        for row_i in range(2):
-            _side_cy = _g2_cy - G2_D / 2 + _side_cell_d / 2 + row_i * (_side_cell_d + _g2_rib)
-            _floor_side = (
-                cq.Workplane("XY")
-                .workplane(offset=SPLIT_Z - 0.5)
-                .center(_side_cx, _side_cy)
-                .rect(_side_cell_w, _side_cell_d)
-                .extrude(_lcd_cut_height)
-            )
-            base = base.cut(_floor_side)
 
     # iPad cable vertical hole — cable from bottom tray up to iPad channel
     _ipad_y_floor = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
