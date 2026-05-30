@@ -1124,7 +1124,7 @@ def build_top_tray():
         base = base.union(_ret_rear_tab)
 
     # Clearance notches for Mudra snap hook engagement pockets
-    _ms_socket_w = MUDRA_POLE_D + SNAP_TOL * 2
+    _ms_socket_w = MUDRA_POLE_D + 1.0 * 2  # match device tray socket tolerance
     _ms_pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2
     _ms_pocket_depth = MUDRA_HOOK
     _ms_pocket_h = MUDRA_HOOK_H + 1
@@ -1399,7 +1399,7 @@ def build_top_tray():
     # Mudra snap clip clearance notches — re-cut through LID_FLOOR
     # These pockets were cut before LID_FLOOR union and need to be
     # re-opened so the snap hooks on the device tray can engage.
-    _ms_socket_w_f = MUDRA_POLE_D + SNAP_TOL * 2
+    _ms_socket_w_f = MUDRA_POLE_D + 1.0 * 2  # match device tray socket tolerance
     _ms_pocket_depth_f = MUDRA_HOOK
     _ms_pocket_w_f = MUDRA_CLIP_W + SNAP_TOL * 2
     _ms_pocket_h_f = MUDRA_HOOK_H + 1
@@ -1712,8 +1712,11 @@ def build_device_tray():
     tray = tray.cut(mudra_cable)
 
     # Pole socket — through-hole for snap-in pole
-    _socket_w = MUDRA_POLE_D + SNAP_TOL * 2   # 20.6mm in X
-    _socket_d = MUDRA_POLE_W + SNAP_TOL * 2   # 22.6mm in Y
+    # Extra tolerance (1mm/side) to account for support material divots
+    # and stringing on the pole surface after support removal.
+    _mudra_socket_tol = 1.0  # mm per side (was SNAP_TOL=0.3)
+    _socket_w = MUDRA_POLE_D + _mudra_socket_tol * 2   # 22mm in X
+    _socket_d = MUDRA_POLE_W + _mudra_socket_tol * 2   # 24mm in Y
     mudra_socket = (
         cq.Workplane("XY")
         .workplane(offset=DTRAY_FLOOR_Z - 0.5)
