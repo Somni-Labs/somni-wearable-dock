@@ -1632,13 +1632,19 @@ def build_device_tray():
     diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
     diamond_closed = diamond_pts + [diamond_pts[0]]
 
+    # Limit pocket depth so it doesn't punch through the tray floor.
+    # The pendant is 13mm thick; the pocket must stop at DTRAY_FLOOR_Z + 1mm
+    # to leave a solid floor. Cable passes through a small hole instead.
+    _omi_max_depth = STAND_H - DTRAY_FLOOR_Z - 1  # leave 1mm floor
+    _omi_actual_depth = min(OMI_CRADLE_DEPTH, _omi_max_depth)
+
     omi_pocket = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
+        .workplane(offset=STAND_H - _omi_actual_depth)
         .center(ox, oy)
         .polyline(diamond_closed)
         .close()
-        .extrude(OMI_CRADLE_DEPTH + 1)
+        .extrude(_omi_actual_depth + 1)
     )
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     tray = tray.cut(omi_pocket)
@@ -1648,7 +1654,7 @@ def build_device_tray():
     _omi_port_x = ox - 8
     omi_port_slot = (
         cq.Workplane("XY")
-        .workplane(offset=STAND_H - OMI_CRADLE_DEPTH)
+        .workplane(offset=STAND_H - _omi_actual_depth)
         .center(_omi_port_x, _omi_front_y_world - 5)
         .rect(USBC_HEAD_W, WALL + 12)
         .extrude(USBC_HEAD_H)
@@ -1673,7 +1679,7 @@ def build_device_tray():
     _omi_front_y_local = min(p[1] for p in _omi_pts)
     _omi_chord_cut_y = _omi_front_y_local + 2
     _omi_front_y = oy + _omi_chord_cut_y
-    _omi_socket_z = STAND_H - OMI_CRADLE_DEPTH
+    _omi_socket_z = STAND_H - _omi_actual_depth
     _omi_barrel_spacing = 8
 
     for x_sign in [-1, 1]:
