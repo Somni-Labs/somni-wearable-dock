@@ -1644,7 +1644,7 @@ def build_device_tray():
         .center(ox, oy)
         .polyline(diamond_closed)
         .close()
-        .extrude(_omi_actual_depth + 1)
+        .extrude(_omi_actual_depth)
     )
     omi_pocket = omi_pocket.edges("|Z").fillet(OMI_VERTEX_R)
     tray = tray.cut(omi_pocket)
