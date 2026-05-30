@@ -1414,43 +1414,44 @@ def build_top_tray():
         )
         base = base.cut(_ms_floor_clearance)
 
-    # G2 open-bottom cutout — cut through LID_FLOOR as a grid of
-    # rectangular openings with ribs in BOTH directions. This keeps
-    # bridge spans under 35mm in X AND Y when printed flipped.
-    #
-    # Grid: 3 ribs in X (dividing 176mm into 4 cols of ~42mm)
-    #        1 rib in Y (dividing 68mm into 2 rows of ~33mm)
-    # The charger LCD (~45×45mm) is visible through the center cells.
+    # G2 open-bottom cutout — grid with a dedicated LCD window.
+    # The VanBon charger has a 45×45mm LCD centered on its top face,
+    # which sits directly below the G2 case. We cut:
+    #   1. A clean 47×47mm center window (LCD + 1mm margin per side)
+    #   2. Grid cells around it for ventilation / cable access,
+    #      with ribs keeping bridge spans under 40mm when printed flipped.
     _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
-    _g2_rib = 2          # rib width in both directions
+    _g2_rib = 2          # rib width
 
-    # X direction: 3 ribs → 4 columns
-    _g2_x_ribs = 3
-    _g2_x_cells = _g2_x_ribs + 1
-    _g2_x_open = G2_W - _g2_rib * _g2_x_ribs   # 170mm open
-    _g2_cell_w = _g2_x_open / _g2_x_cells       # ~42.5mm per cell
+    # --- Center LCD window (47×47mm) ---
+    _lcd_window_size = 47  # 45mm LCD + 2mm margin
+    _floor_lcd = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 0.5)
+        .center(_g2_cx, _g2_cy)
+        .rect(_lcd_window_size, _lcd_window_size)
+        .extrude(LID_FLOOR + 1)
+    )
+    base = base.cut(_floor_lcd)
 
-    # Y direction: 1 rib → 2 rows
-    _g2_y_ribs = 1
-    _g2_y_cells = _g2_y_ribs + 1
-    _g2_y_open = G2_D - _g2_rib * _g2_y_ribs    # 66mm open
-    _g2_cell_d = _g2_y_open / _g2_y_cells        # 33mm per cell
+    # --- Side cells (left and right of LCD window) ---
+    # Each side cell spans from the G2 edge to the LCD window edge,
+    # split into 2 rows by a Y rib for manageable bridge spans.
+    _side_cell_w = (G2_W - _lcd_window_size) / 2 - _g2_rib  # width of each side cell
+    _side_cell_d = (G2_D - _g2_rib) / 2                      # height of each row
 
-    # Cut each grid cell
-    for _col_i in range(_g2_x_cells):
-        for _row_i in range(_g2_y_cells):
-            _cell_cx = (_g2_cx - G2_W / 2 + _g2_cell_w / 2
-                        + _col_i * (_g2_cell_w + _g2_rib))
-            _cell_cy = (_g2_cy - G2_D / 2 + _g2_cell_d / 2
-                        + _row_i * (_g2_cell_d + _g2_rib))
-            _floor_g2_cell = (
+    for x_sign in [-1, 1]:
+        _side_cx = _g2_cx + x_sign * (_lcd_window_size / 2 + _g2_rib + _side_cell_w / 2)
+        for row_i in range(2):
+            _side_cy = _g2_cy - G2_D / 2 + _side_cell_d / 2 + row_i * (_side_cell_d + _g2_rib)
+            _floor_side = (
                 cq.Workplane("XY")
                 .workplane(offset=SPLIT_Z - 0.5)
-                .center(_cell_cx, _cell_cy)
-                .rect(_g2_cell_w, _g2_cell_d)
+                .center(_side_cx, _side_cy)
+                .rect(_side_cell_w, _side_cell_d)
                 .extrude(LID_FLOOR + 1)
             )
-            base = base.cut(_floor_g2_cell)
+            base = base.cut(_floor_side)
 
     # iPad cable vertical hole — cable from bottom tray up to iPad channel
     _ipad_y_floor = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
