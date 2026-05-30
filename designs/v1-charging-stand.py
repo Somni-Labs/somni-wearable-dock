@@ -1423,20 +1423,25 @@ def build_top_tray():
     _g2_cx, _g2_cy = SLOT_POSITIONS["g2_case"]
     _g2_rib = 2          # rib width
 
-    # --- Center LCD window (47×47mm) ---
+    # --- Center LCD window (47×47mm) — full through-cut ---
+    # Must cut from SPLIT_Z all the way up to the G2 pocket floor (STAND_H - 10)
+    # so there's a clean see-through hole to the charger LCD below.
     _lcd_window_size = 47  # 45mm LCD + 2mm margin
+    _g2_wall_h_ref = 10    # matches G2 pocket wall height above
+    _lcd_cut_height = (STAND_H - _g2_wall_h_ref) - SPLIT_Z + 1  # full depth + overlap
     _floor_lcd = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
         .center(_g2_cx, _g2_cy)
         .rect(_lcd_window_size, _lcd_window_size)
-        .extrude(LID_FLOOR + 1)
+        .extrude(_lcd_cut_height)
     )
     base = base.cut(_floor_lcd)
 
     # --- Side cells (left and right of LCD window) ---
     # Each side cell spans from the G2 edge to the LCD window edge,
     # split into 2 rows by a Y rib for manageable bridge spans.
+    # Cut full depth (same as LCD window) so the entire G2 area is open.
     _side_cell_w = (G2_W - _lcd_window_size) / 2 - _g2_rib  # width of each side cell
     _side_cell_d = (G2_D - _g2_rib) / 2                      # height of each row
 
@@ -1449,7 +1454,7 @@ def build_top_tray():
                 .workplane(offset=SPLIT_Z - 0.5)
                 .center(_side_cx, _side_cy)
                 .rect(_side_cell_w, _side_cell_d)
-                .extrude(LID_FLOOR + 1)
+                .extrude(_lcd_cut_height)
             )
             base = base.cut(_floor_side)
 
