@@ -68,10 +68,11 @@ def export_stl_files():
     bottom_print = bottom_tray.translate((0, 0, -bottom_bb.zmin))
 
     top_bb = top_tray.val().BoundingBox()
-    # Flip upside-down: rotate 180° around X, then shift so Z_min = 0
-    top_flipped = top_tray.rotate((0, 0, 0), (1, 0, 0), 180)
-    top_flipped_bb = top_flipped.val().BoundingBox()
-    top_print = top_flipped.translate((0, 0, -top_flipped_bb.zmin))
+    # Print right-side up — no flip needed. The device tray is now a
+    # separate part, so the top tray has no deep pockets creating overhangs.
+    # All features (G2 pocket, iPad slot, device tray cutout) cut downward
+    # from the top surface and print cleanly right-side up.
+    top_print = top_tray.translate((0, 0, -top_bb.zmin))
 
     # iPad cover plate — translate to Z=0 for printing
     if ipad_cover:
@@ -117,7 +118,7 @@ def export_stl_files():
             print(f"   Push rod ({name}): translated Z by {-rod_bb.zmin:+.1f}mm")
 
     print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
-    print(f"   Top tray: flipped upside-down + translated Z by {-top_flipped_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
+    print(f"   Top tray: right-side up, translated Z by {-top_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
     if ipad_cover:
         print(f"   iPad cover: translated Z by {-cover_bb.zmin:+.1f}mm (was Z={cover_bb.zmin:.1f})")
     if mudra_pole:
@@ -133,10 +134,10 @@ def export_stl_files():
         cq.exporters.export(bottom_print, str(bottom_stl_path))
         print(f"✅ {bottom_stl_path} - Bottom tray (cable management)")
 
-        # Export top tray (slicer-ready: flipped + Z starts at 0)
+        # Export top tray (slicer-ready: right-side up, Z starts at 0)
         top_stl_path = output_dir / "v1-charging-stand-top-tray.stl"
         cq.exporters.export(top_print, str(top_stl_path))
-        print(f"✅ {top_stl_path} - Top tray (flipped for printing)")
+        print(f"✅ {top_stl_path} - Top tray (right-side up for printing)")
 
         # STEP files keep original assembly positions (for CAD review)
         bottom_step_path = output_dir / "v1-charging-stand-bottom-tray.step"
@@ -220,9 +221,9 @@ def print_print_info():
     print(f"   Material: PETG recommended (good strength + heat resistance)")
     print(f"   Layer height: 0.2mm (0.15mm for finer details)")
     print(f"   Infill: 15-20% (functional print, not decorative)")
-    print(f"   Supports: Top tray, mudra pole, and iPad wall need NO supports")
+    print(f"   Supports: NO supports needed — all parts print in natural orientation")
     print(f"   Build plate: Fits QIDI Q2 (245×255mm) - verify in slicer")
-    print(f"   Print orientation: Bottom tray down, top tray upside down, mudra pole on side")
+    print(f"   Print orientation: All parts right-side up, mudra pole on side")
     print(f"")
     print(f"🔧 MUDRA LINK TEST FIT:")
     print(f"   Updated charger pocket dimensions:")
