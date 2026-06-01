@@ -1,0 +1,207 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slice-accessories
+  namespace: utilities
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      initContainers:
+      - name: fetch-stls
+        image: alpine/git:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          git clone --depth 1 https://github.com/somni-labs/somni-wearable-dock.git /tmp/repo
+          cp /tmp/repo/output/v1-charging-stand-ipad-wall.stl      /shared/ipad-wall.stl
+          cp /tmp/repo/output/v1-charging-stand-ipad-cover.stl     /shared/ipad-cover.stl
+          cp /tmp/repo/output/v1-charging-stand-tilt-plate-uh.stl  /shared/tilt-plate-uh.stl
+          cp /tmp/repo/output/v1-charging-stand-tilt-plate-r1.stl  /shared/tilt-plate-r1.stl
+          cp /tmp/repo/output/v1-charging-stand-tilt-plate-omi.stl /shared/tilt-plate-omi.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-uh_ring.stl  /shared/push-rod-uh.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-r1_ring.stl  /shared/push-rod-r1.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-omi.stl      /shared/push-rod-omi.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-mudra.stl    /shared/push-rod-mudra.stl
+          echo "=== Fetched STLs ==="
+          ls -la /shared/
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      containers:
+      - name: slicer
+        image: cznewt/prusa-slicer:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "=== PrusaSlicer — Accessories Batch ==="
+          echo "  iPad back wall + iPad cover plate + 3 tilt plates + 4 push rods"
+          echo ""
+
+          SLICER=/prusa-slicer/prusa-slicer
+          INI=/tmp/pla_plus.ini
+          MOONRAKER="http://192.168.1.15:7125"
+
+          cat > "$INI" << 'PROFILE'
+          layer_height = 0.3
+          first_layer_height = 0.35
+          perimeters = 3
+          top_solid_layers = 5
+          bottom_solid_layers = 4
+          fill_density = 20%
+          fill_pattern = gyroid
+          perimeter_speed = 100
+          external_perimeter_speed = 80
+          infill_speed = 120
+          solid_infill_speed = 80
+          first_layer_speed = 25
+          travel_speed = 200
+          bridge_speed = 30
+          gap_fill_speed = 40
+          small_perimeter_speed = 40
+          support_material = 0
+          support_material_auto = 0
+          skirts = 2
+          skirt_distance = 5
+          brim_width = 3
+          temperature = 215
+          first_layer_temperature = 220
+          bed_temperature = 70
+          first_layer_bed_temperature = 70
+          fan_always_on = 0
+          min_fan_speed = 0
+          max_fan_speed = 80
+          bridge_fan_speed = 80
+          overhangs_fan_speed = 80
+          disable_fan_first_layers = 3
+          gcode_flavor = klipper
+          bed_shape = 0x0,275x0,275x295,0x295
+          max_print_height = 265
+          nozzle_diameter = 0.4
+          retract_length = 0.8
+          retract_speed = 40
+          retract_lift = 0.2
+          start_gcode = G28\nG1 Z5 F5000
+          end_gcode = M400\nG91\nG1 E-5 F2700\nG1 Z10 F3000\nG90\nG1 X10 Y270 F6000\nM400\nM140 S0\nM104 S0\nM106 S0\nG4 P2000\nM84
+          PROFILE
+
+          sed -i 's/^[[:space:]]*//' "$INI"
+
+          echo "--- Checking STLs ---"
+          for f in ipad-wall ipad-cover tilt-plate-uh tilt-plate-r1 tilt-plate-omi \
+                   push-rod-uh push-rod-r1 push-rod-omi push-rod-mudra; do
+            if [ ! -f "/shared/${f}.stl" ]; then
+              echo "  MISSING: /shared/${f}.stl"
+              exit 1
+            fi
+            echo "  OK: ${f}.stl ($(wc -c < /shared/${f}.stl) bytes)"
+          done
+          echo ""
+
+          echo "--- Slicing all 9 accessories on one plate (NO supports, 3mm brim) ---"
+          echo "  All parts are thin/flat — max height ~22mm (push rods)"
+          echo "  iPad wall prints flat on its back (4mm tall)"
+          echo "  iPad cover plate is 2mm tall"
+          echo "  Tilt plates are 2mm tall"
+          echo "  Push rods are 15-22mm tall"
+          echo ""
+
+          $SLICER --load "$INI" --center 137,147 \
+            --output /tmp/accessories.gcode --export-gcode \
+            /shared/ipad-wall.stl \
+            /shared/ipad-cover.stl \
+            /shared/tilt-plate-uh.stl \
+            /shared/tilt-plate-r1.stl \
+            /shared/tilt-plate-omi.stl \
+            /shared/push-rod-uh.stl \
+            /shared/push-rod-r1.stl \
+            /shared/push-rod-omi.stl \
+            /shared/push-rod-mudra.stl
+
+          echo "--- Capping fan speed to 80% (S204) ---"
+          sed -i 's/M106 S255/M106 S204/g' /tmp/accessories.gcode
+          FULL_FAN=$(grep -c 'M106 S255' /tmp/accessories.gcode || true)
+          echo "  M106 S255 remaining after cap: $FULL_FAN (should be 0)"
+
+          echo "--- Validating gcode ---"
+          BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' /tmp/accessories.gcode | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
+          EXT_TEMP=$(grep -E '^M10[49] S[0-9]+' /tmp/accessories.gcode | sed 's/.*S\([0-9]*\).*/\1/' | sort -n | tail -1)
+          LAYER_COUNT=$(grep -c ';LAYER_CHANGE' /tmp/accessories.gcode || true)
+          echo "  Bed temp: ${BED_TEMP}C, Extruder temp: ${EXT_TEMP}C, Layers: ${LAYER_COUNT}"
+
+          ERRORS=0
+          if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 65 ]; then
+            echo "  FAIL: Bed temp too low (got: ${BED_TEMP:-none}, need >= 65)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: Bed temperature = ${BED_TEMP}C"
+          fi
+          if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 210 ]; then
+            echo "  FAIL: Extruder temp too low (got: ${EXT_TEMP:-none}, need >= 210)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: Extruder temperature = ${EXT_TEMP}C"
+          fi
+          if [ "$LAYER_COUNT" -lt 3 ]; then
+            echo "  FAIL: Only $LAYER_COUNT layers — file may be corrupt"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: $LAYER_COUNT layers"
+          fi
+
+          X_MAX=$(awk -F'X' '/^G1 .*X[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/accessories.gcode)
+          Y_MAX=$(awk -F'Y' '/^G1 .*Y[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/accessories.gcode)
+          echo "  Coordinate bounds: X max = ${X_MAX}, Y max = ${Y_MAX}"
+
+          if [ "$(awk "BEGIN { print ($X_MAX > 275) }")" -eq 1 ]; then
+            echo "  FAIL: X coordinate out of bounds (max X = ${X_MAX}, limit 275)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: X max = ${X_MAX} (limit 275)"
+          fi
+          if [ "$(awk "BEGIN { print ($Y_MAX > 295) }")" -eq 1 ]; then
+            echo "  FAIL: Y coordinate out of bounds (max Y = ${Y_MAX}, limit 295)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "  OK: Y max = ${Y_MAX} (limit 295)"
+          fi
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "  ABORT: $ERRORS validation error(s)"
+            exit 1
+          fi
+          echo "  PASS: All gcode checks passed"
+
+          echo "--- Uploading to Moonraker ---"
+          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-accessories.gcode" || true
+          sleep 5
+          for ATTEMPT in 1 2 3; do
+            UPLOAD_RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
+              -F "file=@/tmp/accessories.gcode;filename=v1-charging-stand-accessories.gcode" \
+              -F "root=gcodes")
+            if echo "$UPLOAD_RESULT" | grep -q '"error"'; then
+              echo "  Upload attempt $ATTEMPT failed, retrying in 5s..."
+              sleep 5
+            else
+              echo "  Upload result: $UPLOAD_RESULT"
+              break
+            fi
+          done
+
+          echo ""
+          echo "=== Accessories batch sliced and uploaded ==="
+          echo "  File size: $(wc -c < /tmp/accessories.gcode) bytes"
+          echo "  Layers: $LAYER_COUNT"
+          echo "  Parts: iPad wall, iPad cover, 3 tilt plates, 4 push rods (9 total)"
+          echo "  Ready to print: v1-charging-stand-accessories.gcode"
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      volumes:
+      - name: shared
+        emptyDir: {}
