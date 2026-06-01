@@ -131,11 +131,19 @@ spec:
 
           echo "--- Uploading to Moonraker ---"
           curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-bottom-tray.gcode" || true
-          sleep 2
-          UPLOAD_RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
-            -F "file=@/tmp/bottom.gcode;filename=v1-charging-stand-bottom-tray.gcode" \
-            -F "root=gcodes")
-          echo "  Upload result: $UPLOAD_RESULT"
+          sleep 5
+          for ATTEMPT in 1 2 3; do
+            UPLOAD_RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
+              -F "file=@/tmp/bottom.gcode;filename=v1-charging-stand-bottom-tray.gcode" \
+              -F "root=gcodes")
+            if echo "$UPLOAD_RESULT" | grep -q '"error"'; then
+              echo "  Upload attempt $ATTEMPT failed, retrying in 5s..."
+              sleep 5
+            else
+              echo "  Upload result: $UPLOAD_RESULT"
+              break
+            fi
+          done
 
           echo ""
           echo "=== Bottom tray sliced and uploaded ==="

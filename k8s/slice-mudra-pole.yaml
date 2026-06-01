@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: slice-top-tray
+  name: slice-mudra-pole
   namespace: utilities
 spec:
   ttlSecondsAfterFinished: 3600
@@ -18,7 +18,7 @@ spec:
         args:
         - |
           git clone --depth 1 https://github.com/somni-labs/somni-wearable-dock.git /tmp/repo
-          cp /tmp/repo/output/v1-charging-stand-top-tray.stl /shared/top-tray.stl
+          cp /tmp/repo/output/v1-charging-stand-mudra-pole.stl /shared/mudra-pole.stl
           ls -la /shared/
         volumeMounts:
         - name: shared
@@ -30,7 +30,7 @@ spec:
         args:
         - |
           set -e
-          echo "=== PrusaSlicer — Top Tray (separated iPad wall version) ==="
+          echo "=== PrusaSlicer — Mudra Pole ==="
 
           SLICER=/prusa-slicer/prusa-slicer
           INI=/tmp/pla_plus.ini
@@ -53,8 +53,10 @@ spec:
           bridge_speed = 30
           gap_fill_speed = 40
           small_perimeter_speed = 40
-          support_material = 0
-          support_material_auto = 0
+          support_material = 1
+          support_material_auto = 1
+          support_material_spacing = 2
+          support_material_angle = 0
           skirts = 2
           skirt_distance = 5
           brim_width = 0
@@ -82,21 +84,21 @@ spec:
           sed -i 's/^[[:space:]]*//' "$INI"
 
           echo "--- Checking STL ---"
-          ls -la /shared/top-tray.stl
+          ls -la /shared/mudra-pole.stl
 
-          echo "--- Slicing top tray (WITH supports + brim, flipped, ~17mm tall) ---"
+          echo "--- Slicing mudra pole (WITH supports, prints on side) ---"
           $SLICER --load "$INI" --center 137,147 \
-            --output /tmp/top.gcode --export-gcode /shared/top-tray.stl
+            --output /tmp/pole.gcode --export-gcode /shared/mudra-pole.stl
 
           echo "--- Capping fan speed to 80% (S204) ---"
-          sed -i 's/M106 S255/M106 S204/g' /tmp/top.gcode
-          FULL_FAN=$(grep -c 'M106 S255' /tmp/top.gcode || true)
+          sed -i 's/M106 S255/M106 S204/g' /tmp/pole.gcode
+          FULL_FAN=$(grep -c 'M106 S255' /tmp/pole.gcode || true)
           echo "  M106 S255 remaining after cap: $FULL_FAN (should be 0)"
 
           echo "--- Validating gcode ---"
-          BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' /tmp/top.gcode | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
-          EXT_TEMP=$(grep -E '^M10[49] S[0-9]+' /tmp/top.gcode | sed 's/.*S\([0-9]*\).*/\1/' | sort -n | tail -1)
-          LAYER_COUNT=$(grep -c ';LAYER_CHANGE' /tmp/top.gcode || true)
+          BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' /tmp/pole.gcode | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
+          EXT_TEMP=$(grep -E '^M10[49] S[0-9]+' /tmp/pole.gcode | sed 's/.*S\([0-9]*\).*/\1/' | sort -n | tail -1)
+          LAYER_COUNT=$(grep -c ';LAYER_CHANGE' /tmp/pole.gcode || true)
           echo "  Bed temp: ${BED_TEMP}C, Extruder temp: ${EXT_TEMP}C, Layers: ${LAYER_COUNT}"
 
           ERRORS=0
@@ -119,8 +121,8 @@ spec:
             echo "  OK: $LAYER_COUNT layers"
           fi
 
-          X_MAX=$(awk -F'X' '/^G1 .*X[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/top.gcode)
-          Y_MAX=$(awk -F'Y' '/^G1 .*Y[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/top.gcode)
+          X_MAX=$(awk -F'X' '/^G1 .*X[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/pole.gcode)
+          Y_MAX=$(awk -F'Y' '/^G1 .*Y[0-9]/ { split($2, a, " "); if (a[1]+0 > max) max=a[1]+0 } END { printf "%.1f", max }' /tmp/pole.gcode)
           echo "  Coordinate bounds: X max = ${X_MAX}, Y max = ${Y_MAX}"
 
           if [ "$ERRORS" -gt 0 ]; then
@@ -130,11 +132,11 @@ spec:
           echo "  PASS: All gcode checks passed"
 
           echo "--- Uploading to Moonraker ---"
-          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-top-tray.gcode" || true
+          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-mudra-pole.gcode" || true
           sleep 5
           for ATTEMPT in 1 2 3; do
             UPLOAD_RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
-              -F "file=@/tmp/top.gcode;filename=v1-charging-stand-top-tray.gcode" \
+              -F "file=@/tmp/pole.gcode;filename=v1-charging-stand-mudra-pole.gcode" \
               -F "root=gcodes")
             if echo "$UPLOAD_RESULT" | grep -q '"error"'; then
               echo "  Upload attempt $ATTEMPT failed, retrying in 5s..."
@@ -146,10 +148,10 @@ spec:
           done
 
           echo ""
-          echo "=== Top tray sliced and uploaded ==="
-          echo "  File size: $(wc -c < /tmp/top.gcode) bytes"
+          echo "=== Mudra pole sliced and uploaded ==="
+          echo "  File size: $(wc -c < /tmp/pole.gcode) bytes"
           echo "  Layers: $LAYER_COUNT"
-          echo "  Ready to print: v1-charging-stand-top-tray.gcode"
+          echo "  Ready to print: v1-charging-stand-mudra-pole.gcode"
         volumeMounts:
         - name: shared
           mountPath: /shared

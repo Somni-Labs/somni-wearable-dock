@@ -149,12 +149,29 @@ spec:
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/bottom.gcode --export-gcode /tmp/input-bottom/bottom-tray.stl
           validate_gcode /tmp/bottom.gcode
-          echo "--- Uploading bottom tray ---"
-          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-bottom-tray.gcode" || true
-          sleep 2
-          curl -s -X POST "$MOONRAKER/server/files/upload" \
-            -F "file=@/tmp/bottom.gcode;filename=v1-charging-stand-bottom-tray.gcode" \
-            -F "root=gcodes"
+          upload_gcode() {
+            local FILE="$1"
+            local FILENAME="$2"
+            echo "--- Uploading $FILENAME ---"
+            curl -s -X DELETE "$MOONRAKER/server/files/gcodes/$FILENAME" || true
+            sleep 5
+            for ATTEMPT in 1 2 3; do
+              RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
+                -F "file=@$FILE;filename=$FILENAME" \
+                -F "root=gcodes")
+              if echo "$RESULT" | grep -q '"error"'; then
+                echo "  Upload attempt $ATTEMPT failed, retrying in 5s..."
+                sleep 5
+              else
+                echo "  Upload result: $RESULT"
+                return 0
+              fi
+            done
+            echo "  ERROR: All upload attempts failed for $FILENAME"
+            return 1
+          }
+
+          upload_gcode /tmp/bottom.gcode v1-charging-stand-bottom-tray.gcode
           echo ""
 
           # ── TOP TRAY ──
@@ -162,12 +179,7 @@ spec:
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/top.gcode --export-gcode /tmp/input-top/top-tray.stl
           validate_gcode /tmp/top.gcode
-          echo "--- Uploading top tray ---"
-          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-top-tray.gcode" || true
-          sleep 2
-          curl -s -X POST "$MOONRAKER/server/files/upload" \
-            -F "file=@/tmp/top.gcode;filename=v1-charging-stand-top-tray.gcode" \
-            -F "root=gcodes"
+          upload_gcode /tmp/top.gcode v1-charging-stand-top-tray.gcode
           echo ""
 
           # ── IPAD COVER ──
@@ -175,12 +187,7 @@ spec:
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/cover.gcode --export-gcode /tmp/input-cover/ipad-cover.stl
           validate_gcode /tmp/cover.gcode
-          echo "--- Uploading iPad cover ---"
-          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-ipad-cover.gcode" || true
-          sleep 2
-          curl -s -X POST "$MOONRAKER/server/files/upload" \
-            -F "file=@/tmp/cover.gcode;filename=v1-charging-stand-ipad-cover.gcode" \
-            -F "root=gcodes"
+          upload_gcode /tmp/cover.gcode v1-charging-stand-ipad-cover.gcode
           echo ""
 
           # ── MUDRA POLE ──
@@ -188,12 +195,7 @@ spec:
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/pole.gcode --export-gcode /tmp/input-pole/mudra-pole.stl
           validate_gcode /tmp/pole.gcode
-          echo "--- Uploading mudra pole ---"
-          curl -s -X DELETE "$MOONRAKER/server/files/gcodes/v1-charging-stand-mudra-pole.gcode" || true
-          sleep 2
-          curl -s -X POST "$MOONRAKER/server/files/upload" \
-            -F "file=@/tmp/pole.gcode;filename=v1-charging-stand-mudra-pole.gcode" \
-            -F "root=gcodes"
+          upload_gcode /tmp/pole.gcode v1-charging-stand-mudra-pole.gcode
           echo ""
 
           echo "=== All done ==="
