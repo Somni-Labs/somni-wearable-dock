@@ -57,7 +57,7 @@ SNAP_HOOK = 1.2        # hook overhang that catches the lip
 # Rests on a 3-sided ledge inside a rectangular cutout in the top tray.
 DTRAY_TOL = SNAP_TOL           # 0.3mm clearance per side
 DTRAY_LEDGE = WALL             # 2.5mm ledge width for tray to rest on
-DTRAY_FLOOR_Z = SPLIT_Z + LID_FLOOR  # 43mm — bottom of device tray
+DTRAY_FLOOR_Z = SPLIT_Z + LID_FLOOR  # 52mm — bottom of device tray
 # Width and depth computed dynamically from SLOT_POSITIONS + device sizes
 
 # --- Base platform (bottom tray internals) ---
@@ -1469,10 +1469,25 @@ def build_top_tray():
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 0.5)
         .center(_mudra_floor_x, _mudra_floor_y)
-        .rect(MUDRA_CABLE_CH_W, MUDRA_CABLE_CH_D)
+        .rect(MUDRA_CABLE_CH_D, MUDRA_CABLE_CH_W)  # 14mm X, 12mm Y — matches device tray
         .extrude(LID_FLOOR + 1)
     )
     base = base.cut(_floor_mudra_cable)
+
+    # Push rod slots — re-cut through LID_FLOOR so servo push rods
+    # can pass from the bottom tray cavity (open top at Z=50) through
+    # the 2mm solid LID_FLOOR (Z=50-52) into the device tray push rod
+    # slots above. Without these cuts, the motorized reveal is blocked.
+    for _pr_name in ["uh_ring", "r1_ring", "omi", "mudra"]:
+        _pr_x = SLOT_POSITIONS[_pr_name][0]
+        _floor_push_slot = (
+            cq.Workplane("XY")
+            .workplane(offset=SPLIT_Z - 0.5)
+            .center(_pr_x, SERVO_Y)
+            .rect(PUSH_ROD_SLOT_W, PUSH_ROD_SLOT_L)
+            .extrude(LID_FLOOR + 1)
+        )
+        base = base.cut(_floor_push_slot)
 
     # Mudra snap clip clearance notches — re-cut through LID_FLOOR
     # These pockets were cut before LID_FLOOR union and need to be
@@ -1570,7 +1585,7 @@ def build_device_tray():
     DTRAY_D = _dtray_y_max - _dtray_y_min               # total depth
     _dtray_cy = (_dtray_y_min + _dtray_y_max) / 2       # center Y
 
-    DTRAY_H = STAND_H - DTRAY_FLOOR_Z                   # 15mm (Z=43 to Z=58)
+    DTRAY_H = STAND_H - DTRAY_FLOOR_Z                   # 15mm (Z=52 to Z=67)
 
     # ── Shared hinge cradle constants ─────────────────────────────────
     _channel_r = (HINGE_BARREL_OD + HINGE_SOCKET_TOL * 2) / 2  # 1.8mm channel radius
@@ -1635,7 +1650,9 @@ def build_device_tray():
         )
         tray = tray.union(boss)
         # U-channel — semicircular cut open at top, barrel axis along X
-        _ch_center_z = _uh_cradle_z + _channel_r + 0.5  # barrel center Z
+        # Channel center at pocket_floor + channel_r so channel bottom
+        # aligns with boss bottom. Barrel drops in and rests at bottom.
+        _ch_center_z = _uh_cradle_z + _channel_r  # channel center Z
         channel = (
             cq.Workplane("YZ")
             .workplane(offset=_bx - HINGE_BOSS_W / 2 - 0.1)
@@ -1695,7 +1712,7 @@ def build_device_tray():
             .extrude(HINGE_BOSS_H)
         )
         tray = tray.union(boss)
-        _ch_center_z = _r1_cradle_z + _channel_r + 0.5
+        _ch_center_z = _r1_cradle_z + _channel_r
         channel = (
             cq.Workplane("YZ")
             .workplane(offset=_bx - HINGE_BOSS_W / 2 - 0.1)
@@ -1775,7 +1792,7 @@ def build_device_tray():
             .extrude(HINGE_BOSS_H)
         )
         tray = tray.union(boss)
-        _ch_center_z = _omi_cradle_z + _channel_r + 0.5
+        _ch_center_z = _omi_cradle_z + _channel_r
         channel = (
             cq.Workplane("YZ")
             .workplane(offset=_bx - HINGE_BOSS_W / 2 - 0.1)
@@ -1894,32 +1911,24 @@ def build_device_tray():
 # =============================================================================
 
 def build_ipad_cover():
-    """Removable cover plate that slides into rails inside the iPad channel.
+    """Removable cover plate that sits on the iPad channel floor.
 
-    Sits on top of the solid floor, covering the cable opening and
-    providing a clean surface. Slides in from either side on continuous
-    L-shaped rail grooves cut into the front and back channel walls.
+    The iPad channel floor is at Z = max(STAND_H - IPAD_SLOT_DEPTH,
+    SPLIT_Z + LID_FLOOR + 5) = 57. This plate drops in from above and
+    rests on that floor, covering the vertical cable hole while providing
+    a clean surface for the iPad to lean against.
 
     The cover has a centered cable notch so the USB-C connector can
     poke up through to reach the iPad even with the cover in place.
 
-    Printed as a separate piece — slide in from left or right.
+    Printed as a separate piece — drop in from above.
     """
-    ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2
-    _tunnel_h = 8
-    _tunnel_z = SPLIT_Z + 1
-    _floor_z = _tunnel_z + _tunnel_h       # Z=50
-    _floor_thick = 2.5
-    _channel_floor_z = _floor_z + _floor_thick  # Z=52.5
+    ipad_y = STAND_D / 2 - IPAD_BACK_THICK - IPAD_SLOT_GAP / 2  # 71.5
+    _channel_floor_z = max(STAND_H - IPAD_SLOT_DEPTH, SPLIT_Z + LID_FLOOR + 5)  # 57
     _cover_thick = 2
-    _rail_depth = 3
-    _rail_h = _cover_thick + 1
 
-    # Cover plate slides into the rail grooves. Its depth (Y) matches
-    # the rail groove span: full channel width including the rail slots.
-    # Width (X) is the full iPad slot width minus a tiny clearance.
-    _cover_w = IPAD_SLOT_W - TOL * 2          # nearly full slot width
-    _cover_d = IPAD_SLOT_GAP - TOL * 2        # spans channel including rails
+    _cover_w = IPAD_SLOT_W - TOL * 2          # 233mm — nearly full slot width
+    _cover_d = IPAD_SLOT_GAP - TOL * 2        # 22mm — spans channel gap
 
     cover = (
         cq.Workplane("XY")
@@ -2610,11 +2619,13 @@ def build_ghost_components():
     )
     _omi_front_local = min(p[1] for p in _omi_pts_ghost) + 2  # front chord
     _omi_hinge_y = SLOT_POSITIONS["omi"][1] + _omi_front_local  # front (-Y)
-    _omi_hinge_z = STAND_H - OMI_CRADLE_DEPTH + TILT_PLATE_T / 2
+    # Omi pocket depth is clamped to leave 1mm floor above DTRAY_FLOOR_Z
+    _omi_actual_depth_ghost = min(OMI_CRADLE_DEPTH, STAND_H - DTRAY_FLOOR_Z - 1)  # 14mm
+    _omi_hinge_z = STAND_H - _omi_actual_depth_ghost + TILT_PLATE_T / 2
     _omi_plate_pos = _omi_plate.translate((
         SLOT_POSITIONS["omi"][0],
         SLOT_POSITIONS["omi"][1],
-        STAND_H - OMI_CRADLE_DEPTH
+        STAND_H - _omi_actual_depth_ghost
     ))
     _omi_plate_tilted = _omi_plate_pos.rotate(
         (SLOT_POSITIONS["omi"][0], _omi_hinge_y, _omi_hinge_z),
