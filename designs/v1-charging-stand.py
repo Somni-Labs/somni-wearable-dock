@@ -177,6 +177,11 @@ LOGO_FONT_SIZE = 12       # cap height in mm
 LOGO_RECESS_DEPTH = 1.9   # cut depth (WALL - 0.6mm diffuser)
 LOGO_Z = 20               # vertical center of text on front wall
 
+# --- Cyberpunk diffuser bars (exterior wall recesses) ---
+CYBER_BAR_H = 3            # bar height (Z)
+CYBER_BAR_DEPTH = 1.5      # recess depth into 2.5mm wall (leaves 1.0mm diffuser skin)
+CYBER_DIFFUSER_T = WALL - CYBER_BAR_DEPTH  # 1.0mm remaining wall = diffuser
+
 # --- QuinLED-Dig-Uno mount (WLED controller, replaces old driver pocket) ---
 QLED_W = 50               # board width (X)
 QLED_D = 50               # board depth (Y)
@@ -917,6 +922,64 @@ def build_bottom_tray():
               font="Sans", halign="center", valign="center")
     )
     tray = tray.cut(logo_text)
+
+    # ── Cyberpunk diffuser bars (exterior wall recesses) ─────────────────
+    # Subtle fragmented horizontal bars recessed into the exterior walls.
+    # Each bar leaves a 1.0mm thin-wall diffuser backlit by the LED strip.
+    # Asymmetric layout — cyberpunk but restrained.
+
+    # LEFT WALL (-X side) — 3 bars, staggered
+    _lw_x = -STAND_W / 2   # exterior face of left wall
+    _lw_bars = [
+        # (y_center, z_center, length)
+        (-STAND_D / 2 + 30,  15, 60),   # long bar, toward front, low
+        (-STAND_D / 2 + 25,  30, 25),   # short bar, toward front, high
+        ( STAND_D / 2 - 35,  10, 40),   # medium bar, toward rear, lowest
+    ]
+    for _by, _bz, _bl in _lw_bars:
+        # Cut from exterior face inward, leaving 1.0mm diffuser on interior
+        bar = (
+            cq.Workplane("XY")
+            .workplane(offset=_bz - CYBER_BAR_H / 2)
+            .center(_lw_x + CYBER_DIFFUSER_T / 2, _by)
+            .rect(CYBER_BAR_DEPTH + 1, _bl)  # cut from exterior inward
+            .extrude(CYBER_BAR_H)
+        )
+        tray = tray.cut(bar)
+
+    # RIGHT WALL (+X side) — 3 bars, asymmetric to left
+    _rw_x = STAND_W / 2    # exterior face of right wall
+    _rw_bars = [
+        (0,                  25, 45),   # medium bar, centered, mid-height
+        ( STAND_D / 2 - 30,  12, 20),   # short bar, toward rear, low
+        (-STAND_D / 2 + 35,  35, 55),   # long bar, toward front, highest
+    ]
+    for _by, _bz, _bl in _rw_bars:
+        bar = (
+            cq.Workplane("XY")
+            .workplane(offset=_bz - CYBER_BAR_H / 2)
+            .center(_rw_x - CYBER_DIFFUSER_T / 2, _by)
+            .rect(CYBER_BAR_DEPTH + 1, _bl)  # cut from exterior inward
+            .extrude(CYBER_BAR_H)
+        )
+        tray = tray.cut(bar)
+
+    # FRONT WALL (-Y side) — 2 short accent bars flanking the logo
+    _fw_y = -STAND_D / 2    # exterior face of front wall
+    _fw_bars = [
+        # (x_center, z_center, length)
+        (-STAND_W / 2 + 30,  35, 30),   # near left edge, above logo
+        ( STAND_W / 2 - 30,  12, 25),   # near right edge, below logo
+    ]
+    for _bx, _bz, _bl in _fw_bars:
+        bar = (
+            cq.Workplane("XY")
+            .workplane(offset=_bz - CYBER_BAR_H / 2)
+            .center(_bx, _fw_y + CYBER_DIFFUSER_T / 2)
+            .rect(_bl, CYBER_BAR_DEPTH + 1)  # cut from exterior inward
+            .extrude(CYBER_BAR_H)
+        )
+        tray = tray.cut(bar)
 
     # ── Cable pass-through holes — NOT NEEDED in bottom tray ────────────
     # The bottom tray is now an open-top box (no ceiling). Cables route
