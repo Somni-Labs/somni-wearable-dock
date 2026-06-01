@@ -1433,16 +1433,23 @@ def build_top_tray():
 
     # Device tray cable pass-throughs — 3 small holes for UH, R1, Omi
     # USB-C cables to route from bottom tray up through the floor into
-    # the device tray area. Each hole is just USBC_HEAD_W × USBC_HEAD_H.
-    for _cable_name, _cable_x_pos in [
-        ("uh", SLOT_POSITIONS["uh_ring"][0]),
-        ("r1", SLOT_POSITIONS["r1_ring"][0]),
-        ("omi", SLOT_POSITIONS["omi"][0] - 8),  # offset to match front wall slot
-    ]:
+    # the device tray area. Each hole is USBC_HEAD_W+2 × USBC_HEAD_H+2.
+    # Positions MUST match the device tray floor pass-throughs exactly:
+    #   UH:  center at (uh_x, uh_y - UH_SIDE/2)
+    #   R1:  center at (r1_x, r1_y - R1_DIA/2)
+    #   Omi: center at (omi_x - 8, omi_front_y_world)
+    _omi_diamond_pts = six_sided_diamond_points(OMI_LONG_EDGE + TOL * 2, OMI_SHORT_EDGE + TOL * 2)
+    _omi_front_y_offset = min(p[1] for p in _omi_diamond_pts)
+    _cable_holes = [
+        ("uh",  SLOT_POSITIONS["uh_ring"][0],      SLOT_POSITIONS["uh_ring"][1] - UH_SIDE / 2),
+        ("r1",  SLOT_POSITIONS["r1_ring"][0],       SLOT_POSITIONS["r1_ring"][1] - R1_DIA / 2),
+        ("omi", SLOT_POSITIONS["omi"][0] - 8,       SLOT_POSITIONS["omi"][1] + _omi_front_y_offset),
+    ]
+    for _cable_name, _cable_x_pos, _cable_y_pos in _cable_holes:
         _floor_cable = (
             cq.Workplane("XY")
             .workplane(offset=SPLIT_Z - 0.5)
-            .center(_cable_x_pos, -STAND_D / 2 + WALL + 4)  # just inside front wall
+            .center(_cable_x_pos, _cable_y_pos)
             .rect(USBC_HEAD_W + 2, USBC_HEAD_H + 2)
             .extrude(LID_FLOOR + 1)
         )
