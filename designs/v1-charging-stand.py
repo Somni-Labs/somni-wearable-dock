@@ -222,6 +222,9 @@ HINGE_BARREL_ID = 1.75     # hinge barrel bore (filament diameter)
 HINGE_BARREL_L = 8         # hinge barrel length
 HINGE_SOCKET_TOL = 0.3     # tolerance per dimension on barrel sockets
 HINGE_BARREL_PROTRUDE = 1.5  # how far barrel extends beyond rear edge
+HINGE_BOSS_DEPTH = 2.5        # how far cradle boss protrudes into pocket (Y)
+HINGE_BOSS_H = HINGE_BARREL_OD + 1.5  # boss height: barrel OD + retention wall (4.5mm)
+HINGE_BOSS_W = HINGE_BARREL_L + 1.0   # boss width: barrel length + 0.5mm wall each side (9mm)
 
 # --- Push rod parts ---
 PUSH_ROD_W = 3.5           # rod cross-section width (square)
@@ -1569,9 +1572,8 @@ def build_device_tray():
 
     DTRAY_H = STAND_H - DTRAY_FLOOR_Z                   # 15mm (Z=43 to Z=58)
 
-    # ── Shared hinge socket constants ──────────────────────────────────
-    _socket_od = HINGE_BARREL_OD + HINGE_SOCKET_TOL * 2  # 3.6mm
-    _socket_len = HINGE_BARREL_L + HINGE_SOCKET_TOL * 2  # 8.6mm
+    # ── Shared hinge cradle constants ─────────────────────────────────
+    _channel_r = (HINGE_BARREL_OD + HINGE_SOCKET_TOL * 2) / 2  # 1.8mm channel radius
 
     # ── Tray body ───────────────────────────────────────────────────────
     tray = (
@@ -1615,22 +1617,33 @@ def build_device_tray():
     )
     tray = tray.cut(uh_cable)
 
-    # Hinge barrel sockets in front (-Y) wall
+    # Hinge cradle bosses on front (-Y) wall — barrel drops in from above
     _uh_plate_side = UH_SIDE - TILT_CLEARANCE * 2
-    _uh_barrel_spacing = _uh_plate_side - 2 * 10
-    _uh_front_y = uy - UH_SIDE / 2
-    _uh_socket_z = STAND_H - UH_CRADLE_DEPTH
+    _uh_barrel_spacing = _uh_plate_side - 2 * 10  # 20mm apart
+    _uh_wall_y = uy - UH_SIDE / 2                 # pocket front wall face (interior)
+    _uh_cradle_z = STAND_H - UH_CRADLE_DEPTH      # pocket floor Z
 
     for x_sign in [-1, 1]:
         _bx = ux + x_sign * _uh_barrel_spacing / 2
-        barrel_socket = (
-            cq.Workplane("YZ")
-            .workplane(offset=_bx - _socket_len / 2)
-            .center(_uh_front_y, _uh_socket_z + TILT_PLATE_T / 2)
-            .circle(_socket_od / 2)
-            .extrude(_socket_len)
+        # Solid boss on pocket wall — protrudes into pocket
+        boss = (
+            cq.Workplane("XY")
+            .workplane(offset=_uh_cradle_z)
+            .center(_bx, _uh_wall_y + HINGE_BOSS_DEPTH / 2)
+            .rect(HINGE_BOSS_W, HINGE_BOSS_DEPTH)
+            .extrude(HINGE_BOSS_H)
         )
-        tray = tray.cut(barrel_socket)
+        tray = tray.union(boss)
+        # U-channel — semicircular cut open at top, barrel axis along X
+        _ch_center_z = _uh_cradle_z + _channel_r + 0.5  # barrel center Z
+        channel = (
+            cq.Workplane("YZ")
+            .workplane(offset=_bx - HINGE_BOSS_W / 2 - 0.1)
+            .center(_uh_wall_y + HINGE_BOSS_DEPTH / 2, _ch_center_z)
+            .circle(_channel_r)
+            .extrude(HINGE_BOSS_W + 0.2)
+        )
+        tray = tray.cut(channel)
 
     # =====================================================================
     # CRADLE 2: Even R1 Ring — CIRCULAR pocket
@@ -1665,23 +1678,32 @@ def build_device_tray():
     )
     tray = tray.cut(r1_cable)
 
-    # Hinge barrel sockets in front (-Y) wall
+    # Hinge cradle bosses on front (-Y) wall — barrel drops in from above
     _r1_plate_dia = R1_DIA - TILT_CLEARANCE * 2
     _r1_chord_cut_y = _r1_plate_dia / 2 - 2
-    _r1_front_y = ry - _r1_chord_cut_y
-    _r1_socket_z = STAND_H - R1_CRADLE_DEPTH
+    _r1_wall_y = ry - _r1_chord_cut_y             # pocket front wall at chord
+    _r1_cradle_z = STAND_H - R1_CRADLE_DEPTH       # pocket floor Z
     _r1_barrel_spacing = 8
 
     for x_sign in [-1, 1]:
         _bx = rx + x_sign * _r1_barrel_spacing / 2
-        barrel_socket = (
-            cq.Workplane("YZ")
-            .workplane(offset=_bx - _socket_len / 2)
-            .center(_r1_front_y, _r1_socket_z + TILT_PLATE_T / 2)
-            .circle(_socket_od / 2)
-            .extrude(_socket_len)
+        boss = (
+            cq.Workplane("XY")
+            .workplane(offset=_r1_cradle_z)
+            .center(_bx, _r1_wall_y + HINGE_BOSS_DEPTH / 2)
+            .rect(HINGE_BOSS_W, HINGE_BOSS_DEPTH)
+            .extrude(HINGE_BOSS_H)
         )
-        tray = tray.cut(barrel_socket)
+        tray = tray.union(boss)
+        _ch_center_z = _r1_cradle_z + _channel_r + 0.5
+        channel = (
+            cq.Workplane("YZ")
+            .workplane(offset=_bx - HINGE_BOSS_W / 2 - 0.1)
+            .center(_r1_wall_y + HINGE_BOSS_DEPTH / 2, _ch_center_z)
+            .circle(_channel_r)
+            .extrude(HINGE_BOSS_W + 0.2)
+        )
+        tray = tray.cut(channel)
 
     # =====================================================================
     # CRADLE 3: Omi DevKit 2 — SIX-SIDED DIAMOND pocket
@@ -1732,27 +1754,36 @@ def build_device_tray():
     )
     tray = tray.cut(omi_cable)
 
-    # Hinge barrel sockets in front (-Y) wall
+    # Hinge cradle bosses on front (-Y) wall — barrel drops in from above
     _omi_pts = six_sided_diamond_points(
         OMI_LONG_EDGE + TOL * 2 - TILT_CLEARANCE * 2,
         OMI_SHORT_EDGE + TOL * 2 - TILT_CLEARANCE * 2
     )
     _omi_front_y_local = min(p[1] for p in _omi_pts)
     _omi_chord_cut_y = _omi_front_y_local + 2
-    _omi_front_y = oy + _omi_chord_cut_y
-    _omi_socket_z = STAND_H - _omi_actual_depth
+    _omi_wall_y = oy + _omi_chord_cut_y            # pocket front wall at chord
+    _omi_cradle_z = STAND_H - _omi_actual_depth     # pocket floor Z
     _omi_barrel_spacing = 8
 
     for x_sign in [-1, 1]:
         _bx = ox + x_sign * _omi_barrel_spacing / 2
-        barrel_socket = (
-            cq.Workplane("YZ")
-            .workplane(offset=_bx - _socket_len / 2)
-            .center(_omi_front_y, _omi_socket_z + TILT_PLATE_T / 2)
-            .circle(_socket_od / 2)
-            .extrude(_socket_len)
+        boss = (
+            cq.Workplane("XY")
+            .workplane(offset=_omi_cradle_z)
+            .center(_bx, _omi_wall_y + HINGE_BOSS_DEPTH / 2)
+            .rect(HINGE_BOSS_W, HINGE_BOSS_DEPTH)
+            .extrude(HINGE_BOSS_H)
         )
-        tray = tray.cut(barrel_socket)
+        tray = tray.union(boss)
+        _ch_center_z = _omi_cradle_z + _channel_r + 0.5
+        channel = (
+            cq.Workplane("YZ")
+            .workplane(offset=_bx - HINGE_BOSS_W / 2 - 0.1)
+            .center(_omi_wall_y + HINGE_BOSS_DEPTH / 2, _ch_center_z)
+            .circle(_channel_r)
+            .extrude(HINGE_BOSS_W + 0.2)
+        )
+        tray = tray.cut(channel)
 
     # =====================================================================
     # CRADLE 4: Mudra Link — pole socket + snap engagement
