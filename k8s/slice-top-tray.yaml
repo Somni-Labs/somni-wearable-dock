@@ -53,11 +53,13 @@ spec:
           bridge_speed = 30
           gap_fill_speed = 40
           small_perimeter_speed = 40
-          support_material = 0
-          support_material_auto = 0
+          support_material = 1
+          support_material_auto = 1
+          support_material_spacing = 2
+          support_material_angle = 0
           skirts = 2
           skirt_distance = 5
-          brim_width = 0
+          brim_width = 5
           temperature = 215
           first_layer_temperature = 220
           bed_temperature = 70
@@ -76,7 +78,7 @@ spec:
           retract_speed = 40
           retract_lift = 0.2
           start_gcode = G28\nG1 Z5 F5000
-          end_gcode = G91\nG1 E-2 F2700\nG1 Z10 F3000\nG90\nG1 X10 Y270 F6000\nM140 S0\nM104 S0\nM106 S0\nM84
+          end_gcode = M400\nG91\nG1 E-5 F2700\nG1 Z10 F3000\nG90\nG1 X10 Y270 F6000\nM400\nM140 S0\nM104 S0\nM106 S0\nG4 P2000\nM84
           PROFILE
 
           sed -i 's/^[[:space:]]*//' "$INI"
@@ -84,7 +86,7 @@ spec:
           echo "--- Checking STL ---"
           ls -la /shared/top-tray.stl
 
-          echo "--- Slicing top tray (WITH supports + brim, flipped, ~17mm tall) ---"
+          echo "--- Slicing top tray (WITH supports + brim, right-side up, ~17mm tall) ---"
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/top.gcode --export-gcode /shared/top-tray.stl
 
