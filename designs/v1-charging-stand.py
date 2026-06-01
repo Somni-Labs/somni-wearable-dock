@@ -1186,17 +1186,22 @@ def build_top_tray():
         )
         base = base.union(_ret_rear_tab)
 
-    # Clearance notches for Mudra snap hook engagement pockets
-    _ms_socket_w = MUDRA_POLE_D + 1.0 * 2  # match device tray socket tolerance
+    # Clearance notches for Mudra snap hook engagement pockets.
+    # Must match device tray pocket positions: hooks are at
+    # ±(MUDRA_POLE_D/2 + MUDRA_HOOK/2) from pole center, at Z = socket_floor - CLIP_H.
     _ms_pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2
-    _ms_pocket_depth = MUDRA_HOOK
+    _ms_pocket_depth = MUDRA_HOOK + 0.5  # match device tray pocket depth
     _ms_pocket_h = MUDRA_HOOK_H + 1
+    _ms_socket_floor_t = 2.0
+    _ms_socket_depth = (STAND_H - DTRAY_FLOOR_Z) - _ms_socket_floor_t
+    _ms_socket_floor_z = STAND_H - _ms_socket_depth
+    _ms_hook_z_bottom = _ms_socket_floor_z - MUDRA_CLIP_H
     mx_cutout, my_cutout = SLOT_POSITIONS["mudra"]
     for _ms_sign in [-1, 1]:
-        _ms_x = mx_cutout + _ms_sign * (_ms_socket_w / 2 + _ms_pocket_depth / 2)
+        _ms_x = mx_cutout + _ms_sign * (MUDRA_POLE_D / 2 + MUDRA_HOOK / 2)
         _ms_clearance = (
             cq.Workplane("XY")
-            .workplane(offset=DTRAY_FLOOR_Z - _ms_pocket_h - 0.5)
+            .workplane(offset=_ms_hook_z_bottom - 0.5)
             .center(_ms_x, my_cutout)
             .rect(_ms_pocket_depth + DTRAY_TOL * 2, _ms_pocket_w + DTRAY_TOL * 2)
             .extrude(_ms_pocket_h + 1)
@@ -1469,15 +1474,20 @@ def build_top_tray():
     # Mudra snap clip clearance notches — re-cut through LID_FLOOR
     # These pockets were cut before LID_FLOOR union and need to be
     # re-opened so the snap hooks on the device tray can engage.
-    _ms_socket_w_f = MUDRA_POLE_D + 1.0 * 2  # match device tray socket tolerance
-    _ms_pocket_depth_f = MUDRA_HOOK
+    # Positions must match device tray: hooks at ±(POLE_D/2 + HOOK/2),
+    # Z at socket_floor - CLIP_H.
+    _ms_pocket_depth_f = MUDRA_HOOK + 0.5
     _ms_pocket_w_f = MUDRA_CLIP_W + SNAP_TOL * 2
     _ms_pocket_h_f = MUDRA_HOOK_H + 1
+    _ms_sf_t = 2.0  # socket floor thickness
+    _ms_sf_depth = (STAND_H - DTRAY_FLOOR_Z) - _ms_sf_t
+    _ms_sf_z = STAND_H - _ms_sf_depth
+    _ms_hook_z_f = _ms_sf_z - MUDRA_CLIP_H
     for _ms_sign_f in [-1, 1]:
-        _ms_x_f = _mudra_floor_x + _ms_sign_f * (_ms_socket_w_f / 2 + _ms_pocket_depth_f / 2)
+        _ms_x_f = _mudra_floor_x + _ms_sign_f * (MUDRA_POLE_D / 2 + MUDRA_HOOK / 2)
         _ms_floor_clearance = (
             cq.Workplane("XY")
-            .workplane(offset=DTRAY_FLOOR_Z - _ms_pocket_h_f - 0.5)
+            .workplane(offset=_ms_hook_z_f - 0.5)
             .center(_ms_x_f, _mudra_floor_y)
             .rect(_ms_pocket_depth_f + DTRAY_TOL * 2, _ms_pocket_w_f + DTRAY_TOL * 2)
             .extrude(_ms_pocket_h_f + 1)
@@ -1792,13 +1802,17 @@ def build_device_tray():
     tray = tray.cut(_mudra_cable_hole)
 
     # Slits in the socket floor for snap clip arms to pass through.
-    # Each arm is MUDRA_CLIP_T (2.5mm) thick × MUDRA_CLIP_W (14mm) wide,
-    # positioned on the ±X faces of the pole.
+    # Each arm is MUDRA_CLIP_T (2.5mm) thick × MUDRA_CLIP_W (14mm) wide.
+    # The arms overlap 5mm into the pole body, so they're NOT at the pole
+    # face — they're centered at ±(POLE_D/2 + CLIP_T/2 - overlap) from
+    # the pole center. The slits must match this offset.
+    _clip_overlap = 5.0   # must match build_mudra_pole()
     _slit_tol = 0.5  # extra clearance per side for the arm
     _slit_w = MUDRA_CLIP_T + _slit_tol * 2   # 3.5mm in X
     _slit_d = MUDRA_CLIP_W + _slit_tol * 2   # 15mm in Y
     for side_sign in [-1, 1]:
-        slit_x = mx + side_sign * (MUDRA_POLE_D / 2)  # at each pole face
+        # Match the actual arm center from build_mudra_pole()
+        slit_x = mx + side_sign * (MUDRA_POLE_D / 2 + MUDRA_CLIP_T / 2 - _clip_overlap)
         clip_slit = (
             cq.Workplane("XY")
             .workplane(offset=DTRAY_FLOOR_Z - 0.5)
@@ -1808,15 +1822,20 @@ def build_device_tray():
         )
         tray = tray.cut(clip_slit)
 
-    # Snap hook engagement pockets on the underside of the tray
+    # Snap hook engagement pockets on the underside of the tray.
+    # The hook nubs are at ±(POLE_D/2 + HOOK/2) from pole center, and
+    # sit at Z = socket_floor_z - CLIP_H to socket_floor_z - CLIP_H + HOOK_H.
+    # The pockets must be at the same X and Z so the hooks can engage.
     _pocket_w = MUDRA_CLIP_W + SNAP_TOL * 2   # 14.6mm
-    _pocket_depth = MUDRA_HOOK                 # 2.0mm
+    _pocket_depth = MUDRA_HOOK + 0.5           # 2.5mm (hook + clearance)
     _pocket_h = MUDRA_HOOK_H + 1              # 3.0mm
+    _hook_z_bottom = _socket_floor_z - MUDRA_CLIP_H  # Z where hooks sit
     for side_sign in [-1, 1]:
-        pocket_x = mx + side_sign * (_socket_w / 2 + _pocket_depth / 2)
+        # Match the actual hook nub center from build_mudra_pole()
+        pocket_x = mx + side_sign * (MUDRA_POLE_D / 2 + MUDRA_HOOK / 2)
         snap_pocket = (
             cq.Workplane("XY")
-            .workplane(offset=DTRAY_FLOOR_Z - _pocket_h)
+            .workplane(offset=_hook_z_bottom - 0.5)
             .center(pocket_x, my)
             .rect(_pocket_depth, _pocket_w)
             .extrude(_pocket_h + 0.5)
