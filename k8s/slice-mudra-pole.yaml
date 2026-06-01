@@ -33,7 +33,7 @@ spec:
           echo "=== PrusaSlicer — Mudra Pole ==="
 
           SLICER=/prusa-slicer/prusa-slicer
-          INI=/tmp/pla_plus.ini
+          INI=/tmp/petg.ini
           MOONRAKER="http://192.168.1.15:7125"
 
           cat > "$INI" << 'PROFILE'
@@ -44,15 +44,15 @@ spec:
           bottom_solid_layers = 4
           fill_density = 20%
           fill_pattern = gyroid
-          perimeter_speed = 100
-          external_perimeter_speed = 80
-          infill_speed = 120
-          solid_infill_speed = 80
-          first_layer_speed = 25
-          travel_speed = 200
-          bridge_speed = 30
-          gap_fill_speed = 40
-          small_perimeter_speed = 40
+          perimeter_speed = 60
+          external_perimeter_speed = 40
+          infill_speed = 80
+          solid_infill_speed = 60
+          first_layer_speed = 20
+          travel_speed = 180
+          bridge_speed = 25
+          gap_fill_speed = 30
+          small_perimeter_speed = 30
           support_material = 1
           support_material_auto = 1
           support_material_spacing = 2
@@ -60,22 +60,22 @@ spec:
           skirts = 2
           skirt_distance = 5
           brim_width = 0
-          temperature = 215
-          first_layer_temperature = 220
-          bed_temperature = 70
-          first_layer_bed_temperature = 70
+          temperature = 240
+          first_layer_temperature = 245
+          bed_temperature = 80
+          first_layer_bed_temperature = 80
           fan_always_on = 0
           min_fan_speed = 0
-          max_fan_speed = 80
-          bridge_fan_speed = 80
-          overhangs_fan_speed = 80
-          disable_fan_first_layers = 3
+          max_fan_speed = 50
+          bridge_fan_speed = 60
+          overhangs_fan_speed = 50
+          disable_fan_first_layers = 4
           gcode_flavor = klipper
           bed_shape = 0x0,275x0,275x295,0x295
           max_print_height = 265
           nozzle_diameter = 0.4
-          retract_length = 0.8
-          retract_speed = 40
+          retract_length = 1.2
+          retract_speed = 30
           retract_lift = 0.2
           start_gcode = G28\nG1 Z5 F5000
           end_gcode = M400\nG91\nG1 E-5 F2700\nG1 Z10 F3000\nG90\nG1 X10 Y270 F6000\nM400\nM140 S0\nM104 S0\nM106 S0\nG4 P2000\nM84
@@ -90,8 +90,8 @@ spec:
           $SLICER --load "$INI" --center 137,147 \
             --output /tmp/pole.gcode --export-gcode /shared/mudra-pole.stl
 
-          echo "--- Capping fan speed to 80% (S204) ---"
-          sed -i 's/M106 S255/M106 S204/g' /tmp/pole.gcode
+          echo "--- Capping fan speed to 50% (S128) ---"
+          sed -i 's/M106 S255/M106 S128/g' /tmp/pole.gcode
           FULL_FAN=$(grep -c 'M106 S255' /tmp/pole.gcode || true)
           echo "  M106 S255 remaining after cap: $FULL_FAN (should be 0)"
 
@@ -102,14 +102,14 @@ spec:
           echo "  Bed temp: ${BED_TEMP}C, Extruder temp: ${EXT_TEMP}C, Layers: ${LAYER_COUNT}"
 
           ERRORS=0
-          if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 65 ]; then
-            echo "  FAIL: Bed temp too low (got: ${BED_TEMP:-none}, need >= 65)"
+          if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 75 ]; then
+            echo "  FAIL: Bed temp too low (got: ${BED_TEMP:-none}, need >= 75)"
             ERRORS=$((ERRORS + 1))
           else
             echo "  OK: Bed temperature = ${BED_TEMP}C"
           fi
-          if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 210 ]; then
-            echo "  FAIL: Extruder temp too low (got: ${EXT_TEMP:-none}, need >= 210)"
+          if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 235 ]; then
+            echo "  FAIL: Extruder temp too low (got: ${EXT_TEMP:-none}, need >= 235)"
             ERRORS=$((ERRORS + 1))
           else
             echo "  OK: Extruder temperature = ${EXT_TEMP}C"
