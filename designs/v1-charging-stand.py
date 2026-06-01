@@ -1921,9 +1921,9 @@ def build_ipad_wall():
     """iPad back wall — drops into the tray through the iPad channel floor.
 
     The wall has a downward blade that passes through a slot in the
-    iPad channel floor, embedding 10.5mm into the solid tray body below.
-    The blade is the same thickness as the wall (4mm) so it's a simple
-    flat piece — no L-shape needed.
+    iPad channel floor, embedding into the solid tray body below.
+    The blade is slightly thinner than the wall (3.6mm vs 4mm) for a
+    snug fit in the 4.4mm slot.
 
     Assembly: slide the wall in from either side along the channel.
     The blade rides in the floor slot, snap detents click when seated.
@@ -1940,11 +1940,11 @@ def build_ipad_wall():
     _wall_h = IPAD_BACK_H          # 60mm
     _wall_t = IPAD_BACK_THICK      # 4mm
 
-    # Blade: same thickness as wall, extends downward
-    # Depth matches the slot in the tray body (channel floor to SPLIT_Z+1)
-    _channel_floor_z = SPLIT_Z + 1 + 8 + 2.5   # 52.5
-    _blade_bottom_z = SPLIT_Z + 1               # 42
-    _blade_h = _channel_floor_z - _blade_bottom_z  # 10.5mm
+    # Blade: extends downward from channel floor into the slot.
+    # Channel floor Z must match build_top_tray()'s computation exactly.
+    _channel_floor_z = max(STAND_H - IPAD_SLOT_DEPTH, SPLIT_Z + LID_FLOOR + 5)  # 57
+    _blade_bottom_z = SPLIT_Z + 1               # 51
+    _blade_h = _channel_floor_z - _blade_bottom_z  # 6mm
     _blade_t = _wall_t - IPAD_WALL_TOL          # 3.6mm (snug in 4.4mm slot)
     _blade_w = _wall_w - IPAD_WALL_TOL * 2      # slightly narrower for slide
 
