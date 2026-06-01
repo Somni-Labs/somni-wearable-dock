@@ -27,6 +27,7 @@ spec:
           cp /tmp/repo/output/v1-charging-stand-push-rod-r1_ring.stl  /shared/push-rod-r1.stl
           cp /tmp/repo/output/v1-charging-stand-push-rod-omi.stl      /shared/push-rod-omi.stl
           cp /tmp/repo/output/v1-charging-stand-push-rod-mudra.stl    /shared/push-rod-mudra.stl
+          cp /tmp/repo/output/v1-charging-stand-servo-cam.stl        /shared/servo-cam.stl
           echo "=== Fetched STLs ==="
           ls -la /shared/
         volumeMounts:
@@ -40,7 +41,7 @@ spec:
         - |
           set -e
           echo "=== PrusaSlicer — Accessories Batch ==="
-          echo "  iPad back wall + iPad cover plate + 3 tilt plates + 4 push rods"
+          echo "  iPad back wall + iPad cover plate + 3 tilt plates + 4 push rods + 4 servo cams"
           echo ""
 
           SLICER=/prusa-slicer/prusa-slicer
@@ -94,7 +95,7 @@ spec:
 
           echo "--- Checking STLs ---"
           for f in ipad-wall ipad-cover tilt-plate-uh tilt-plate-r1 tilt-plate-omi \
-                   push-rod-uh push-rod-r1 push-rod-omi push-rod-mudra; do
+                   push-rod-uh push-rod-r1 push-rod-omi push-rod-mudra servo-cam; do
             if [ ! -f "/shared/${f}.stl" ]; then
               echo "  MISSING: /shared/${f}.stl"
               exit 1
@@ -103,12 +104,13 @@ spec:
           done
           echo ""
 
-          echo "--- Slicing all 9 accessories on one plate (NO supports, 3mm brim) ---"
-          echo "  All parts are thin/flat — max height ~22mm (push rods)"
+          echo "--- Slicing all 13 accessories on one plate (NO supports, 3mm brim) ---"
+          echo "  All parts are thin/flat — max height ~26mm (push rods)"
           echo "  iPad wall prints flat on its back (4mm tall)"
           echo "  iPad cover plate is 2mm tall"
           echo "  Tilt plates are 2mm tall"
-          echo "  Push rods are 15-22mm tall"
+          echo "  Push rods are 21-26mm tall (with follower foot)"
+          echo "  Servo cams are 8mm tall (4 copies)"
           echo ""
 
           $SLICER --load "$INI" --center 137,147 \
@@ -121,7 +123,11 @@ spec:
             /shared/push-rod-uh.stl \
             /shared/push-rod-r1.stl \
             /shared/push-rod-omi.stl \
-            /shared/push-rod-mudra.stl
+            /shared/push-rod-mudra.stl \
+            /shared/servo-cam.stl \
+            /shared/servo-cam.stl \
+            /shared/servo-cam.stl \
+            /shared/servo-cam.stl
 
           echo "--- Capping fan speed to 80% (S204) ---"
           sed -i 's/M106 S255/M106 S204/g' /tmp/accessories.gcode
@@ -197,7 +203,7 @@ spec:
           echo "=== Accessories batch sliced and uploaded ==="
           echo "  File size: $(wc -c < /tmp/accessories.gcode) bytes"
           echo "  Layers: $LAYER_COUNT"
-          echo "  Parts: iPad wall, iPad cover, 3 tilt plates, 4 push rods (9 total)"
+          echo "  Parts: iPad wall, iPad cover, 3 tilt plates, 4 push rods, 4 servo cams (13 total)"
           echo "  Ready to print: v1-charging-stand-accessories.gcode"
         volumeMounts:
         - name: shared
