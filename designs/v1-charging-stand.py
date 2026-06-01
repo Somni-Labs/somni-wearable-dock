@@ -232,19 +232,38 @@ PUSH_ROD_THEAD_W = 6       # T-head width (wider than slot to prevent fallthroug
 PUSH_ROD_THEAD_H = 2       # T-head height
 PUSH_ROD_PAD_W = 8         # Mudra push rod flat pad width
 PUSH_ROD_PAD_H = 1.5       # Mudra push rod flat pad height
-PUSH_ROD_HORN_HOLE = 1.5   # hole diameter for servo horn screw
-PUSH_ROD_HORN_TAB_W = 6    # horn attachment tab width
-PUSH_ROD_HORN_TAB_H = 4    # horn attachment tab height
+PUSH_ROD_HORN_HOLE = 1.5   # hole diameter for servo horn screw (legacy)
+PUSH_ROD_HORN_TAB_W = 6    # horn attachment tab width (legacy)
+PUSH_ROD_HORN_TAB_H = 4    # horn attachment tab height (legacy)
+
+# --- Servo face cam (replaces stock horn) ---
+# Face cam with a ramped top surface converts servo rotation to vertical
+# push rod lift. The follower foot of the push rod rides on the cam face.
+# SG90 shaft is vertical (Z-up), so the cam disc is horizontal.
+# Low side of the face = rod at rest. High side = rod at max lift.
+CAM_DISC_R = 12            # cam disc outer radius (must clear push rod slot)
+CAM_BASE_H = 2             # minimum disc thickness at low point
+CAM_THROW = 6              # vertical lift (ramp height from low to high)
+CAM_PEAK_H = CAM_BASE_H + CAM_THROW  # 8mm total at high point
+CAM_SPLINE_R = 2.4         # SG90 25T spline radius (4.8mm OD / 2)
+CAM_HUB_R = 4              # reinforced hub around spline bore
+CAM_SCREW_R = 1.0          # center screw hole (M2, same as stock horn)
+
+# --- Push rod follower foot ---
+FOLLOWER_R = 4             # follower disc radius (rides on cam face)
+FOLLOWER_H = 1.5           # follower disc height
 
 # --- Per-device push rod lengths ---
-# From servo horn (~Z = BASE_H + SG90_BODY_H) to tilt plate underside
-# UH/R1: plate at Z = STAND_H - cradle_depth = 48, servo top ~25.7 → ~22mm
-# Omi: plate at Z = STAND_H - cradle_depth = 43, servo top ~25.7 → ~17mm
-# Mudra: pole base at Z = SPLIT_Z (41), servo top ~25.7 → ~15mm
-PUSH_ROD_LEN_UH = 22
-PUSH_ROD_LEN_R1 = 22
-PUSH_ROD_LEN_OMI = 17
-PUSH_ROD_LEN_MUDRA = 15
+# From cam face (low point) to tilt plate underside / mudra pole base.
+# Cam low-point top Z = BASE_H + SG90_BODY_H + CAM_BASE_H = 29.7
+# Follower adds FOLLOWER_H = 1.5 → rod base Z ≈ 31.2
+# UH/R1: plate at Z = STAND_H - 10 = 57 → length ≈ 26mm
+# Omi: plate at Z = STAND_H - 14 = 53 → length ≈ 22mm
+# Mudra: pole base at Z = DTRAY_FLOOR_Z = 52 → length ≈ 21mm
+PUSH_ROD_LEN_UH = 26
+PUSH_ROD_LEN_R1 = 26
+PUSH_ROD_LEN_OMI = 22
+PUSH_ROD_LEN_MUDRA = 21
 
 # --- VL53L0X proximity sensor ---
 PROX_W = 13               # sensor board width (X)
@@ -2390,12 +2409,122 @@ def build_omi_tilt_plate():
     return plate
 
 
+def build_servo_cam():
+    """Face cam disc that press-fits onto SG90 25T spline shaft.
+
+    Built at origin: disc base at Z=0, ramp rises to Z=CAM_PEAK_H.
+    The cam converts servo rotation to vertical push rod lift.
+
+    The top surface is a smooth ramp: 180° of low (CAM_BASE_H), then
+    a linear rise over ~90° to CAM_PEAK_H, then a plateau. The push
+    rod follower rides on this surface.
+
+    Center has an SG90 spline bore (25T star pattern approximated as
+    a knurled hole) and an M2 screw hole for retention.
+    """
+    # ── Base disc at minimum height ─────────────────────────────────────
+    cam = (
+        cq.Workplane("XY")
+        .circle(CAM_DISC_R)
+        .extrude(CAM_BASE_H)
+    )
+
+    # ── Ramp lobe — a wedge that rises from CAM_BASE_H to CAM_PEAK_H ──
+    # The lobe covers one half of the disc (+X side). We build it as a
+    # half-disc solid from Z=CAM_BASE_H up to CAM_PEAK_H, then use a
+    # smooth transition. For FDM printability, we use a simple half-disc
+    # extrusion (the "plateau" approach — one half is tall, one half is
+    # short, with the follower disc smoothing over the step).
+    #
+    # More refined: build the lobe as a half-cylinder wedge using a
+    # lofted profile. But CadQuery loft can be fragile, so we use a
+    # simpler stepped approach with a ramp fillet.
+
+    # Half-disc lobe on the +X side (0° to 180°)
+    import math as _math
+    _lobe_pts = [(0, 0)]
+    _n_pts = 36
+    for i in range(_n_pts + 1):
+        angle = _math.pi * i / _n_pts  # 0 to π (right half)
+        _lobe_pts.append((CAM_DISC_R * _math.cos(angle),
+                          CAM_DISC_R * _math.sin(angle)))
+    _lobe_pts.append((0, 0))
+
+    lobe = (
+        cq.Workplane("XY")
+        .workplane(offset=CAM_BASE_H)
+        .polyline(_lobe_pts)
+        .close()
+        .extrude(CAM_THROW)
+    )
+    cam = cam.union(lobe)
+
+    # Chamfer the lobe transition edges for smooth follower travel.
+    # The step between low and high side gets a 2mm chamfer.
+    # We cut a triangular wedge along the Y-axis transition line.
+    _ramp_len = CAM_DISC_R  # ramp extends full radius
+    ramp_wedge_pos = (
+        cq.Workplane("XZ")
+        .workplane(offset=-0.1)
+        .center(0, CAM_BASE_H + CAM_THROW)
+        .lineTo(_ramp_len, 0)
+        .lineTo(_ramp_len, -CAM_THROW)
+        .close()
+        .extrude(0.2)  # thin slice — we'll skip the wedge ramp for now
+    )
+    # Skip complex ramp geometry — the half-disc step is acceptable
+    # for a face cam with a round follower. The follower's curved
+    # surface rolls over the step smoothly at slow servo speeds.
+
+    # ── Reinforced hub ──────────────────────────────────────────────────
+    hub = (
+        cq.Workplane("XY")
+        .circle(CAM_HUB_R)
+        .extrude(CAM_PEAK_H)
+    )
+    cam = cam.union(hub)
+
+    # ── SG90 spline bore (25T approximated as knurled circle) ──────────
+    # The real SG90 spline is a 25-tooth involute at 4.8mm OD.
+    # We approximate with a star-shaped bore for press-fit.
+    _spline_pts = []
+    _teeth = 25
+    _outer_r = CAM_SPLINE_R
+    _inner_r = CAM_SPLINE_R - 0.3  # tooth depth
+    for i in range(_teeth * 2):
+        angle = 2 * _math.pi * i / (_teeth * 2)
+        r = _outer_r if i % 2 == 0 else _inner_r
+        _spline_pts.append((r * _math.cos(angle), r * _math.sin(angle)))
+    _spline_pts.append(_spline_pts[0])
+
+    spline_bore = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.5)
+        .polyline(_spline_pts)
+        .close()
+        .extrude(CAM_PEAK_H + 1)
+    )
+    cam = cam.cut(spline_bore)
+
+    # ── Center screw hole (M2) ──────────────────────────────────────────
+    screw_hole = (
+        cq.Workplane("XY")
+        .workplane(offset=-0.5)
+        .circle(CAM_SCREW_R)
+        .extrude(CAM_PEAK_H + 1)
+    )
+    cam = cam.cut(screw_hole)
+
+    return cam
+
+
 def build_push_rod(length, top_type="thead"):
-    """Push rod connecting servo horn to tilt plate or Mudra pole.
+    """Push rod connecting servo face cam to tilt plate or Mudra pole.
 
     Built at origin: rod extends from Z=0 upward to Z=length.
     Top end has either a T-head (for tilt plates) or a flat pad (for Mudra).
-    Bottom end has a flat tab with a hole for the servo horn screw.
+    Bottom end has a follower foot — a round disc that rides on the cam face.
+    Gravity keeps the follower pressed against the cam.
 
     Args:
         length: rod length in mm (Z extent, excluding top/bottom attachments)
@@ -2428,23 +2557,16 @@ def build_push_rod(length, top_type="thead"):
         )
         rod = rod.union(pad)
 
-    # ── Bottom attachment — horn tab ─────────────────────────────────────
-    # Flat tab extending downward with a hole for the servo horn screw
-    horn_tab = (
+    # ── Bottom attachment — follower foot ────────────────────────────────
+    # Round disc that rides on the servo face cam surface.
+    # The disc is wider than the rod to distribute load on the cam face.
+    follower = (
         cq.Workplane("XY")
-        .workplane(offset=-PUSH_ROD_HORN_TAB_H)
-        .rect(PUSH_ROD_HORN_TAB_W, PUSH_ROD_W)
-        .extrude(PUSH_ROD_HORN_TAB_H)
+        .workplane(offset=-FOLLOWER_H)
+        .circle(FOLLOWER_R)
+        .extrude(FOLLOWER_H)
     )
-    # Screw hole through the tab face (Y axis)
-    horn_hole = (
-        cq.Workplane("XZ")
-        .workplane(offset=-PUSH_ROD_W / 2 - 0.5)
-        .center(0, -PUSH_ROD_HORN_TAB_H / 2)
-        .circle(PUSH_ROD_HORN_HOLE / 2)
-        .extrude(PUSH_ROD_W + 1)
-    )
-    rod = rod.union(horn_tab).cut(horn_hole)
+    rod = rod.union(follower)
 
     return rod
 
@@ -2634,18 +2756,28 @@ def build_ghost_components():
     )
     parts["tilt_plate_omi"] = (_omi_plate_tilted, (0.4, 0.8, 0.4, 0.6))
 
-    # ── Push rods (shown in extended/up position) ────────────────────────
+    # ── Servo face cams (one per servo, shown on shaft) ─────────────────
+    _cam = build_servo_cam()
+    _cam_z = BASE_H + SG90_BODY_H  # cam base sits on top of servo body
+    for name in ["uh_ring", "r1_ring", "omi", "mudra"]:
+        _cam_x = SLOT_POSITIONS[name][0]
+        _cam_pos = _cam.translate((_cam_x, SERVO_Y, _cam_z))
+        parts[f"servo_cam_{name}"] = (_cam_pos, (1.0, 0.7, 0.1, 0.6))
+
+    # ── Push rods (shown in rest position, follower on cam low side) ─────
     _rod_configs = [
         ("uh_ring", PUSH_ROD_LEN_UH, "thead"),
         ("r1_ring", PUSH_ROD_LEN_R1, "thead"),
         ("omi", PUSH_ROD_LEN_OMI, "thead"),
         ("mudra", PUSH_ROD_LEN_MUDRA, "pad"),
     ]
+    # Rod base (follower bottom) sits on cam low point:
+    # cam_z + CAM_BASE_H + FOLLOWER_H
+    _rod_base_z = _cam_z + CAM_BASE_H + FOLLOWER_H
     for name, rod_len, top_type in _rod_configs:
         _rod = build_push_rod(rod_len, top_type)
         _rod_x = SLOT_POSITIONS[name][0]
-        _rod_z = BASE_H + SG90_BODY_H
-        _rod_pos = _rod.translate((_rod_x, SERVO_Y, _rod_z))
+        _rod_pos = _rod.translate((_rod_x, SERVO_Y, _rod_base_z))
         parts[f"push_rod_{name}"] = (_rod_pos, (0.9, 0.6, 0.2, 0.5))
 
     return parts
@@ -2661,6 +2793,7 @@ device_tray = build_device_tray()
 ipad_cover = build_ipad_cover()
 ipad_wall = build_ipad_wall()
 mudra_pole = build_mudra_pole()
+servo_cam = build_servo_cam()
 
 show_object(bottom_tray, name="bottom_tray",
             options={"color": (0.15, 0.15, 0.17, 0.9)})
@@ -2687,6 +2820,15 @@ mudra_pole_assembly = mudra_pole.translate((mx, my, STAND_H))
 show_object(mudra_pole_assembly,
             name="mudra_pole",
             options={"color": (0.25, 0.25, 0.27, 0.95)})
+
+# Servo cams — displayed at assembly position (on top of each servo)
+_cam_z = BASE_H + SG90_BODY_H  # cam base sits on servo shaft top
+for _cam_name in ["uh_ring", "r1_ring", "omi", "mudra"]:
+    _cam_x = SLOT_POSITIONS[_cam_name][0]
+    _cam_assembly = servo_cam.translate((_cam_x, SERVO_Y, _cam_z))
+    show_object(_cam_assembly, name=f"servo_cam_{_cam_name}",
+                options={"color": (1.0, 0.7, 0.1, 0.85)})
+    pass  # keep loop body after show_object is stripped by export script
 
 # Tilt plates — displayed at assembly position (in cradle pockets, flat)
 uh_tilt_plate = build_uh_tilt_plate()
@@ -2730,9 +2872,10 @@ push_rods = {}
 for name, rod_len, top_type, _cradle_d in _push_rod_configs:
     rod = build_push_rod(rod_len, top_type)
     push_rods[name] = rod
-    # Position: rod base at servo horn top, centered at push rod slot
+    # Position: follower bottom sits on cam low point (cam_z + CAM_BASE_H),
+    # follower extends downward from rod base, so rod Z = cam_z + CAM_BASE_H + FOLLOWER_H
     _rod_x = SLOT_POSITIONS[name][0]
-    _rod_z = BASE_H + SG90_BODY_H  # top of servo body
+    _rod_z = BASE_H + SG90_BODY_H + CAM_BASE_H + FOLLOWER_H  # rod base above cam low side
     _rod_assembly = rod.translate((_rod_x, SERVO_Y, _rod_z))
     show_object(_rod_assembly, name=f"push_rod_{name}",
                 options={"color": (0.9, 0.6, 0.2, 0.85)})

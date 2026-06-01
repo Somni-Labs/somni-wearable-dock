@@ -48,6 +48,7 @@ def export_stl_files():
         r1_tilt_plate = exec_globals.get('r1_tilt_plate')
         omi_tilt_plate = exec_globals.get('omi_tilt_plate')
         push_rods = exec_globals.get('push_rods', {})
+        servo_cam = exec_globals.get('servo_cam')
 
         print("✅ Design objects loaded successfully")
 
@@ -116,6 +117,12 @@ def export_stl_files():
             rod_bb = rod.val().BoundingBox()
             push_rods_print[name] = rod.translate((0, 0, -rod_bb.zmin))
             print(f"   Push rod ({name}): translated Z by {-rod_bb.zmin:+.1f}mm")
+
+    # Servo cam — already at origin (Z=0), no translation needed
+    if servo_cam:
+        cam_bb = servo_cam.val().BoundingBox()
+        cam_print = servo_cam.translate((0, 0, -cam_bb.zmin))
+        print(f"   Servo cam: translated Z by {-cam_bb.zmin:+.1f}mm (prints flat, lobe up)")
 
     print(f"   Bottom tray: translated Z by {-bottom_bb.zmin:+.1f}mm (was Z={bottom_bb.zmin:.1f})")
     print(f"   Top tray: right-side up, translated Z by {-top_bb.zmin:+.1f}mm (was Z={top_bb.zmin:.1f}–{top_bb.zmax:.1f})")
@@ -208,6 +215,16 @@ def export_stl_files():
             rod_step = output_dir / f"v1-charging-stand-push-rod-{name}.step"
             cq.exporters.export(push_rods[name], str(rod_step))
             print(f"✅ {rod_step} - Push rod ({name}) STEP")
+
+        # Servo cam — single STL, print 4 copies
+        if servo_cam:
+            cam_stl = output_dir / "v1-charging-stand-servo-cam.stl"
+            cq.exporters.export(cam_print, str(cam_stl))
+            print(f"✅ {cam_stl} - Servo face cam (print 4x)")
+
+            cam_step = output_dir / "v1-charging-stand-servo-cam.step"
+            cq.exporters.export(servo_cam, str(cam_step))
+            print(f"✅ {cam_step} - Servo cam STEP (origin position)")
 
         return True
 
