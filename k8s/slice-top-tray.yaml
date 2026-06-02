@@ -62,8 +62,8 @@ spec:
           brim_width = 5
           temperature = 240
           first_layer_temperature = 245
-          bed_temperature = 80
-          first_layer_bed_temperature = 80
+          bed_temperature = 85
+          first_layer_bed_temperature = 85
           fan_always_on = 0
           min_fan_speed = 0
           max_fan_speed = 50
