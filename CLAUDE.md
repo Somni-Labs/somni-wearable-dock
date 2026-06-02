@@ -9,7 +9,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 - **`k8s/slice-*.yaml`** — K8s Job templates for PrusaSlicer slicing + Moonraker upload (per-part)
 - **`output/`** — Generated STL/STEP files
 - **`scripts/pre-print-check.sh`** — Pre-print validation (Moonraker API checks: printer state, filament, gcode metadata)
-- **ESP32 mount** — DevKitC V4 pin-header slot-cradle in bottom tray front-left corner, USB port through front wall
+- **ESP32 mount** — ESP32-S3 on Lonely Binary breakout board, standoff platform mount in bottom tray front-left corner (4 posts, M2 holes), USB-C through front wall. Board must fit in front of servo row (max depth 38mm with current layout — measure and update `ESP32_BB_*` constants).
 - **RGB underglow** — WS2812B LED strip channel (U-shaped: left, front, right walls) with 3mm light exit slots at base
 - **Backlit logo** — "Somni Labs" recessed into front wall exterior with 0.6mm thin-wall diffuser, backlit by RGB strip
 - **QuinLED-Dig-Uno mount** — WLED controller (50x50mm) in bottom tray front-right corner, onboard level shifting, drives WS2812B LED strip

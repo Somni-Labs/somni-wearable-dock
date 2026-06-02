@@ -150,20 +150,31 @@ MUDRA_CLIP_H = 8              # cantilever height (same as before)
 MUDRA_HOOK = 2.0              # hook overhang that catches the lip (was 1.2)
 MUDRA_HOOK_H = 2.0            # hook nub height (was SNAP_HOOK=1.2)
 
-# --- ESP32 DevKitC V4 mount (pin-header slot-cradle) ---
-ESP32_L = 56              # board length + tolerance (along Y)
-ESP32_W = 29              # board width + tolerance (along X)
-ESP32_H = 23              # total height with pin headers
-ESP32_PIN_H = 8.5         # pin header length below PCB
-ESP32_RAIL_H = 10         # slot-cradle rail height
-ESP32_RAIL_W = 5          # rail width
-ESP32_RAIL_PITCH = 25.4   # center-to-center of rail grooves (0.1" header pitch)
-ESP32_GROOVE_W = 3.5      # groove width (2.54mm header + 1mm tolerance)
-ESP32_GROOVE_D = 8.5      # groove depth (full pin length)
-ESP32_CRADLE_H = 6        # cradle wall height (above rail top)
-ESP32_CRADLE_T = 1.5      # cradle wall thickness
-ESP32_USB_SLOT_W = 12     # USB port slot width through front wall
-ESP32_USB_SLOT_H = 8      # USB port slot height through front wall
+# --- ESP32-S3 on Lonely Binary breakout board mount (standoff platform) ---
+# The ESP32-S3 dev board plugs into a screw-terminal expansion board.
+# Mount is sized for the expansion board, not the bare dev board.
+# *** MEASURE YOUR BOARD and update these constants! ***
+# Board sits in front-left corner, long edge along X, USB-C faces front wall.
+# CONSTRAINT: board rear edge must stay in front of servo pockets at Y=-44.
+#   Max BB_D = (STAND_D/2 - WALL) - abs(SERVO_Y) + SERVO_POCKET_D/2
+#            = 85 - 44 = 41mm.  Leave 3mm margin → BB_D ≤ 38mm.
+#   If your breakout board is deeper than 38mm, you must move the ESP32 to
+#   the rear of the tray or reduce SERVO_POCKET_D.
+ESP32_BB_W = 70           # breakout board width along X (MEASURE — long side + 2mm tol)
+ESP32_BB_D = 38           # breakout board depth along Y (MEASURE — short side + 2mm tol)
+ESP32_BB_H = 25           # total height: expansion board + dev board + components
+ESP32_BB_PCB_H = 1.6      # expansion board PCB thickness
+ESP32_STANDOFF_H = 8      # standoff post height (clearance under PCB for soldering/traces)
+ESP32_STANDOFF_D = 1.8    # standoff post diameter (fits through M2 mounting holes)
+ESP32_MOUNT_PITCH_X = 62  # mounting hole spacing along X (MEASURE YOUR BOARD)
+ESP32_MOUNT_PITCH_Y = 30  # mounting hole spacing along Y (MEASURE YOUR BOARD)
+ESP32_CRADLE_T = 2.5      # cradle wall thickness
+ESP32_CRADLE_H = 6        # cradle wall height (above standoff top)
+ESP32_USB_SLOT_W = 14     # USB-C port slot width through front wall (wider for Type-C)
+ESP32_USB_SLOT_H = 10     # USB-C port slot height through front wall
+# Legacy aliases so wiring groove code still works
+ESP32_W = ESP32_BB_W      # used by floor wiring groove calculations
+ESP32_L = ESP32_BB_D      # used by floor wiring groove calculations
 
 # --- RGB LED strip (WS2812B 30/m, IP67 silicone sleeve) ---
 LED_CHANNEL_W = 16        # channel width (14mm sleeve + 2mm clearance)
@@ -551,76 +562,54 @@ def build_bottom_tray():
     # The arch bridges (14mm span, 2.5mm walls) spaghettified during printing
     # at aggressive speeds. Cable management uses Velcro straps instead.
 
-    # ── ESP32 DevKitC V4 mount (front-left corner, slot-cradle) ──────────
-    # Board with pre-soldered pin headers rides in grooved rails.
-    # Long edge along Y (56mm), short edge (29mm, USB port) faces front wall.
-    # Pin headers sit in grooves; board slides in from the rear (+Y).
-    _esp_x = -STAND_W / 2 + WALL + ESP32_W / 2   # center X = -105.5mm
-    _esp_y = -STAND_D / 2 + WALL + ESP32_L / 2   # center Y = -57mm
+    # ── ESP32-S3 on breakout board mount (front-left corner, standoff platform) ──
+    # Breakout board sits on 4 standoff posts (like QuinLED mount pattern).
+    # Long edge along X, short edge along Y. USB-C port faces front wall.
+    # Board front edge is flush with the inner front wall — USB-C cable
+    # exits through the front wall slot. No cable clearance shift needed.
+    _esp_x = -STAND_W / 2 + WALL + ESP32_BB_W / 2   # center X
+    _esp_y = -STAND_D / 2 + WALL + ESP32_BB_D / 2    # center Y (flush with front wall)
 
     # Proximity sensor position (defined early for use in wiring grooves below)
-    _prox_x = _esp_x + ESP32_W / 2 + 5 + PROX_W / 2   # sensor center X = -74.5mm
-    _prox_y = -STAND_D / 2 + WALL + PROX_D / 2          # sensor center Y = -76mm
+    _prox_x = _esp_x + ESP32_BB_W / 2 + 5 + PROX_W / 2   # sensor center X
+    _prox_y = -STAND_D / 2 + WALL + PROX_D / 2              # sensor center Y
 
-    # Two parallel rails with grooves for pin headers
-    for rail_sign in [-1, 1]:  # -1 = left rail, +1 = right rail
-        rail_x = _esp_x + rail_sign * (ESP32_RAIL_PITCH / 2)
-
-        # Solid rail body
-        rail = (
+    # 4 standoff posts at mounting hole positions (rectangular pitch)
+    for ex_sign, ey_sign in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
+        esp_standoff = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
-            .center(rail_x, _esp_y)
-            .rect(ESP32_RAIL_W, ESP32_L)
-            .extrude(ESP32_RAIL_H)
+            .center(
+                _esp_x + ex_sign * (ESP32_MOUNT_PITCH_X / 2),
+                _esp_y + ey_sign * (ESP32_MOUNT_PITCH_Y / 2),
+            )
+            .circle(ESP32_STANDOFF_D / 2)
+            .extrude(ESP32_STANDOFF_H)
         )
-        tray = tray.union(rail)
+        tray = tray.union(esp_standoff)
 
-        # Groove cut into the inner face of each rail
-        # Groove faces inward (toward the board center)
-        groove_x = rail_x - rail_sign * (ESP32_RAIL_W / 2 - ESP32_GROOVE_W / 2)
-        groove = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H + (ESP32_RAIL_H - ESP32_GROOVE_D))
-            .center(groove_x, _esp_y)
-            .rect(ESP32_GROOVE_W, ESP32_L + 1)  # +1 so rear end is open for insertion
-            .extrude(ESP32_GROOVE_D + 0.5)
-        )
-        tray = tray.cut(groove)
-
-        # Retaining tab at front end of groove (prevents board sliding out)
-        tab_y = _esp_y - ESP32_L / 2
-        tab = (
-            cq.Workplane("XY")
-            .workplane(offset=BASE_H + (ESP32_RAIL_H - ESP32_GROOVE_D))
-            .center(groove_x, tab_y)
-            .rect(ESP32_GROOVE_W, 2)
-            .extrude(2)  # 2mm tall bump
-        )
-        tray = tray.union(tab)
-
-    # Cradle wall — left side (against the left inner wall, above rail top)
-    cradle_left = (
+    # Cradle wall — left side (against the left inner wall, lateral support)
+    esp_cradle_left = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H + ESP32_RAIL_H)
-        .center(_esp_x - ESP32_W / 2 - ESP32_CRADLE_T / 2, _esp_y)
-        .rect(ESP32_CRADLE_T, ESP32_L)
+        .workplane(offset=BASE_H)
+        .center(_esp_x - ESP32_BB_W / 2 - ESP32_CRADLE_T / 2, _esp_y)
+        .rect(ESP32_CRADLE_T, ESP32_BB_D)
         .extrude(ESP32_CRADLE_H)
     )
-    tray = tray.union(cradle_left)
+    tray = tray.union(esp_cradle_left)
 
-    # Cradle wall — front side (against the front inner wall, above rail top)
-    cradle_front = (
+    # Cradle wall — rear side (back edge support, NO front wall to keep ports clear)
+    esp_cradle_rear = (
         cq.Workplane("XY")
-        .workplane(offset=BASE_H + ESP32_RAIL_H)
-        .center(_esp_x, _esp_y - ESP32_L / 2 - ESP32_CRADLE_T / 2)
-        .rect(ESP32_W, ESP32_CRADLE_T)
+        .workplane(offset=BASE_H)
+        .center(_esp_x, _esp_y + ESP32_BB_D / 2 + ESP32_CRADLE_T / 2)
+        .rect(ESP32_BB_W, ESP32_CRADLE_T)
         .extrude(ESP32_CRADLE_H)
     )
-    tray = tray.union(cradle_front)
+    tray = tray.union(esp_cradle_rear)
 
-    # USB port slot through the front wall (repositioned for taller board)
-    _usb_z = BASE_H + ESP32_RAIL_H + 4   # center of USB port on raised board
+    # USB-C port slot through the front wall (for the dev board's USB-C cable)
+    _usb_z = BASE_H + ESP32_STANDOFF_H + ESP32_BB_PCB_H + 4  # center of USB port
     esp_usb_slot = (
         cq.Workplane("XY")
         .workplane(offset=_usb_z - ESP32_USB_SLOT_H / 2)
@@ -2579,17 +2568,27 @@ def build_ghost_components():
     """
     parts = {}
 
-    # ── ESP32 board (front-left corner) ──────────────────────────────────
-    _esp_x = -STAND_W / 2 + WALL + ESP32_W / 2
-    _esp_y = -STAND_D / 2 + WALL + ESP32_L / 2
-    _esp_z = BASE_H + ESP32_RAIL_H  # PCB sits on top of rails
-    esp32 = (
+    # ── ESP32-S3 on breakout board (front-left corner) ──────────────────
+    _esp_x = -STAND_W / 2 + WALL + ESP32_BB_W / 2
+    _esp_y = -STAND_D / 2 + WALL + ESP32_BB_D / 2
+    _esp_z = BASE_H + ESP32_STANDOFF_H  # breakout board PCB sits on standoffs
+    # Breakout board (bottom layer)
+    esp_breakout = (
         cq.Workplane("XY")
         .workplane(offset=_esp_z)
         .center(_esp_x, _esp_y)
-        .rect(28, 55)  # actual PCB size (no tolerance)
-        .extrude(12)    # component height above PCB
+        .rect(ESP32_BB_W - 2, ESP32_BB_D - 2)  # actual PCB (no tolerance)
+        .extrude(ESP32_BB_PCB_H)
     )
+    # Dev board plugged in on top
+    esp_devboard = (
+        cq.Workplane("XY")
+        .workplane(offset=_esp_z + ESP32_BB_PCB_H)
+        .center(_esp_x, _esp_y)
+        .rect(25, 54)  # ESP32-S3 DevKitC actual size
+        .extrude(12)    # component height above breakout
+    )
+    esp32 = esp_breakout.union(esp_devboard)
     parts["esp32"] = (esp32, (0.1, 0.35, 0.7, 0.85))
 
     # ── QuinLED-Dig-Uno (front-right corner, shifted back for cable clearance) ──
