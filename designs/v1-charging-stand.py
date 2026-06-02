@@ -165,9 +165,9 @@ ESP32_CRADLE_T = 1.5      # cradle wall thickness
 ESP32_USB_SLOT_W = 12     # USB port slot width through front wall
 ESP32_USB_SLOT_H = 8      # USB port slot height through front wall
 
-# --- RGB LED strip (WS2812B 30/m) ---
-LED_CHANNEL_W = 12        # channel width (10mm strip + clearance)
-LED_CHANNEL_D = 4         # channel depth into floor
+# --- RGB LED strip (WS2812B 30/m, IP67 silicone sleeve) ---
+LED_CHANNEL_W = 16        # channel width (14mm sleeve + 2mm clearance)
+LED_CHANNEL_D = 8         # channel depth into floor (7mm sleeve + 1mm)
 LED_SLOT_H = 3            # light exit slot height on exterior walls
 LED_SLOT_Z = 1            # slot bottom edge Z (above desk)
 
@@ -183,15 +183,16 @@ CYBER_BAR_DEPTH = 1.5      # recess depth into 2.5mm wall (leaves 1.0mm diffuser
 CYBER_DIFFUSER_T = WALL - CYBER_BAR_DEPTH  # 1.0mm remaining wall = diffuser
 
 # --- QuinLED-Dig-Uno mount (WLED controller, replaces old driver pocket) ---
-QLED_W = 50               # board width (X)
-QLED_D = 50               # board depth (Y)
+QLED_W = 55               # board width (X, long side + clearance)
+QLED_D = 45               # board depth (Y, short side + clearance)
 QLED_H = 30               # board height (Z, tallest component)
 QLED_STANDOFF_H = 3       # standoff post height
-QLED_STANDOFF_D = 3       # standoff post diameter
-QLED_MOUNT_INSET = 4      # M2 hole inset from board edge
-QLED_MOUNT_PITCH = 42     # M2 hole spacing (50 - 2*4)
+QLED_STANDOFF_D = 1.8     # standoff post diameter (fits through M2 holes)
+QLED_MOUNT_PITCH_X = 42.5 # M2 hole spacing along X (long side, measured)
+QLED_MOUNT_PITCH_Y = 32.5 # M2 hole spacing along Y (short side, measured)
+QLED_CABLE_CLEARANCE = 15 # clearance in front of ports (both short edges)
 QLED_CRADLE_H = 8         # cradle wall height
-QLED_CRADLE_T = 1.5       # cradle wall thickness
+QLED_CRADLE_T = 2.5       # cradle wall thickness (was 1.5, beefed for FDM)
 
 # --- SG90 micro servo mount (4x) ---
 SG90_BODY_L = 23          # body length (X)
@@ -630,26 +631,29 @@ def build_bottom_tray():
     tray = tray.cut(esp_usb_slot)
 
     # ── QuinLED-Dig-Uno WLED controller mount (front-right corner) ───────
-    # 50x50mm PCB mirrors the ESP32 position on the opposite side.
-    # Has onboard level shifting — replaces the old separate driver pocket.
-    _qled_x = STAND_W / 2 - WALL - QLED_W / 2    # center X = +92.5mm
-    _qled_y = -STAND_D / 2 + WALL + QLED_D / 2   # center Y = -60mm
+    # Rectangular PCB (long side along X, short side along Y).
+    # Ports/screw terminals on both short edges (front and back of board),
+    # so board is shifted back (+Y) to give cable clearance on both ends.
+    # Right-side cradle wall for lateral support; NO front/back cradle walls
+    # (they would block the port access).
+    _qled_x = STAND_W / 2 - WALL - QLED_W / 2    # center X (right side of tray)
+    _qled_y = -STAND_D / 2 + WALL + QLED_CABLE_CLEARANCE + QLED_D / 2  # shifted back for front cable clearance
 
-    # 4 standoff posts at M2 mounting hole positions
+    # 4 standoff posts at M2 mounting hole positions (rectangular pitch)
     for qx_sign, qy_sign in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
         qled_standoff = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
             .center(
-                _qled_x + qx_sign * (QLED_MOUNT_PITCH / 2),
-                _qled_y + qy_sign * (QLED_MOUNT_PITCH / 2),
+                _qled_x + qx_sign * (QLED_MOUNT_PITCH_X / 2),
+                _qled_y + qy_sign * (QLED_MOUNT_PITCH_Y / 2),
             )
             .circle(QLED_STANDOFF_D / 2)
             .extrude(QLED_STANDOFF_H)
         )
         tray = tray.union(qled_standoff)
 
-    # Cradle wall — right side (against the right inner wall)
+    # Cradle wall — right side only (against the right inner wall, lateral support)
     qled_cradle_right = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
@@ -658,16 +662,6 @@ def build_bottom_tray():
         .extrude(QLED_CRADLE_H)
     )
     tray = tray.union(qled_cradle_right)
-
-    # Cradle wall — front side (against the front inner wall)
-    qled_cradle_front = (
-        cq.Workplane("XY")
-        .workplane(offset=BASE_H)
-        .center(_qled_x, _qled_y - QLED_D / 2 - QLED_CRADLE_T / 2)
-        .rect(QLED_W, QLED_CRADLE_T)
-        .extrude(QLED_CRADLE_H)
-    )
-    tray = tray.union(qled_cradle_front)
 
     # ── RGB LED channel (U-shaped: left wall → front wall → right wall) ──
     # Groove in the floor for WS2812B LED strip. Inset 1mm from the inner
@@ -2598,15 +2592,15 @@ def build_ghost_components():
     )
     parts["esp32"] = (esp32, (0.1, 0.35, 0.7, 0.85))
 
-    # ── QuinLED-Dig-Uno (front-right corner) ─────────────────────────────
+    # ── QuinLED-Dig-Uno (front-right corner, shifted back for cable clearance) ──
     _qled_x = STAND_W / 2 - WALL - QLED_W / 2
-    _qled_y = -STAND_D / 2 + WALL + QLED_D / 2
+    _qled_y = -STAND_D / 2 + WALL + QLED_CABLE_CLEARANCE + QLED_D / 2
     _qled_z = BASE_H + QLED_STANDOFF_H
     quinled = (
         cq.Workplane("XY")
         .workplane(offset=_qled_z)
         .center(_qled_x, _qled_y)
-        .rect(50, 50)  # actual PCB size
+        .rect(QLED_W, QLED_D)  # actual rectangular PCB footprint
         .extrude(QLED_H)
     )
     parts["quinled"] = (quinled, (0.15, 0.55, 0.15, 0.85))
