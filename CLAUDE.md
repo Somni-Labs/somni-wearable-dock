@@ -224,3 +224,19 @@ The top tray's four front-row device pockets (UH, R1, Omi, Mudra) created deep o
 **Cause**: The top tray had 15+ through-cuts (cable holes, push rod slots, mudra socket, iPad cable tunnel spanning full width, LCD window, iPad blade slot) that fragmented the bottom face (Z=41) into thin strips and isolated patches. When printed flipped, these holes appear in the first layers, preventing the formation of a connected base.
 
 **Fix**: Added a `LID_FLOOR` (2mm) solid floor slab across the interior at Z=SPLIT_Z using `base.union()`. Essential through-holes (push rods, mudra socket, cable pass-throughs) are re-cut at minimum size through the new floor. The iPad cable tunnel, which previously spanned the full 240mm width at Z=42, is now blocked by the floor — the cable routes through the smaller vertical cable hole instead.
+
+### Backlit logo printed as a blocky mush
+
+**Error**: The "Somni Labs" logo on the front wall printed as an unreadable row of blocks, not letters.
+
+**Cause**: The logo geometry was correct in CadQuery, but it was recessed **into the exterior face** leaving only a 0.6mm diffuser skin behind the letters. On a vertical wall sliced at `layer_height = 0.3mm` with 3 perimeters (~0.45mm line width), a 0.6mm skin is under two clean perimeter widths and 0.3mm layers cannot resolve 12mm-tall letter strokes. The fine exterior recess pockets smeared together. This was a **print-fidelity** failure, not a CAD bug.
+
+**Fix**: Recess the logo from the **interior** face instead, leaving a `LOGO_DIFFUSER_T` (0.8mm) skin flush with a smooth exterior wall. The outside face becomes a continuous wall with no fine pockets for the slicer to botch; the letters appear only as a backlit glow from the LED strip. **Rule of thumb:** for backlit text on a vertical printed wall, cut the letters from the hidden (interior) side and leave the visible face smooth — never rely on the printer reproducing fine recesses on the show surface.
+
+### Bottom tray was taller than the parts it houses
+
+**Error**: The printed bottom tray looked far too tall — a ~58mm box around a 35mm charger.
+
+**Cause**: `SPLIT_Z` had been bumped to 50mm for "cable headroom," but the tallest interior component (the VanBon charger) only reaches Z=40 (`BASE_H + CHARGER_H`). That left 10mm of dead headroom, and the 4 snap clips add another 8mm above the rim (clips intentionally protrude to engage the top tray), so the part's bounding box was 58mm.
+
+**Fix**: Lowered `SPLIT_Z` 50→45 (5mm headroom over the charger) and `STAND_H` 67→62 **together**, keeping `TOP_H` at 17mm. Because the entire upper assembly (top tray, device tray pockets, cradles, iPad slot) is defined relative to `STAND_H`, dropping both by 5mm preserves every device pocket/slot shape and just makes the stand 5mm shorter. Bottom tray is now 45mm body + 8mm clips = 53mm. **Rule of thumb:** size the split plane to the tallest interior component plus a small cable margin, not an arbitrary round number — and remember the snap clips add `SNAP_CLIP_H` to the bounding box.

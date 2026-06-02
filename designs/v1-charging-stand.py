@@ -33,7 +33,7 @@ from cq_server.ui import ui, show_object
 # --- Overall stand ---
 STAND_W = 240          # total width (fits Q2 245mm plate)
 STAND_D = 175          # total depth (G2 case + iPad slot + back wall)
-STAND_H = 67           # TOTAL assembled height (bottom + top)
+STAND_H = 62           # TOTAL assembled height (bottom 45 + top 17)
 WALL = 2.5             # wall thickness
 CORNER_R = 5           # corner fillet radius
 TOL = 1.0              # print tolerance per side (1mm clearance each side for snug drop-in fit)
@@ -41,10 +41,14 @@ TOL = 1.0              # print tolerance per side (1mm clearance each side for s
 # --- Two-part split ---
 # Bottom tray: cable management, VanBon charger, rubber feet
 # Top tray: device pockets, Mudra pole, iPad wall — sits on top of bottom
-# Bottom tray height = 50mm (~2 inches) to house VanBon charger (33mm)
-# with 12mm headroom above for USB cables to bend out of ports.
-SPLIT_Z = 50           # Z where the two parts meet (bottom tray height)
-TOP_H = STAND_H - SPLIT_Z   # top tray height (16mm)
+# Bottom tray height = 45mm to house the VanBon charger (charger top at
+# Z=40 = BASE_H + CHARGER_H) with 5mm headroom above for USB cables to
+# bend out of the ports. The whole upper assembly (top tray, device tray,
+# iPad slot) is defined relative to STAND_H, so dropping SPLIT_Z and
+# STAND_H together by 5mm keeps every device pocket/slot shape identical
+# and simply makes the stand 5mm shorter overall.
+SPLIT_Z = 45           # Z where the two parts meet (bottom tray height)
+TOP_H = STAND_H - SPLIT_Z   # top tray height (17mm)
 LID_FLOOR = 2          # solid floor thickness on top tray bottom face (lid surface)
 SNAP_TOL = 0.3         # clearance for snap-fit (per side)
 SNAP_LIP = 1.5         # ledge depth for snap engagement
@@ -183,9 +187,15 @@ LED_SLOT_H = 3            # light exit slot height on exterior walls
 LED_SLOT_Z = 1            # slot bottom edge Z (above desk)
 
 # --- Backlit logo ---
+# Recessed from the INTERIOR face of the front wall (not the exterior),
+# leaving a thin diffuser skin flush with the smooth outer wall. This
+# prints far more reliably than exterior-recessed text: the outside face
+# stays a continuous smooth wall (no fine recess pockets for the slicer to
+# botch), and the letters show only as a glow when backlit by the LED strip.
 LOGO_TEXT = "Somni Labs"
 LOGO_FONT_SIZE = 12       # cap height in mm
-LOGO_RECESS_DEPTH = 1.9   # cut depth (WALL - 0.6mm diffuser)
+LOGO_DIFFUSER_T = 0.8     # exterior diffuser skin left in front of letters
+LOGO_RECESS_DEPTH = WALL - LOGO_DIFFUSER_T  # 1.7mm cut from the interior face
 LOGO_Z = 20               # vertical center of text on front wall
 
 # --- Cyberpunk diffuser bars (exterior wall recesses) ---
@@ -914,16 +924,21 @@ def build_bottom_tray():
     )
     tray = tray.cut(prox_window)
 
-    # ── "Somni Labs" backlit logo (front wall exterior) ──────────────────
-    # Text recessed into the front wall, leaving a 0.6mm thin wall as a
-    # natural light diffuser. The RGB strip behind the front wall
-    # backlights the letters for a soft glow effect.
-    _logo_y = -STAND_D / 2  # exterior face of front wall
+    # ── "Somni Labs" backlit logo (recessed from the INTERIOR face) ──────
+    # The letters are cut into the front wall from the inside, leaving a
+    # LOGO_DIFFUSER_T (0.8mm) skin flush with the smooth exterior wall.
+    # The RGB strip inside backlights the thin skin so the letters glow.
+    # Cutting from the inside keeps the outer face a continuous smooth wall
+    # — no exterior recess pockets that print as a blocky mush.
+    _logo_inner_y = -STAND_D / 2 + WALL  # interior face of the front wall
+    # The "XZ" workplane normal points -Y. Offset places the plane at the
+    # interior face; positive text depth extrudes along -Y (toward the
+    # exterior), stopping LOGO_DIFFUSER_T short of the outer face.
     logo_text = (
         cq.Workplane("XZ")
-        .workplane(offset=-_logo_y)  # position at front wall exterior face
+        .workplane(offset=-_logo_inner_y)  # position at front wall interior face
         .center(0, LOGO_Z)
-        .text(LOGO_TEXT, LOGO_FONT_SIZE, -LOGO_RECESS_DEPTH,
+        .text(LOGO_TEXT, LOGO_FONT_SIZE, LOGO_RECESS_DEPTH,
               font="Sans", halign="center", valign="center")
     )
     tray = tray.cut(logo_text)
