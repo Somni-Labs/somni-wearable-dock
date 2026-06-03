@@ -16,7 +16,7 @@ Parametric charging stand for wearable devices, designed in CadQuery and printed
 - **Motorized reveal** — 4x SG90 servo mounts in bottom tray (Y=-37), push rod slots in top tray, servo wiring channels with arch clips
 - **Removable device tray** — Drop-in friction-fit tray (front row) holding UH, R1, Omi pockets + Mudra pole socket. Prints right-side up, no supports. Top tray has rectangular cutout with 3-sided perimeter ledge.
 - **Proximity sensor** — VL53L0X ToF laser mount (front wall, right of ESP32) with front wall window for hands-free reveal activation
-- **Cyberpunk diffuser bars** — Fragmented horizontal recesses on exterior walls (left, front, right) leaving 1.0mm thin-wall diffuser, backlit by existing LED strip. Asymmetric layout: 3 bars on left wall, 3 on right wall (different stagger), 2 short accent bars flanking the logo on front wall.
+- **Cyberpunk RGB light band** — Fragmented "data stream" of backlit slits in the lower band (Z≈3–16mm) of the left/front/right exterior walls, where the floor LED strip is brightest and below the logo. Mix of two cut types via the `_cyber_cut()` helper in `build_bottom_tray()`: 1.0mm thin-wall diffuser recesses (soft glow, hide interior) on three staggered horizontal tracks per wall, plus a few sharp vertical through-slit accents (`CYBER_TICK_*`) whose bottoms sit at `BASE_H` so they open into the LED-lit cavity. Through-slits are kept out of the ESP32/QuinLED/sensor zones (front-left + right-front).
 - **Ghost visualization** — Translucent colored component overlays in cadquery-server preview (ESP32, QuinLED, servos, sensor, charger, LED strip)
 - Live preview via `cadquery-server` deployment in K8s (`utilities` namespace), synced from GitHub via git-sync init container
 

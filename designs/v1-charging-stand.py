@@ -202,6 +202,9 @@ LOGO_Z = 20               # vertical center of text on front wall
 CYBER_BAR_H = 3            # bar height (Z)
 CYBER_BAR_DEPTH = 1.5      # recess depth into 2.5mm wall (leaves 1.0mm diffuser skin)
 CYBER_DIFFUSER_T = WALL - CYBER_BAR_DEPTH  # 1.0mm remaining wall = diffuser
+# Sharp through-slit accents (open to the LED-lit interior, base of walls)
+CYBER_TICK_W = 2.0        # width of a vertical through-slit accent
+CYBER_TICK_H = 6          # height of a vertical through-slit accent
 
 # --- QuinLED-Dig-Uno mount (WLED controller, replaces old driver pocket) ---
 QLED_W = 55               # board width (X, long side + clearance)
@@ -943,63 +946,62 @@ def build_bottom_tray():
     )
     tray = tray.cut(logo_text)
 
-    # ── Cyberpunk diffuser bars (exterior wall recesses) ─────────────────
-    # Subtle fragmented horizontal bars recessed into the exterior walls.
-    # Each bar leaves a 1.0mm thin-wall diffuser backlit by the LED strip.
-    # Asymmetric layout — cyberpunk but restrained.
+    # ── Cyberpunk RGB light band (lower walls) ───────────────────────────
+    # A fragmented "data stream" of backlit slits in the lower band of the
+    # left, front, and right exterior walls — where the floor LED strip is
+    # brightest. Most are 1.0mm diffuser recesses that glow softly; a few
+    # are sharp vertical through-slits for bright accents. The whole band
+    # sits below the "Somni Labs" logo (Z=14..26) so they read as a
+    # separate glowing strip beneath the wordmark.
+    #
+    # Helper cuts one slit on a wall ("L"/"R"/"F"). `pos` runs along the
+    # wall (Y for L/R, X for F); `length` is along the wall, `height` is Z.
+    # Diffuser cuts leave CYBER_DIFFUSER_T (1.0mm); through cuts open into
+    # the lit interior. Through-slits avoid the ESP32/QuinLED/sensor zones.
+    def _cyber_cut(wall, pos, zc, length, height, through=False):
+        over = 1.0
+        depth = (WALL + 1.0) if through else CYBER_BAR_DEPTH
+        wp = cq.Workplane("XY").workplane(offset=zc - height / 2)
+        if wall == "L":
+            cx = -STAND_W / 2 + (depth - over) / 2
+            return wp.center(cx, pos).rect(depth + over, length).extrude(height)
+        if wall == "R":
+            cx = STAND_W / 2 - (depth - over) / 2
+            return wp.center(cx, pos).rect(depth + over, length).extrude(height)
+        cy = -STAND_D / 2 + (depth - over) / 2   # front wall ("F")
+        return wp.center(pos, cy).rect(length, depth + over).extrude(height)
 
-    # LEFT WALL (-X side) — 3 bars, staggered
-    _lw_x = -STAND_W / 2   # exterior face of left wall
-    _lw_bars = [
-        # (y_center, z_center, length)
-        (-STAND_D / 2 + 30,  15, 60),   # long bar, toward front, low
-        (-STAND_D / 2 + 25,  30, 25),   # short bar, toward front, high
-        ( STAND_D / 2 - 35,  10, 40),   # medium bar, toward rear, lowest
+    # Diffuser bars: (wall, pos_along, z_center, length, height) — three
+    # fragmented horizontal tracks per wall (z≈5/9/13), staggered per wall.
+    _cyber_bars = [
+        # LEFT WALL — denser toward the front
+        ("L", -62,  5, 30, 2.5), ("L", -22,  5, 22, 2.5), ("L",  26,  6, 38, 3),
+        ("L", -50,  9, 16, 2),   ("L", -10,  9, 40, 2.5), ("L",  48,  9, 12, 2),
+        ("L", -36, 13, 22, 2.5), ("L",  12, 13, 28, 2),
+        # RIGHT WALL — staggered differently for asymmetry
+        ("R", -58,  5, 36, 3),   ("R",   2,  5, 20, 2.5), ("R",  50,  6, 16, 2),
+        ("R", -28,  9, 24, 2),   ("R",  28,  9, 34, 2.5),
+        ("R", -54, 13, 14, 2),   ("R",  -8, 13, 30, 2.5), ("R",  42, 13, 18, 2),
+        # FRONT WALL — biased center/right (left half is ESP32 + USB-C + sensor)
+        ("F", -30,  5, 24, 2.5), ("F",   8,  5, 40, 3),   ("F",  64,  5, 44, 2.5),
+        ("F", -20,  9, 16, 2),   ("F",  30,  9, 50, 2.5), ("F",  92,  9, 20, 2),
+        ("F",  12, 13, 30, 2.5), ("F",  70, 13, 34, 2),
     ]
-    for _by, _bz, _bl in _lw_bars:
-        # Cut from exterior face inward, leaving 1.0mm diffuser on interior
-        bar = (
-            cq.Workplane("XY")
-            .workplane(offset=_bz - CYBER_BAR_H / 2)
-            .center(_lw_x + CYBER_DIFFUSER_T / 2, _by)
-            .rect(CYBER_BAR_DEPTH + 1, _bl)  # cut from exterior inward
-            .extrude(CYBER_BAR_H)
-        )
-        tray = tray.cut(bar)
+    for _w, _p, _z, _l, _h in _cyber_bars:
+        tray = tray.cut(_cyber_cut(_w, _p, _z, _l, _h))
 
-    # RIGHT WALL (+X side) — 3 bars, asymmetric to left
-    _rw_x = STAND_W / 2    # exterior face of right wall
-    _rw_bars = [
-        (0,                  25, 45),   # medium bar, centered, mid-height
-        ( STAND_D / 2 - 30,  12, 20),   # short bar, toward rear, low
-        (-STAND_D / 2 + 35,  35, 55),   # long bar, toward front, highest
+    # Sharp through-slit accents: narrow vertical ticks whose bottoms sit at
+    # the floor (Z=BASE_H) so they open into the LED-lit cavity. Placed in
+    # clear zones only (not over the ESP32/QuinLED boards or sensor window).
+    _cyber_ticks = [
+        ("L", -66), ("L", -63), ("L",  30), ("L",  33),   # left: front + mid
+        ("R",   8), ("R",  11), ("R",  46),                # right: behind cavity
+        ("F",  18), ("F",  21), ("F",  58), ("F", 100),    # front: right half
     ]
-    for _by, _bz, _bl in _rw_bars:
-        bar = (
-            cq.Workplane("XY")
-            .workplane(offset=_bz - CYBER_BAR_H / 2)
-            .center(_rw_x - CYBER_DIFFUSER_T / 2, _by)
-            .rect(CYBER_BAR_DEPTH + 1, _bl)  # cut from exterior inward
-            .extrude(CYBER_BAR_H)
-        )
-        tray = tray.cut(bar)
-
-    # FRONT WALL (-Y side) — 2 short accent bars flanking the logo
-    _fw_y = -STAND_D / 2    # exterior face of front wall
-    _fw_bars = [
-        # (x_center, z_center, length)
-        (-STAND_W / 2 + 30,  35, 30),   # near left edge, above logo
-        ( STAND_W / 2 - 30,  12, 25),   # near right edge, below logo
-    ]
-    for _bx, _bz, _bl in _fw_bars:
-        bar = (
-            cq.Workplane("XY")
-            .workplane(offset=_bz - CYBER_BAR_H / 2)
-            .center(_bx, _fw_y + CYBER_DIFFUSER_T / 2)
-            .rect(_bl, CYBER_BAR_DEPTH + 1)  # cut from exterior inward
-            .extrude(CYBER_BAR_H)
-        )
-        tray = tray.cut(bar)
+    _tick_zc = BASE_H + CYBER_TICK_H / 2
+    for _w, _p in _cyber_ticks:
+        tray = tray.cut(_cyber_cut(_w, _p, _tick_zc, CYBER_TICK_W,
+                                   CYBER_TICK_H, through=True))
 
     # ── Cable pass-through holes — NOT NEEDED in bottom tray ────────────
     # The bottom tray is now an open-top box (no ceiling). Cables route
