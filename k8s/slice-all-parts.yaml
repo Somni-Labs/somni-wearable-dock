@@ -145,9 +145,15 @@ spec:
           }
 
           # ── BOTTOM TRAY ──
+          # The bottom-tray STL exceeds the 1MB ConfigMap limit, so it is stored
+          # gzipped (bottom-tray.stl.gz) and decompressed here into a writable
+          # /tmp path (the ConfigMap mount is read-only).
+          echo "--- Decompressing bottom tray STL ---"
+          gunzip -c /tmp/input-bottom/bottom-tray.stl.gz > /tmp/bottom-tray.stl
+          ls -la /tmp/bottom-tray.stl
           echo "--- Slicing bottom tray ---"
           $SLICER --load "$INI" --center 137,147 \
-            --output /tmp/bottom.gcode --export-gcode /tmp/input-bottom/bottom-tray.stl
+            --output /tmp/bottom.gcode --export-gcode /tmp/bottom-tray.stl
           validate_gcode /tmp/bottom.gcode
           upload_gcode() {
             local FILE="$1"
