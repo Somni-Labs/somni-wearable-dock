@@ -152,29 +152,44 @@ MUDRA_HOOK_H = 2.0            # hook nub height (was SNAP_HOOK=1.2)
 
 # --- ESP32-S3 on Lonely Binary breakout board mount (standoff platform) ---
 # The ESP32-S3 dev board plugs into a screw-terminal expansion board.
-# Mount is sized for the expansion board, not the bare dev board.
-# *** MEASURE YOUR BOARD and update these constants! ***
-# Board sits in front-left corner, long edge along X, USB-C faces front wall.
-# CONSTRAINT: board rear edge must stay in front of servo pockets at Y=-44.
-#   Max BB_D = (STAND_D/2 - WALL) - abs(SERVO_Y) + SERVO_POCKET_D/2
-#            = 85 - 44 = 41mm.  Leave 3mm margin → BB_D ≤ 38mm.
-#   If your breakout board is deeper than 38mm, you must move the ESP32 to
-#   the rear of the tray or reduce SERVO_POCKET_D.
-ESP32_BB_W = 70           # breakout board width along X (MEASURE — long side + 2mm tol)
-ESP32_BB_D = 38           # breakout board depth along Y (MEASURE — short side + 2mm tol)
-ESP32_BB_H = 25           # total height: expansion board + dev board + components
-ESP32_BB_PCB_H = 1.6      # expansion board PCB thickness
-ESP32_STANDOFF_H = 8      # standoff post height (clearance under PCB for soldering/traces)
-ESP32_STANDOFF_D = 1.8    # standoff post diameter (fits through M2 mounting holes)
-ESP32_MOUNT_PITCH_X = 62  # mounting hole spacing along X (MEASURE YOUR BOARD)
-ESP32_MOUNT_PITCH_Y = 30  # mounting hole spacing along Y (MEASURE YOUR BOARD)
+# Mount is sized for the SCREW-TERMINAL EXPANSION BASE that the ESP32-S3 dev
+# board plugs into (Lonely Binary). The base bolts to the tray; the dev board
+# sits in the base's header sockets on top. USB-C exits the dev board, facing
+# the front wall on the base's long side.
+# *** CALIPER-MEASURED 2026-06-08 — do not "round to nice numbers". ***
+#   Footprint:   64.11 (long, X) × 55.97 (short, Y)
+#   Corner holes: 3.44mm dia (M3 clearance), one per corner
+#   Hole pitch:   55.62 (long dir) × 48.06 (short dir)  [~4mm edge inset]
+#   Stack height: 17.85mm (base bottom → tallest point with dev board seated)
+# Drop-in mount: the four posts are LOCATING PINS (no screws). Board drops on,
+# holes slide over pins, cradle walls retain it.
+# PLACEMENT (rear-left corner, ROTATED): the real 56×64 base cannot share the
+# front strip with the 4-servo row (front row is full once the true board size
+# is used). Solution verified by collision check: place the base in the rear-left
+# corner, ROTATED 90° so its SHORT edge (56) runs along X and its LONG edge (64)
+# runs along Y into the open rear depth. Front edge sits 3mm behind the servo
+# pockets (Y=-27); rear edge (Y≈39) clears the iPad slot front (Y=59.5).
+# Because the board is rotated, the USB-C port now faces the LEFT wall (the short
+# edge), not the front wall. The charger shifts right to vacate the rear-left.
+# NOTE: BB_W is still the board's own long edge; BB_D its short edge. The
+# rotation is applied at placement (short edge mapped to X), so the standoff
+# pitch and cradle code swap which pitch goes on which axis — see _esp_* below.
+ESP32_BB_W = 64.11 + TOL * 2   # base LONG edge (64.11 caliper) — runs along Y after rotation
+ESP32_BB_D = 55.97 + TOL * 2   # base SHORT edge (55.97 caliper) — runs along X after rotation
+ESP32_BB_H = 17.85             # stack height: base + dev board + tallest component (caliper)
+ESP32_BB_PCB_H = 1.6      # expansion base PCB thickness
+ESP32_STANDOFF_H = 8      # locating-pin height (clearance under base for traces; tall enough to retain)
+ESP32_STANDOFF_D = 3.2    # locating-pin diameter (slip-fit through 3.44mm corner holes)
+ESP32_MOUNT_PITCH_LONG = 55.62   # corner-hole spacing along the LONG edge (caliper) — maps to Y
+ESP32_MOUNT_PITCH_SHORT = 48.06  # corner-hole spacing along the SHORT edge (caliper) — maps to X
+ESP32_FRONT_Y = -27       # base front edge Y (3mm behind servo pocket back at -30)
 ESP32_CRADLE_T = 2.5      # cradle wall thickness
-ESP32_CRADLE_H = 6        # cradle wall height (above standoff top)
+ESP32_CRADLE_H = 6        # cradle wall height (above pin top)
 ESP32_USB_SLOT_W = 14     # USB-C port slot width through front wall (wider for Type-C)
 ESP32_USB_SLOT_H = 10     # USB-C port slot height through front wall
 # Legacy aliases so wiring groove code still works
-ESP32_W = ESP32_BB_W      # used by floor wiring groove calculations
-ESP32_L = ESP32_BB_D      # used by floor wiring groove calculations
+ESP32_W = ESP32_BB_W      # legacy alias (board long edge) — kept for any external refs
+ESP32_L = ESP32_BB_D      # legacy alias (board short edge) — grooves now use BB_D/BB_W directly
 
 # --- RGB LED strip (WS2812B 30/m, IP67 silicone sleeve) ---
 LED_CHANNEL_W = 16        # channel width (14mm sleeve + 2mm clearance)
@@ -425,11 +440,18 @@ def build_bottom_tray():
     # charger, plug cables, route them forward through the channel, done.
     # ──────────────────────────────────────────────────────────────────────
 
-    charger_x, charger_y = SLOT_POSITIONS["g2_case"]
-    _charger_front = charger_y - CHARGER_D / 2   # Y = -21
-    _charger_back  = charger_y + CHARGER_D / 2    # Y = 51
-    _charger_left  = charger_x - CHARGER_W / 2   # X = -69
-    _charger_right = charger_x + CHARGER_W / 2   # X = 69
+    # Charger Y stays on REAR_ROW_Y (coaxial with the G2 cradle above it), but
+    # the charger X is SHIFTED RIGHT to vacate the rear-left for the ESP32 base.
+    # The G2 case above (X=0) still rests fine over the shifted brick — the brick
+    # just sits under the right half of the case. Charger hugs the right wall;
+    # right edge = CHARGER_X_SHIFT + CHARGER_W/2 = 22 + 73 = 95 (wall inner 117.5).
+    CHARGER_X_SHIFT = 22
+    _g2_x, charger_y = SLOT_POSITIONS["g2_case"]
+    charger_x = CHARGER_X_SHIFT
+    _charger_front = charger_y - CHARGER_D / 2
+    _charger_back  = charger_y + CHARGER_D / 2
+    _charger_left  = charger_x - CHARGER_W / 2
+    _charger_right = charger_x + CHARGER_W / 2
 
     # ── Zone 1: Front cable channel — completely open ──────────────────
     # No ribs. The entire front channel is one open cavity from the
@@ -482,12 +504,13 @@ def build_bottom_tray():
         )
         tray = tray.union(ledge)
 
-    # AC input cable slot through left wall (-X side)
-    # The VanBon's AC cable exits its short side. Full height slot.
+    # AC input cable slot through RIGHT wall (+X side)
+    # The charger now hugs the right wall, so the AC cable exits the nearest
+    # (right) wall. The left wall is now the ESP32 USB-C exit.
     ac_slot = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
-        .center(-STAND_W / 2, charger_y)
+        .center(STAND_W / 2, charger_y)
         .box(WALL * 4, CHARGER_CABLE_SLOT_W, SPLIT_Z - BASE_H, centered=True)
     )
     tray = tray.cut(ac_slot)
@@ -562,59 +585,63 @@ def build_bottom_tray():
     # The arch bridges (14mm span, 2.5mm walls) spaghettified during printing
     # at aggressive speeds. Cable management uses Velcro straps instead.
 
-    # ── ESP32-S3 on breakout board mount (front-left corner, standoff platform) ──
-    # Breakout board sits on 4 standoff posts (like QuinLED mount pattern).
-    # Long edge along X, short edge along Y. USB-C port faces front wall.
-    # Board front edge is flush with the inner front wall — USB-C cable
-    # exits through the front wall slot. No cable clearance shift needed.
-    _esp_x = -STAND_W / 2 + WALL + ESP32_BB_W / 2   # center X
-    _esp_y = -STAND_D / 2 + WALL + ESP32_BB_D / 2    # center Y (flush with front wall)
+    # ── ESP32-S3 expansion-base mount (REAR-LEFT corner, ROTATED, drop-in pins) ──
+    # The screw-terminal expansion base sits on 4 locating pins (no screws).
+    # Rotated 90°: SHORT edge (56, =BB_D) along X, LONG edge (64, =BB_W) along Y.
+    # Front edge sits at ESP32_FRONT_Y (3mm behind the servo pockets); long edge
+    # runs back into the open rear depth and clears the iPad slot. USB-C faces the
+    # LEFT wall. Because of the rotation, the standoff pitch axes are swapped:
+    # PITCH_SHORT spans X, PITCH_LONG spans Y.
+    _esp_x = -STAND_W / 2 + WALL + ESP32_BB_D / 2   # rear-left corner, short edge along X
+    _esp_y = ESP32_FRONT_Y + ESP32_BB_W / 2          # front edge behind servos, long edge into rear
 
-    # Proximity sensor position (defined early for use in wiring grooves below)
-    _prox_x = _esp_x + ESP32_BB_W / 2 + 5 + PROX_W / 2   # sensor center X
-    _prox_y = -STAND_D / 2 + WALL + PROX_D / 2              # sensor center Y
+    # Proximity sensor — front wall, just right of center, for hands-free reveal.
+    # (No longer tied to the ESP32 position now that the board moved to the rear.)
+    _prox_x = 15                                      # sensor center X (front wall, right of center)
+    _prox_y = -STAND_D / 2 + WALL + PROX_D / 2        # sensor center Y (flush with front wall)
 
-    # 4 standoff posts at mounting hole positions (rectangular pitch)
+    # 4 locating pins at corner-hole positions (short pitch on X, long pitch on Y)
     for ex_sign, ey_sign in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
         esp_standoff = (
             cq.Workplane("XY")
             .workplane(offset=BASE_H)
             .center(
-                _esp_x + ex_sign * (ESP32_MOUNT_PITCH_X / 2),
-                _esp_y + ey_sign * (ESP32_MOUNT_PITCH_Y / 2),
+                _esp_x + ex_sign * (ESP32_MOUNT_PITCH_SHORT / 2),
+                _esp_y + ey_sign * (ESP32_MOUNT_PITCH_LONG / 2),
             )
             .circle(ESP32_STANDOFF_D / 2)
             .extrude(ESP32_STANDOFF_H)
         )
         tray = tray.union(esp_standoff)
 
-    # Cradle wall — left side (against the left inner wall, lateral support)
-    esp_cradle_left = (
+    # Cradle wall — RIGHT side (inner, lateral support). Left side is the USB-C
+    # exit, so no wall there. Wall spans the long (Y) edge of the rotated board.
+    esp_cradle_right = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
-        .center(_esp_x - ESP32_BB_W / 2 - ESP32_CRADLE_T / 2, _esp_y)
-        .rect(ESP32_CRADLE_T, ESP32_BB_D)
+        .center(_esp_x + ESP32_BB_D / 2 + ESP32_CRADLE_T / 2, _esp_y)
+        .rect(ESP32_CRADLE_T, ESP32_BB_W)
         .extrude(ESP32_CRADLE_H)
     )
-    tray = tray.union(esp_cradle_left)
+    tray = tray.union(esp_cradle_right)
 
-    # Cradle wall — rear side (back edge support, NO front wall to keep ports clear)
+    # Cradle wall — REAR side (back edge support). Spans the short (X) edge.
     esp_cradle_rear = (
         cq.Workplane("XY")
         .workplane(offset=BASE_H)
-        .center(_esp_x, _esp_y + ESP32_BB_D / 2 + ESP32_CRADLE_T / 2)
-        .rect(ESP32_BB_W, ESP32_CRADLE_T)
+        .center(_esp_x, _esp_y + ESP32_BB_W / 2 + ESP32_CRADLE_T / 2)
+        .rect(ESP32_BB_D, ESP32_CRADLE_T)
         .extrude(ESP32_CRADLE_H)
     )
     tray = tray.union(esp_cradle_rear)
 
-    # USB-C port slot through the front wall (for the dev board's USB-C cable)
+    # USB-C port slot through the LEFT wall (board's short edge faces left).
     _usb_z = BASE_H + ESP32_STANDOFF_H + ESP32_BB_PCB_H + 4  # center of USB port
     esp_usb_slot = (
         cq.Workplane("XY")
         .workplane(offset=_usb_z - ESP32_USB_SLOT_H / 2)
-        .center(_esp_x, -STAND_D / 2)
-        .rect(ESP32_USB_SLOT_W, WALL * 3)
+        .center(-STAND_W / 2, _esp_y)
+        .rect(WALL * 3, ESP32_USB_SLOT_W)
         .extrude(ESP32_USB_SLOT_H)
     )
     tray = tray.cut(esp_usb_slot)
@@ -742,7 +769,7 @@ def build_bottom_tray():
         cq.Workplane("XY")
         .workplane(offset=_wire_z)
         .center((_esp_x + _charger_left) / 2, _esp_y)
-        .rect(abs(_charger_left - _esp_x) + ESP32_W / 2, _wire_w)
+        .rect(abs(_charger_left - _esp_x) + ESP32_BB_D / 2, _wire_w)
         .extrude(_wire_d + 0.5)
     )
     tray = tray.cut(wire_esp_to_charger)
@@ -753,7 +780,7 @@ def build_bottom_tray():
         cq.Workplane("XY")
         .workplane(offset=_wire_z)
         .center((_esp_x + _led_ch_x) / 2, _esp_y)
-        .rect(abs(_esp_x - _led_ch_x) + ESP32_W / 2 + LED_CHANNEL_W / 2, _wire_w)
+        .rect(abs(_esp_x - _led_ch_x) + ESP32_BB_D / 2 + LED_CHANNEL_W / 2, _wire_w)
         .extrude(_wire_d + 0.5)
     )
     tray = tray.cut(wire_esp_to_led)
@@ -769,15 +796,25 @@ def build_bottom_tray():
     )
     tray = tray.cut(wire_qled_to_led)
 
-    # Groove 4: VL53L0X sensor → ESP32 (I2C wires, short run)
-    wire_sensor_to_esp = (
+    # Groove 4: VL53L0X sensor (front-center) → ESP32 (rear-left) I2C wires.
+    # The sensor and ESP32 are now far apart in both X and Y, so route an L-path:
+    # a Y-leg from the sensor back to the ESP32's Y, then an X-leg across to it.
+    wire_sensor_yleg = (
+        cq.Workplane("XY")
+        .workplane(offset=_wire_z)
+        .center(_prox_x, (_prox_y + _esp_y) / 2)
+        .rect(_wire_w, abs(_esp_y - _prox_y) + _wire_w)
+        .extrude(_wire_d + 0.5)
+    )
+    tray = tray.cut(wire_sensor_yleg)
+    wire_sensor_xleg = (
         cq.Workplane("XY")
         .workplane(offset=_wire_z)
         .center((_esp_x + _prox_x) / 2, _esp_y)
-        .rect(abs(_prox_x - _esp_x) + ESP32_W / 2 + PROX_W / 2, _wire_w)
+        .rect(abs(_prox_x - _esp_x) + ESP32_BB_D / 2 + _wire_w, _wire_w)
         .extrude(_wire_d + 0.5)
     )
-    tray = tray.cut(wire_sensor_to_esp)
+    tray = tray.cut(wire_sensor_xleg)
 
     # ── SG90 servo mounts (4x, behind front-row devices) ────────────────
     # Servos sit upright in the bottom tray, shaft pointing UP (+Z).
@@ -2568,24 +2605,24 @@ def build_ghost_components():
     """
     parts = {}
 
-    # ── ESP32-S3 on breakout board (front-left corner) ──────────────────
-    _esp_x = -STAND_W / 2 + WALL + ESP32_BB_W / 2
-    _esp_y = -STAND_D / 2 + WALL + ESP32_BB_D / 2
-    _esp_z = BASE_H + ESP32_STANDOFF_H  # breakout board PCB sits on standoffs
-    # Breakout board (bottom layer)
+    # ── ESP32-S3 expansion base (REAR-LEFT, ROTATED: short edge along X) ──
+    _esp_x = -STAND_W / 2 + WALL + ESP32_BB_D / 2
+    _esp_y = ESP32_FRONT_Y + ESP32_BB_W / 2
+    _esp_z = BASE_H + ESP32_STANDOFF_H  # expansion base PCB sits on locating pins
+    # Expansion base (bottom layer) — short edge (BB_D) along X, long (BB_W) along Y
     esp_breakout = (
         cq.Workplane("XY")
         .workplane(offset=_esp_z)
         .center(_esp_x, _esp_y)
-        .rect(ESP32_BB_W - 2, ESP32_BB_D - 2)  # actual PCB (no tolerance)
+        .rect(ESP32_BB_D - 2, ESP32_BB_W - 2)  # actual PCB (rotated, no tolerance)
         .extrude(ESP32_BB_PCB_H)
     )
-    # Dev board plugged in on top
+    # Dev board plugged in on top (also rotated: 25 wide along X, 54 long along Y)
     esp_devboard = (
         cq.Workplane("XY")
         .workplane(offset=_esp_z + ESP32_BB_PCB_H)
         .center(_esp_x, _esp_y)
-        .rect(25, 54)  # ESP32-S3 DevKitC actual size
+        .rect(25, 54)  # ESP32-S3 DevKitC actual size (long axis along Y)
         .extrude(12)    # component height above breakout
     )
     esp32 = esp_breakout.union(esp_devboard)
@@ -2627,8 +2664,8 @@ def build_ghost_components():
         servo = servo_body.union(servo_ears)
         parts[f"servo_{name}"] = (servo, (0.85, 0.45, 0.1, 0.8))
 
-    # ── VL53L0X proximity sensor ─────────────────────────────────────────
-    _prox_x = _esp_x + ESP32_W / 2 + 5 + PROX_W / 2
+    # ── VL53L0X proximity sensor (front wall, right of center) ───────────
+    _prox_x = 15
     _prox_y = -STAND_D / 2 + WALL + PROX_D / 2
     sensor = (
         cq.Workplane("XY")
