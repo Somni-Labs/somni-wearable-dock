@@ -208,14 +208,23 @@ CYBER_BAR_H = 3            # bar height (Z)
 CYBER_BAR_DEPTH = 1.5      # recess depth into 2.5mm wall (leaves 1.0mm diffuser skin)
 CYBER_DIFFUSER_T = WALL - CYBER_BAR_DEPTH  # 1.0mm remaining wall = diffuser
 
-# --- QuinLED-Dig-Uno mount (WLED controller, replaces old driver pocket) ---
-QLED_W = 55               # board width (X, long side + clearance)
-QLED_D = 45               # board depth (Y, short side + clearance)
-QLED_H = 30               # board height (Z, tallest component)
-QLED_STANDOFF_H = 3       # standoff post height
-QLED_STANDOFF_D = 1.8     # standoff post diameter (fits through M2 holes)
-QLED_MOUNT_PITCH_X = 42.5 # M2 hole spacing along X (long side, measured)
-QLED_MOUNT_PITCH_Y = 32.5 # M2 hole spacing along Y (short side, measured)
+# --- QuinLED-Dig-Uno mount (WLED controller) ---
+# *** CALIPER-MEASURED 2026-06-08 — board is smaller than prior estimates. ***
+#   Footprint:   48.55 (long) × 39.21 (short)
+#   Mount holes: 1.5mm dia
+#   Hole pitch:  42.65 (long dir) × 33.26 (short dir)
+#   Height:      24.45mm (tallest component)
+# Smaller footprint lets it tuck into the FRONT-RIGHT corner forward of the
+# mudra servo (rear edge flush to servo pocket front at Y=-44), resolving the
+# pre-existing QuinLED↔mudra-servo overlap. Reduced tolerance (+0.5/side) so the
+# 40mm depth fits the 41mm front-right pocket.
+QLED_W = 48.55 + 0.5 * 2   # long edge, along X (caliper 48.55)
+QLED_D = 39.21 + 0.5 * 2   # short edge, into tray Y (caliper 39.21)
+QLED_H = 24.45             # board height, tallest component (caliper)
+QLED_STANDOFF_H = 3       # locating-pin height
+QLED_STANDOFF_D = 1.3      # locating-pin diameter (drop-in slip-fit through 1.5mm holes)
+QLED_MOUNT_PITCH_X = 42.65 # hole spacing along long edge (caliper, ctr-to-ctr)
+QLED_MOUNT_PITCH_Y = 33.26 # hole spacing along short edge (caliper, ctr-to-ctr)
 QLED_CABLE_CLEARANCE = 15 # clearance in front of ports (both short edges)
 QLED_CRADLE_H = 8         # cradle wall height
 QLED_CRADLE_T = 2.5       # cradle wall thickness (was 1.5, beefed for FDM)
@@ -648,14 +657,16 @@ def build_bottom_tray():
 
     # ── QuinLED-Dig-Uno WLED controller mount (front-right corner) ───────
     # Rectangular PCB (long side along X, short side along Y).
-    # Ports/screw terminals on both short edges (front and back of board),
-    # so board is shifted back (+Y) to give cable clearance on both ends.
-    # Right-side cradle wall for lateral support; NO front/back cradle walls
-    # (they would block the port access).
-    _qled_x = STAND_W / 2 - WALL - QLED_W / 2    # center X (right side of tray)
-    _qled_y = -STAND_D / 2 + WALL + QLED_CABLE_CLEARANCE + QLED_D / 2  # shifted back for front cable clearance
+    # Tucked into the front-right corner FORWARD of the mudra servo: the rear
+    # edge is anchored flush to the servo pocket front (Y=-44) so the board no
+    # longer overlaps the servo. The small real footprint (40mm deep) fits the
+    # ~41mm pocket between the front wall and the servo. Right-side cradle wall
+    # for lateral support; no front/rear walls (they'd block port access).
+    _servo_pocket_front = SERVO_Y - SERVO_POCKET_D / 2   # Y = -44
+    _qled_x = STAND_W / 2 - WALL - QLED_W / 2    # center X (right wall)
+    _qled_y = _servo_pocket_front - QLED_D / 2    # rear edge flush to servo pocket front
 
-    # 4 standoff posts at M2 mounting hole positions (rectangular pitch)
+    # 4 locating pins at the 1.5mm corner-hole positions (rectangular pitch)
     for qx_sign, qy_sign in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
         qled_standoff = (
             cq.Workplane("XY")
@@ -2628,9 +2639,9 @@ def build_ghost_components():
     esp32 = esp_breakout.union(esp_devboard)
     parts["esp32"] = (esp32, (0.1, 0.35, 0.7, 0.85))
 
-    # ── QuinLED-Dig-Uno (front-right corner, shifted back for cable clearance) ──
+    # ── QuinLED-Dig-Uno (front-right corner, forward of mudra servo) ──
     _qled_x = STAND_W / 2 - WALL - QLED_W / 2
-    _qled_y = -STAND_D / 2 + WALL + QLED_CABLE_CLEARANCE + QLED_D / 2
+    _qled_y = (SERVO_Y - SERVO_POCKET_D / 2) - QLED_D / 2   # rear flush to servo pocket front
     _qled_z = BASE_H + QLED_STANDOFF_H
     quinled = (
         cq.Workplane("XY")
