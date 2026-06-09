@@ -1,0 +1,279 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slice-all-3mf
+  namespace: utilities
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      initContainers:
+      - name: fetch-stls
+        image: alpine/git:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "=== Fetching STLs and 3MF converter ==="
+          git clone --depth 1 https://github.com/somni-labs/somni-wearable-dock.git /tmp/repo
+          cp /tmp/repo/output/v1-charging-stand-bottom-tray.stl /shared/bottom-tray.stl
+          cp /tmp/repo/output/v1-charging-stand-top-tray.stl /shared/top-tray.stl
+          cp /tmp/repo/output/v1-charging-stand-device-tray.stl /shared/device-tray.stl
+          cp /tmp/repo/output/v1-charging-stand-mudra-pole.stl /shared/mudra-pole.stl
+          cp /tmp/repo/output/v1-charging-stand-ipad-wall.stl /shared/ipad-wall.stl
+          cp /tmp/repo/output/v1-charging-stand-ipad-cover.stl /shared/ipad-cover.stl
+          cp /tmp/repo/output/v1-charging-stand-tilt-plate-uh.stl /shared/tilt-plate-uh.stl
+          cp /tmp/repo/output/v1-charging-stand-tilt-plate-r1.stl /shared/tilt-plate-r1.stl
+          cp /tmp/repo/output/v1-charging-stand-tilt-plate-omi.stl /shared/tilt-plate-omi.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-uh_ring.stl /shared/push-rod-uh.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-r1_ring.stl /shared/push-rod-r1.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-omi.stl /shared/push-rod-omi.stl
+          cp /tmp/repo/output/v1-charging-stand-push-rod-mudra.stl /shared/push-rod-mudra.stl
+          cp /tmp/repo/output/v1-charging-stand-servo-cam.stl /shared/servo-cam.stl
+          echo "--- Fetching Qidi 3MF converter ---"
+          git clone --depth 1 https://github.com/thelegendtubaguy/Qidi-3MF-Generator.git /shared/3mf-gen
+          ls -la /shared/
+          echo "=== Init complete ==="
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      containers:
+      - name: slicer
+        image: cznewt/prusa-slicer:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "=== PrusaSlicer + Qidi 3MF — All Parts ==="
+          echo "  Slices all parts with PETG profile, converts to .gcode.3mf,"
+          echo "  validates, and uploads to Moonraker."
+          echo ""
+
+          SLICER=/prusa-slicer/prusa-slicer
+          INI=/tmp/petg.ini
+          MOONRAKER="http://192.168.1.15:7125"
+          CONVERTER="/shared/3mf-gen/qidi_3mf_from_gcode.py"
+
+          cat > "$INI" << 'PROFILE'
+          layer_height = 0.3
+          first_layer_height = 0.35
+          perimeters = 3
+          top_solid_layers = 5
+          bottom_solid_layers = 4
+          fill_density = 20%
+          fill_pattern = gyroid
+          perimeter_speed = 60
+          external_perimeter_speed = 40
+          infill_speed = 80
+          solid_infill_speed = 60
+          first_layer_speed = 20
+          travel_speed = 180
+          bridge_speed = 25
+          gap_fill_speed = 30
+          small_perimeter_speed = 30
+          support_material = 1
+          support_material_auto = 1
+          support_material_spacing = 2
+          support_material_angle = 0
+          skirts = 2
+          skirt_distance = 5
+          brim_width = 3
+          temperature = 240
+          first_layer_temperature = 245
+          bed_temperature = 85
+          first_layer_bed_temperature = 85
+          fan_always_on = 0
+          min_fan_speed = 0
+          max_fan_speed = 50
+          bridge_fan_speed = 60
+          overhangs_fan_speed = 50
+          disable_fan_first_layers = 4
+          gcode_flavor = klipper
+          bed_shape = 0x0,275x0,275x295,0x295
+          max_print_height = 265
+          nozzle_diameter = 0.4
+          retract_length = 1.2
+          retract_speed = 30
+          retract_lift = 0.2
+          start_gcode = G28\nG1 Z5 F5000
+          end_gcode = M400\nG91\nG1 E-5 F2700\nG1 Z10 F3000\nG90\nG1 X10 Y270 F6000\nM400\nM140 S0\nM104 S0\nM106 S0\nG4 P2000\nM84
+          PROFILE
+
+          # No-supports profile for device tray and accessories
+          cp "$INI" /tmp/petg_nosupport.ini
+          sed -i 's/support_material = 1/support_material = 0/' /tmp/petg_nosupport.ini
+          sed -i 's/support_material_auto = 1/support_material_auto = 0/' /tmp/petg_nosupport.ini
+          sed -i 's/brim_width = 3/brim_width = 0/' /tmp/petg_nosupport.ini
+
+          sed -i 's/^[[:space:]]*//' "$INI"
+          sed -i 's/^[[:space:]]*//' /tmp/petg_nosupport.ini
+
+          validate_gcode() {
+            local FILE="$1"
+            local ERRORS=0
+            echo "  Validating $FILE..."
+            local BED_TEMP
+            BED_TEMP=$(grep -E '^M1[49]0 S[0-9]+' "$FILE" | sed 's/.*S\([0-9]*\).*/\1/' | head -1)
+            if [ -z "$BED_TEMP" ] || [ "$BED_TEMP" -lt 75 ]; then
+              echo "  FAIL: Bed temp (got: ${BED_TEMP:-none}, need >= 75)"
+              ERRORS=$((ERRORS + 1))
+            fi
+            local EXT_TEMP
+            EXT_TEMP=$(grep -E '^M10[49] S[0-9]+' "$FILE" | sed 's/.*S\([0-9]*\).*/\1/' | sort -n | tail -1)
+            if [ -z "$EXT_TEMP" ] || [ "$EXT_TEMP" -lt 235 ]; then
+              echo "  FAIL: Extruder temp (got: ${EXT_TEMP:-none}, need >= 235)"
+              ERRORS=$((ERRORS + 1))
+            fi
+            local LAYER_COUNT
+            LAYER_COUNT=$(grep -c ';LAYER_CHANGE' "$FILE" || true)
+            if [ "$LAYER_COUNT" -lt 3 ]; then
+              echo "  FAIL: Only $LAYER_COUNT layers"
+              ERRORS=$((ERRORS + 1))
+            fi
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "  ABORT: $ERRORS validation error(s) in $FILE"
+              exit 1
+            fi
+            echo "  PASS: bed=${BED_TEMP}C ext=${EXT_TEMP}C layers=${LAYER_COUNT}"
+          }
+
+          fix_filament_metadata() {
+            local GCODE="$1"
+            echo "  Fixing filament metadata (PrusaSlicer → QIDI Q2 PETG)..."
+            # PrusaSlicer writes "; filament_type = PLA" at the end of the gcode
+            # even when printing PETG (it doesn't know about filament profiles).
+            # The 3MF converter reads this and writes PLA into the metadata.
+            # Fix: replace ALL filament_type = PLA with PETG in the gcode.
+            sed -i 's/; filament_type = PLA/; filament_type = PETG/g' "$GCODE"
+            # Also inject printer_model if not present
+            if ! grep -q '; printer_model' "$GCODE"; then
+              sed -i '1a\; printer_model = QIDI Q2' "$GCODE"
+            fi
+            # Set filament colour to dark grey (PETG we're using)
+            sed -i 's/; filament_colour = .*/; filament_colour = #333333/g' "$GCODE"
+            # Verify
+            local FT=$(grep '; filament_type' "$GCODE" | tail -1 | sed 's/.*= //')
+            echo "  Filament type in gcode: $FT"
+          }
+
+          convert_3mf() {
+            local GCODE="$1"
+            local OUTPUT="$2"
+            fix_filament_metadata "$GCODE"
+            echo "  Converting to .gcode.3mf..."
+            python3 "$CONVERTER" "$GCODE" -o "$OUTPUT" --printer-model "Q2" --force
+            echo "  Created: $OUTPUT ($(wc -c < "$OUTPUT") bytes)"
+            # Verify the metadata is correct
+            python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1],'r'); si=z.read('Metadata/slice_info.config').decode(); [print('    '+l.strip()) for l in si.split(chr(10)) if 'printer_model' in l or 'type=' in l]" "$OUTPUT"
+          }
+
+          upload_3mf() {
+            local FILE="$1"
+            local FILENAME="$2"
+            echo "  Uploading $FILENAME..."
+            # Delete old plain .gcode version if it exists (strip .3mf for legacy name)
+            local LEGACY_NAME="${FILENAME%.3mf}"
+            curl -s -X DELETE "$MOONRAKER/server/files/gcodes/$LEGACY_NAME" 2>/dev/null || true
+            # Delete old .gcode.3mf version
+            curl -s -X DELETE "$MOONRAKER/server/files/gcodes/$FILENAME" 2>/dev/null || true
+            sleep 2
+            for ATTEMPT in 1 2 3; do
+              RESULT=$(curl -s -X POST "$MOONRAKER/server/files/upload" \
+                -F "file=@$FILE;filename=$FILENAME" \
+                -F "root=gcodes")
+              if echo "$RESULT" | grep -q '"error"'; then
+                echo "  Attempt $ATTEMPT failed, retrying..."
+                sleep 5
+              else
+                echo "  ✅ Uploaded: $FILENAME"
+                return 0
+              fi
+            done
+            echo "  ❌ Upload failed for $FILENAME"
+            return 1
+          }
+
+          cap_fan() {
+            sed -i 's/M106 S255/M106 S128/g' "$1"
+          }
+
+          # ── BOTTOM TRAY ──
+          echo ""
+          echo "========== BOTTOM TRAY =========="
+          $SLICER --load "$INI" --center 137,147 \
+            --output /tmp/bottom.gcode --export-gcode /shared/bottom-tray.stl
+          cap_fan /tmp/bottom.gcode
+          validate_gcode /tmp/bottom.gcode
+          convert_3mf /tmp/bottom.gcode /tmp/v1-charging-stand-bottom-tray.gcode.3mf
+          upload_3mf /tmp/v1-charging-stand-bottom-tray.gcode.3mf v1-charging-stand-bottom-tray.gcode.3mf
+
+          # ── TOP TRAY ──
+          echo ""
+          echo "========== TOP TRAY =========="
+          $SLICER --load "$INI" --center 137,147 \
+            --output /tmp/top.gcode --export-gcode /shared/top-tray.stl
+          cap_fan /tmp/top.gcode
+          validate_gcode /tmp/top.gcode
+          convert_3mf /tmp/top.gcode /tmp/v1-charging-stand-top-tray.gcode.3mf
+          upload_3mf /tmp/v1-charging-stand-top-tray.gcode.3mf v1-charging-stand-top-tray.gcode.3mf
+
+          # ── DEVICE TRAY (no supports) ──
+          echo ""
+          echo "========== DEVICE TRAY =========="
+          $SLICER --load /tmp/petg_nosupport.ini --center 137,147 \
+            --output /tmp/device.gcode --export-gcode /shared/device-tray.stl
+          cap_fan /tmp/device.gcode
+          validate_gcode /tmp/device.gcode
+          convert_3mf /tmp/device.gcode /tmp/v1-charging-stand-device-tray.gcode.3mf
+          upload_3mf /tmp/v1-charging-stand-device-tray.gcode.3mf v1-charging-stand-device-tray.gcode.3mf
+
+          # ── MUDRA POLE ──
+          echo ""
+          echo "========== MUDRA POLE =========="
+          $SLICER --load "$INI" --center 137,147 \
+            --output /tmp/pole.gcode --export-gcode /shared/mudra-pole.stl
+          cap_fan /tmp/pole.gcode
+          validate_gcode /tmp/pole.gcode
+          convert_3mf /tmp/pole.gcode /tmp/v1-charging-stand-mudra-pole.gcode.3mf
+          upload_3mf /tmp/v1-charging-stand-mudra-pole.gcode.3mf v1-charging-stand-mudra-pole.gcode.3mf
+
+          # ── ACCESSORIES (13 parts, no supports) ──
+          echo ""
+          echo "========== ACCESSORIES =========="
+          $SLICER --load /tmp/petg_nosupport.ini --center 137,147 \
+            --output /tmp/accessories.gcode --export-gcode \
+            /shared/ipad-wall.stl \
+            /shared/ipad-cover.stl \
+            /shared/tilt-plate-uh.stl \
+            /shared/tilt-plate-r1.stl \
+            /shared/tilt-plate-omi.stl \
+            /shared/push-rod-uh.stl \
+            /shared/push-rod-r1.stl \
+            /shared/push-rod-omi.stl \
+            /shared/push-rod-mudra.stl \
+            /shared/servo-cam.stl \
+            /shared/servo-cam.stl \
+            /shared/servo-cam.stl \
+            /shared/servo-cam.stl
+          cap_fan /tmp/accessories.gcode
+          validate_gcode /tmp/accessories.gcode
+          convert_3mf /tmp/accessories.gcode /tmp/v1-charging-stand-accessories.gcode.3mf
+          upload_3mf /tmp/v1-charging-stand-accessories.gcode.3mf v1-charging-stand-accessories.gcode.3mf
+
+          echo ""
+          echo "========================================="
+          echo "=== ALL 5 PARTS SLICED + CONVERTED ==="
+          echo "========================================="
+          echo "  Format: .gcode.3mf (QIDI Q2 native)"
+          echo "  Profile: PETG (240/245C ext, 85C bed)"
+          echo ""
+          ls -la /tmp/v1-charging-stand-*.gcode.3mf
+        volumeMounts:
+        - name: shared
+          mountPath: /shared
+      volumes:
+      - name: shared
+        emptyDir: {}
